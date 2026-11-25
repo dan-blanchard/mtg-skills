@@ -93,6 +93,27 @@ write operation.
 _Avoid_: "node replacement" (the mirror node is never replaced), "patching"
 (vague).
 
+**Pump view** (`_card_ir.crosswalk.perpetual`):
+The decoration of a perpetual power/toughness change (`ApplyPerpetual` with a
+`ModifyPowerToughness` modification) that lands on a creature on the
+battlefield: concept `pump`, carrying a `Pump` / `PumpAll` mirror node with the
+change's own amounts and recipient, so every pump lane reads it with no special
+case. Built at the tail of the tree build, after the recovery stage (whose
+reading of a residue tells what a later "it" names), so the overlay stages'
+purity snapshot already holds it. The `ApplyPerpetual` node stays in the unit's
+typed tree, where the reads of its other parts (a keyword it grants, a
+graveyard return) walk it. Only a creature on the battlefield is pumped — a
+card in a hand, library or graveyard, or a spell, is changed but not pumped:
+the lane's own decision, since "perpetually" is Arena-only and has no
+Comprehensive Rules entry. A "those creatures" view is a `PumpAll` over the
+earlier effect's filter, so it keeps whose creatures they are; a raise on a
+population only your opponents control is no pump of yours. The rules live in `_card_ir.perpetual_rules`, which the
+parked-change rewrite (`misparsed_shapes`) asks too. The view is marked
+`ConceptNode.perpetual`: the change lasts, so `pump_makers` reads it as timed
+or better on its own node, except a change to the card itself (the card
+growing, no pump maker).
+_Avoid_: "perpetual pump" for a change to a card off the battlefield.
+
 **Clause grammar**:
 The shared pure text→structure clause parser (prefix peeling + verb dispatch)
 that turns an English clause phase couldn't parse into a structured reading.

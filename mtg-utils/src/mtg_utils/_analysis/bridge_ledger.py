@@ -2223,21 +2223,12 @@ def _face_up_pump_gap(tree: ConceptTree) -> bool:
 
 
 # ── perpetual_modify_pt: Alchemy's "perpetually gets" ────────────────────────
-# A combat-frame trigger's perpetual pump of your own creature → combat_buff_engine:
-# By Elspeth's Command's begin-combat "Up to one target Soldier perpetually gets
-# +1/+1", Hurkyl's Prodigy's attack "~ can't be blocked this turn and it
-# perpetually gets +2/+0".
-_COMBAT_PERPETUAL_RX = re.compile(
-    r"\bup to one target soldier perpetually gets \+1/\+1\b"
-    r"|\bcan't be blocked this turn and it perpetually gets \+\d+/\+\d+",
-    re.IGNORECASE,
-)
-
-
-def _combat_perpetual_gap(tree: ConceptTree) -> bool:
-    return _says(_COMBAT_PERPETUAL_RX, tree.residues("perpetual_modify_pt"))
-
-
+# (The combat-frame perpetual pump row — By Elspeth's Command's begin-combat "Up
+# to one target Soldier perpetually gets +1/+1", Hurkyl's Prodigy's attack "~
+# can't be blocked this turn and it perpetually gets +2/+0" → combat_buff_engine
+# — retired 2026-11-25: ``misparsed_shapes``' perpetual-pump row writes both as
+# phase's ``ApplyPerpetual`` change, which ``crosswalk.perpetual`` reads as the
+# pump it is.)
 # A counted perpetual pump → scaling_pump: Gyox's "Those duplicates perpetually
 # get +X/+X", Mycoid Resurrection's "… perpetually gets +X/+X, where X is the
 # number of permanent cards in your graveyard". Bounded to the two subjects that
@@ -3955,16 +3946,6 @@ BRIDGES: dict[str, Bridge] = {
             hits=1,
         ),
         # perpetual_modify_pt
-        _residue_row(
-            "perpetual_combat_self_pump_parked",
-            "combat_buff_engine",
-            "perpetual_modify_pt",
-            "a combat trigger's perpetual pump of your creature",
-            ("By Elspeth's Command", "Hurkyl's Prodigy"),
-            _combat_perpetual_gap,
-            _oracle_match(_COMBAT_PERPETUAL_RX),
-            hits=2,
-        ),
         _residue_row(
             "perpetual_x_pump_parked",
             "scaling_pump",

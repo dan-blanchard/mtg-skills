@@ -131,6 +131,60 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   parked condition is the gap, and a ledger row serves it).
   ``test_parked_pump_canary`` fails once phase types the pump.
 
+* **A perpetual pump phase parks.** "Those creatures perpetually get +2/+0"
+  (Chaos Balor, after "deals 2 damage to each creature target player
+  controls"), "~ and that creature perpetually get +1/+1" (Leaf-Leap Guide) are
+  ``perpetual_modify_pt`` / ``unbound_subject`` residues. Phase types "~
+  perpetually gets +1/+1" as ``ApplyPerpetual{target, modification:
+  ModifyPowerToughness}`` (Accident-Prone Apprentice), which
+  ``crosswalk.perpetual`` reads as a pump on a creature on the battlefield (the
+  lane's own decision; "perpetually" is Arena-only, with no Comprehensive Rules
+  entry). A residue the shared clause grammar reads as such a change
+  (``clause_grammar.split_pump``) is written in that form, one change per
+  subject that names a creature on the battlefield, on the target phase writes
+  for the words: ``Any`` for "~" (Wary Zone Guard), ``SelfRef`` for an "it"
+  after an instruction that leaves "~" on the battlefield or returns it there
+  (Hex, Kellan's Companion; ``clause_grammar.lead_object``, which also tells a
+  lead that takes the card away — "return ~ to its owner's hand and it …" stays
+  parked), ``ParentTarget`` for "that Elf" after an untap of it or an "it"
+  after "return it to the battlefield" (Vladimir and Godfrey),
+  ``TriggeringSource`` for the creature whose entering triggered it (Lulu,
+  Forgetful Hollyphant), ``TrackedSet`` for "those creatures" after a
+  mass effect over them (Circadian Struggle), a ``Typed`` filter for a target
+  (Davriel's Withering), the keywords it gains beside (Jaheira, Stirring
+  Harper) and "up to one" as ``multi_target``. Where it lands is asked of
+  ``_card_ir.perpetual_rules``, the rules ``crosswalk.perpetual`` asks of the
+  typed tree. A residue that holds more — the
+  instruction before the pump ("return ~ from your graveyard to the battlefield
+  tapped and it perpetually gets +1/+0": Benalish Partisan, Managorger Phoenix,
+  Hurkyl's Prodigy), a quoted ability (Sewer Plague), a grant the grammar can't
+  read whole ("and gains reach, trample, and ward {2}": Wilson, Majestic Bear),
+  a subject naming cards
+  ("~ and that Dragon card": Darigaaz's Whelp; Freyalise, Skyshroud Partisan)
+  — stays, the change chained after it (before it, where its ``ParentTarget``
+  names the effect before the residue). Left parked: a subject naming only
+  cards outside the battlefield (most of them: "creature cards in your
+  graveyard", "the topmost creature card in your library"), a group ("creatures
+  you control" — Legion of Clay, Lae'zel, Primal Warrior: phase's perpetual
+  change over a population reaches only cards outside the battlefield, so no
+  form says it), a creature "of your choice" (Alora, Cheerful Thief: chosen, not
+  targeted), an X, a condition (Mace of Disruption).
+  ``test_parked_perpetual_pump_canary`` fails once phase types them.
+
+* **A pump as a clause's second instruction.** "Draw X cards and the chosen
+  creatures get +X/+X and gain trample" (Spry and Mighty) is one
+  ``unparsed_verb_arguments`` residue, which the recovery reads as the draw. The
+  pump is typed after it as the ``Pump`` on the creatures the ``TargetOnly``
+  chose (``ParentTarget``); the residue stays for the draw and the grant.
+  ``test_second_verb_pump_canary`` fails once phase types it.
+
+* **A static pump line parked beside a grant.** "Equipped creature gets +2/+1
+  and has \"{T}, Unattach ~: Destroy target creature.\"" (Heartseeker) is a
+  ``granter_reference_unreached`` ability. The pump is added as the
+  ``Continuous`` static phase types for "Equipped creature gets +2/+0"
+  (Bonesplitter); the residue stays for the granted ability.
+  ``test_static_pump_line_canary`` fails once phase types it.
+
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
 
@@ -143,12 +197,22 @@ from typing import NamedTuple
 
 from mtg_utils._card_ir.clause_grammar import (
     ParkedPump,
+    PumpSubject,
+    SplitPump,
     attached_attackers_kind,
     binding_sentence,
+    lead_object,
     parked_pump,
+    split_pump,
     subtype_keyword_grant,
 )
-from mtg_utils._card_ir.dropped_keywords import add_keyword, static_def
+from mtg_utils._card_ir.dropped_keywords import PHASE_KEYWORDS, add_keyword, static_def
+from mtg_utils._card_ir.perpetual_rules import (
+    card_by_zones,
+    earlier_object,
+    tracked_population,
+    trigger_object,
+)
 
 #: The fields that hold an ability's head body: a face's ``abilities`` entries
 #: and a trigger's ``execute``. A ``sub_ability`` follows an earlier effect, whose
@@ -398,11 +462,13 @@ def _chain(body: object) -> Iterator[dict]:
 
 
 class _Earlier(NamedTuple):
-    """What precedes a body in its chain: any effect at all, and one that names
-    an object (a target, a filter) a later "it" could mean."""
+    """What precedes a body in its chain: any effect at all, one that names
+    an object (a target, a filter) a later "it" could mean, and the effect just
+    before it."""
 
     any: bool = False
     object: bool = False
+    last: dict | None = None
 
 
 #: An effect's ``target`` that names the card itself or a player, never an
@@ -419,23 +485,37 @@ def _with_earlier(chain: Iterable[dict]) -> Iterator[tuple[dict, _Earlier]]:
     earlier = _Earlier()
     for body in chain:
         yield body, earlier
-        earlier = _Earlier(any=True, object=earlier.object or _names_object(body))
+        effect = body.get("effect")
+        earlier = _Earlier(
+            any=True,
+            object=earlier.object or _names_object(body),
+            last=effect if isinstance(effect, dict) else None,
+        )
+
+
+def _chains_with_modes(head: object) -> Iterator[tuple[dict, _Earlier]]:
+    """The bodies of ``head``'s chain, and of each mode's chain a body of it
+    offers (``mode_abilities``: Chaos Balor's "choose two at random")."""
+    for body, earlier in _with_earlier(_chain(head)):
+        yield body, earlier
+        for mode in body.get("mode_abilities") or ():
+            yield from _chains_with_modes(mode)
 
 
 def _described_bodies(rec: dict) -> Iterator[tuple[dict, str, dict | None, _Earlier]]:
     """``(body, description, trigger, earlier)`` for every body of each ability's
-    and each trigger's own chain: the description is the ability's or trigger's
-    whole text, ``trigger`` the trigger a body runs for (``None`` in an
-    ability), ``earlier`` what precedes the body in its chain."""
+    and each trigger's own chain, its modes' included: the description is the
+    ability's or trigger's whole text, ``trigger`` the trigger a body runs for
+    (``None`` in an ability), ``earlier`` what precedes the body in its chain."""
     for ability in rec.get("abilities") or ():
         if isinstance(ability, dict):
             description = str(ability.get("description") or "")
-            for body, earlier in _with_earlier(_chain(ability)):
+            for body, earlier in _chains_with_modes(ability):
                 yield body, description, None, earlier
     for trig in rec.get("triggers") or ():
         if isinstance(trig, dict):
             description = str(trig.get("description") or "")
-            for body, earlier in _with_earlier(_chain(trig.get("execute"))):
+            for body, earlier in _chains_with_modes(trig.get("execute")):
                 yield body, description, trig, earlier
 
 
@@ -464,6 +544,8 @@ def _pump_target(pump: ParkedPump, trig: dict | None, earlier: _Earlier) -> dict
         return {"type": "SelfRef" if watches_itself else "TriggeringSource"}
     if who.recipient == "those":
         return {"type": "TrackedSet", "id": 0} if earlier.any else None
+    if who.recipient not in ("attached", "group"):
+        return None
     types: list[object] = ["Creature"]
     if who.subtype is not None:
         types.append({"Subtype": who.subtype})
@@ -523,6 +605,336 @@ def _parked_pump(
     }
 
 
+#: The residues a perpetual pump is parked as: the clause, and the "it" whose
+#: subject phase couldn't bind.
+_PERPETUAL_RESIDUES = frozenset({"perpetual_modify_pt", "unbound_subject"})
+#: The residue a pump is parked in as a clause's second instruction ("draw X
+#: cards and the chosen creatures get +X/+X …" — Spry and Mighty).
+_SECOND_VERB_RESIDUE = "unparsed_verb_arguments"
+#: The residue a static pump line is parked as beside the ability it grants
+#: ("Equipped creature gets +2/+1 and has \"…\"" — Heartseeker).
+_STATIC_LINE_RESIDUE = "granter_reference_unreached"
+
+
+def _typed_zones(filt: object) -> tuple[bool, list[str]]:
+    """Whether ``filt`` is a ``Typed`` filter, and the zones its ``InZone``
+    properties name."""
+    if not isinstance(filt, dict) or filt.get("type") != "Typed":
+        return False, []
+    return True, [
+        p.get("zone")
+        for p in filt.get("properties") or ()
+        if isinstance(p, dict) and p.get("type") == "InZone"
+    ]
+
+
+def _creature_face(rec: dict) -> bool:
+    return "Creature" in ((rec.get("card_type") or {}).get("core_types") or ())
+
+
+def _on_the_battlefield_self(rec: dict, trig: dict | None) -> bool:
+    """The card itself, a creature, in a trigger that works on the
+    battlefield (``perpetual_rules.card_by_zones``)."""
+    return (
+        _creature_face(rec)
+        and trig is not None
+        and card_by_zones(trig.get("trigger_zones") or ()) == "self"
+    )
+
+
+def _trigger_object(trig: dict | None) -> str:
+    if trig is None:
+        return "unknown"
+    return trigger_object(
+        trig.get("mode") if isinstance(trig.get("mode"), str) else None,
+        trig.get("destination"),
+        watches_self=(trig.get("valid_card") or {}).get("type") == "SelfRef",
+    )
+
+
+def _perpetual_target(
+    who: PumpSubject, pump: SplitPump, rec: dict, trig: dict | None, earlier: _Earlier
+) -> dict | None:
+    """The ``ApplyPerpetual`` target phase writes for ``who``, when ``who`` is a
+    creature on the battlefield; else ``None``. "~" is ``Any`` (Wary Zone
+    Guard's "~ perpetually gets"); an "it" names the card the instruction
+    before it names (``clause_grammar.lead_object``): "~" left on or returned
+    to the battlefield is ``SelfRef`` (Hex, Kellan's Companion's "it
+    perpetually gets"), "it" returned there ``ParentTarget`` (Vladimir and
+    Godfrey), and a card the lead takes away is no pump; "that creature" is
+    the earlier effect's target (``ParentTarget``) or the trigger's object
+    (``TriggeringSource`` — Lulu, Forgetful Hollyphant's "it perpetually
+    gains"); "those creatures" the population an earlier mass effect acted on
+    (``TrackedSet`` — Circadian Struggle's "those cards"); a target a ``Typed``
+    filter (Davriel's Withering). A group ("creatures you control") has none:
+    phase's perpetual change over a population reaches only cards outside the
+    battlefield. Where each lands is ``_card_ir.perpetual_rules``'s answer."""
+    last = earlier.last or {}
+    if who.recipient == "self":
+        return {"type": "Any"} if _on_the_battlefield_self(rec, trig) else None
+    if who.recipient == "it":
+        # the object the instruction before it names, where it leaves it
+        lead = lead_object(pump.lead) if pump.lead else None
+        if lead is None or lead.place == "away" or not _creature_face(rec):
+            return None
+        if lead.place == "unmoved" and not _on_the_battlefield_self(rec, trig):
+            return None
+        return {"type": "SelfRef" if lead.who == "self" else "ParentTarget"}
+    typed, zones = _typed_zones(last.get("target"))
+    if who.recipient == "that":
+        if earlier.object:
+            found = earlier_object(
+                last.get("type"),
+                destination=last.get("destination"),
+                choice_zone=last.get("zone"),
+                target_typed=typed,
+                target_zones=zones,
+            )
+            return {"type": "ParentTarget"} if found == "battlefield" else None
+        found = _trigger_object(trig)
+        return {"type": "TriggeringSource"} if found == "battlefield" else None
+    if who.recipient == "those":
+        found = tracked_population(
+            last.get("type"), target_typed=typed, target_zones=zones
+        )
+        return {"type": "TrackedSet", "id": 0} if found == "battlefield" else None
+    if who.recipient == "target":
+        types: list[object] = [
+            {"Subtype": who.subtype} if who.subtype is not None else "Creature"
+        ]
+        return {
+            "type": "Typed",
+            "type_filters": types,
+            "controller": "You" if who.yours else "Opponent" if who.opponents else None,
+            "properties": [],
+        }
+    return None
+
+
+def _sub_body(effect: dict, duration: str | None, *, up_to: bool) -> dict:
+    """An ability body as phase chains one after another effect, targeting "up
+    to one" object when ``up_to`` (Freyalise, Skyshroud Partisan's "Untap up to
+    one target Elf")."""
+    body = {
+        "kind": "Spell",
+        "effect": effect,
+        "cost": None,
+        "sub_ability": None,
+        "duration": duration,
+        "description": None,
+        "target_prompt": None,
+        "condition": None,
+        "optional_targeting": False,
+        "optional": False,
+        "forward_result": False,
+        "sub_link": "SequentialSibling",
+    }
+    if up_to:
+        body["multi_target"] = {"min": 0, "max": {"type": "Fixed", "value": 1}}
+    return body
+
+
+class _PumpSplit(NamedTuple):
+    """The typed pumps a parked clause holds (one per subject, each with
+    whether it targets "up to one" object), whether the residue stays beside
+    them (it holds more than the pumps: another instruction, a quoted ability,
+    a subject naming cards), whether they go before it (their ``ParentTarget``
+    names the effect before the residue), and their duration."""
+
+    effects: list[tuple[dict, bool]]
+    keep: bool
+    before: bool
+    duration: str | None
+
+
+def _fixed(written: str) -> dict | None:
+    return (
+        None if written[1:].upper() == "X" else {"type": "Fixed", "value": int(written)}
+    )
+
+
+def _perpetual_split(
+    body: dict, rec: dict, trig: dict | None, earlier: _Earlier
+) -> _PumpSplit | None:
+    """The typed ``ApplyPerpetual`` changes of a parked perpetual pump, each on
+    a creature on the battlefield (:func:`_perpetual_target`); ``None`` when it
+    names none, or an amount phase's perpetual change can't hold here (an X)."""
+    effect = body.get("effect") or {}
+    if effect.get("type") != "Unimplemented" or effect.get("name") not in (
+        _PERPETUAL_RESIDUES
+    ):
+        return None
+    pump = split_pump(str(effect.get("description") or ""))
+    if pump is None or not pump.perpetual:
+        return None
+    power, toughness = _fixed(pump.power), _fixed(pump.toughness)
+    if power is None or toughness is None:
+        return None
+    targets = [
+        (_perpetual_target(who, pump, rec, trig, earlier), who.up_to)
+        if who is not None
+        else (None, False)
+        for who in pump.subjects
+    ]
+    typed = [(t, up_to) for t, up_to in targets if t is not None]
+    if not typed:
+        return None
+    keywords = [PHASE_KEYWORDS.get(k) for k in pump.keywords]
+    modification: dict = {
+        "kind": "ModifyPowerToughness",
+        "power": power,
+        "toughness": toughness,
+    }
+    if keywords and all(keywords):
+        modification["keywords"] = keywords
+    keep = bool(
+        pump.lead or pump.rider or len(typed) < len(targets) or None in keywords
+    )
+    return _PumpSplit(
+        effects=[
+            (
+                {
+                    "type": "ApplyPerpetual",
+                    "target": t,
+                    "modification": copy.deepcopy(modification),
+                },
+                up_to,
+            )
+            for t, up_to in typed
+        ],
+        keep=keep,
+        before=keep
+        and not pump.lead
+        and any(t["type"] == "ParentTarget" for t, _up_to in typed),
+        duration=None,
+    )
+
+
+def _second_verb_split(
+    body: dict, trig: dict | None, earlier: _Earlier
+) -> _PumpSplit | None:
+    """The typed pump until end of turn a clause states as its second
+    instruction ("draw X cards and the chosen creatures get +X/+X and gain
+    trample" — Spry and Mighty), beside the residue, which keeps the first
+    instruction and any grant. "The chosen creatures" are the earlier effect's
+    targets (``ParentTarget``)."""
+    effect = body.get("effect") or {}
+    if effect.get("type") != "Unimplemented" or effect.get("name") != (
+        _SECOND_VERB_RESIDUE
+    ):
+        return None
+    pump = split_pump(str(effect.get("description") or ""))
+    duration = (
+        "UntilEndOfTurn"
+        if (pump is not None and pump.until_end_of_turn)
+        else body.get("duration")
+    )
+    if (
+        pump is None
+        or pump.perpetual
+        or not pump.lead
+        or len(pump.subjects) != 1
+        or duration != "UntilEndOfTurn"
+    ):
+        return None
+    (who,) = pump.subjects
+    if who is None:
+        return None
+    if who.recipient == "chosen":
+        target = {"type": "ParentTarget"} if earlier.object else None
+    else:
+        target = _pump_target(
+            ParkedPump(who, pump.power, pump.toughness, until_end_of_turn=True),
+            trig,
+            earlier,
+        )
+    if target is None:
+        return None
+    one = target["type"] in _ONE_OBJECT or target["type"] == "ParentTarget"
+    return _PumpSplit(
+        effects=[
+            (
+                {
+                    "type": "Pump" if one else "PumpAll",
+                    "power": _pump_amount(pump.power),
+                    "toughness": _pump_amount(pump.toughness),
+                    "target": target,
+                },
+                False,
+            )
+        ],
+        keep=True,
+        before=False,
+        duration="UntilEndOfTurn",
+    )
+
+
+def _static_pump_line(body: dict) -> dict | None:
+    """The ``Continuous`` static phase types for "Equipped creature gets +2/+1"
+    (Bonesplitter's), for an ability phase parked whole as a static line that
+    also grants a quoted ability ("Equipped creature gets +2/+1 and has
+    \"{T}, Unattach ~: Destroy target creature.\"" — Heartseeker). The residue
+    stays for the quote; ``None`` for any other line."""
+    effect = body.get("effect") or {}
+    if effect.get("type") != "Unimplemented" or effect.get("name") != (
+        _STATIC_LINE_RESIDUE
+    ):
+        return None
+    line = str(effect.get("description") or "")
+    pump = split_pump(line)
+    if (
+        pump is None
+        or pump.perpetual
+        or pump.lead
+        or pump.until_end_of_turn
+        or body.get("duration")
+        or len(pump.subjects) != 1
+        or pump.subjects[0] is None
+        or pump.subjects[0].recipient != "attached"
+    ):
+        return None
+    power, toughness = _fixed(pump.power), _fixed(pump.toughness)
+    if power is None or toughness is None:
+        return None
+    affected = {
+        "type": "Typed",
+        "type_filters": ["Creature"],
+        "controller": None,
+        "properties": [{"type": pump.subjects[0].attachment}],
+    }
+    mods = [
+        {"type": "AddPower", "value": power["value"]},
+        {"type": "AddToughness", "value": toughness["value"]},
+    ]
+    return static_def(affected, mods, line)
+
+
+def _chained(bodies: list[dict], tail: object) -> object:
+    """``bodies`` chained one after another, then ``tail``; its head."""
+    nexts = [*bodies[1:], tail]
+    for i, body in enumerate(bodies):
+        body["sub_ability"] = nexts[i]
+    return bodies[0] if bodies else tail
+
+
+def _place_split(target: dict, split: _PumpSplit) -> None:
+    """Write ``split``'s pumps into the residue's body ``target`` (in place):
+    chained after the residue, or the first pump in the residue's place and
+    the rest after it, then the residue when it stays."""
+    pumps = [_sub_body(e, split.duration, up_to=u) for e, u in split.effects]
+    tail = target.get("sub_ability")
+    if split.keep and not split.before:
+        target["sub_ability"] = _chained(pumps, tail)
+        return
+    first, *rest = pumps
+    if split.keep:
+        rest.append(dict(target))  # the residue's body as it was
+    target["effect"] = first["effect"]
+    target["sub_ability"] = _chained(rest, tail)
+    if "multi_target" in first:
+        target["multi_target"] = first["multi_target"]
+
+
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
     sweeps = [
@@ -563,6 +975,20 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for body, description, trig, earlier in _described_bodies(rec)
         if (pump := _parked_pump(body, description, trig, earlier)) is not None
     ]
+    splits = [
+        (body, split)
+        for body, _description, trig, earlier in _described_bodies(rec)
+        if (
+            split := _perpetual_split(body, rec, trig, earlier)
+            or _second_verb_split(body, trig, earlier)
+        )
+        is not None
+    ]
+    static_lines = [
+        (body, static)
+        for body in rec.get("abilities") or ()
+        if isinstance(body, dict) and (static := _static_pump_line(body))
+    ]
     found = (
         sweeps,
         split_flips,
@@ -573,6 +999,8 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         power_returns,
         countered_exiles,
         pumps,
+        splits,
+        static_lines,
     )
     if not any(found):
         return rec
@@ -640,6 +1068,15 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         assert isinstance(target, dict)
         target["effect"] = typed
         target["duration"] = "UntilEndOfTurn"
+    for body, split in splits:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        _place_split(target, split)
+    if static_lines:
+        out["static_abilities"] = [
+            *(out.get("static_abilities") or ()),
+            *(static for _body, static in static_lines),
+        ]
     if grants:
         parked = {id(memo[id(body)]) for body, _static in grants}
         out["abilities"] = [

@@ -389,6 +389,16 @@ class ConceptNode:
     # defender" — Primal Clay) — never a grant onto a body already there
     # (``recovery.residue_body_keywords(made_only=True)``).
     made_body_keywords: tuple[str, ...] = ()
+    # A ``pump`` decorating a perpetual power/toughness change (``crosswalk.
+    # perpetual``): its ``node`` is a ``Pump`` / ``PumpAll`` view of the
+    # change, with no duration: the change lasts, so ``pump_makers`` reads it as
+    # timed or better, except one on the card itself (the card growing).
+    perpetual: bool = False
+    # A perpetual view on the card itself that an earlier effect of the same
+    # ability put onto the battlefield ("Return ~ from your graveyard to the
+    # battlefield tapped. It perpetually gets +1/+1" — Vladimir and Godfrey):
+    # recursion that grows the card, no mana sink of a creature already there.
+    returned_self: bool = False
 
     @property
     def reading(self) -> tuple[str, ...]:
@@ -1109,6 +1119,12 @@ def _decorate_effect(node: object, role: str) -> ConceptNode | None:
         subject=_effect_subject(node),
         raw=_node_raw(node),
     )
+
+
+def decorate_effect(node: object) -> ConceptNode | None:
+    """``node`` decorated as a role=effect :class:`ConceptNode`, the way the tree
+    build decorates each effect it walks (``None`` for an absent slot)."""
+    return _decorate_effect(node, "effect")
 
 
 def walk_effect_chain(
@@ -2057,6 +2073,10 @@ def build_concept_tree(
     # diff harnesses) sees recovered decorations; downstream
     # ``apply_overlay_corrections`` stays curated-wins (it runs later and
     # overwrites on conflict). No-op while the allowlist is empty.
+    from mtg_utils._card_ir.crosswalk.perpetual import apply_perpetual_pumps
     from mtg_utils._card_ir.recovery import apply_unimplemented_recovery
 
-    return apply_unimplemented_recovery(tree)
+    # A perpetual P/T change of a creature on the battlefield is a pump; read
+    # after the recovery, whose decoration of a residue tells what an "it"
+    # after it names (a card the residue returned to the battlefield).
+    return apply_perpetual_pumps(apply_unimplemented_recovery(tree))

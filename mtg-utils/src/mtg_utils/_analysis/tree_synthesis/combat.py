@@ -590,7 +590,8 @@ def _targets_a_friendly_object(target: object) -> bool:
 
 
 def has_structural_pump_makers(tree: ConceptTree, *, targeted: bool = False) -> bool:
-    """A duration-scoped ``Pump``/``PumpAll`` effect with a positive fixed
+    """A duration-scoped ``Pump``/``PumpAll`` effect (or a perpetual one on a
+    creature other than the card itself) with a positive fixed
     power OR toughness (widened from power-only), a "+"-grounded dynamic
     amount, OR a nested ``GenericEffect``/``Continuous``-static
     ``AddPower``/``AddToughness`` grant or its counted form
@@ -606,9 +607,17 @@ def has_structural_pump_makers(tree: ConceptTree, *, targeted: bool = False) -> 
                 node_duration(n) is not None for n in iter_typed_nodes(unit.node)
             )
             for c in unit.effect_concepts("pump"):
-                if not (dur_unit or node_duration(c.node)):
-                    continue
                 target_tag = tag_of(getattr(c.node, "target", None))
+                if c.perpetual:
+                    # A perpetual change lasts (``crosswalk.perpetual``): timed
+                    # or better, read on its own node. One on the card itself
+                    # is the card growing, no pump maker, whatever else in the
+                    # unit is timed (Ichor Aberration's "you may cast it from
+                    # your graveyard this turn") — Dan's call, 2026-11-25.
+                    if target_tag == "SelfRef":
+                        continue
+                elif not (dur_unit or node_duration(c.node)):
+                    continue
                 if unit.kind == "Activated" and target_tag in (None, "SelfRef"):
                     continue  # firebreathing self-pump veto
                 p = getattr(c.node, "power", None)

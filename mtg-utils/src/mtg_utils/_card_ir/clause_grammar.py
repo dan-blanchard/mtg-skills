@@ -1337,7 +1337,9 @@ def attached_attackers_kind(text: str) -> str | None:
 # drops the pump it binds (a ``where_x_binding`` residue). ``misparsed_shapes``
 # writes the pump back as the ``Pump`` / ``PumpAll`` phase types for the same
 # words with an X it can resolve. Read word by word: who gets it, by how much.
-PumpRecipient = Literal["self", "it", "those", "attached", "group"]
+PumpRecipient = Literal[
+    "self", "it", "those", "attached", "group", "that", "target", "chosen"
+]
 
 
 @dataclass(frozen=True)
@@ -1346,7 +1348,12 @@ class PumpSubject:
     gets", "those creatures get" — the caller knows what its clause's "it" and
     "those" are), the creature an Equipment or Aura is attached to
     (``attachment``: ``"EquippedBy"`` / ``"EnchantedBy"``), or a group of
-    creatures (``subtype``, ``yours``, ``other``, ``attacking`` narrow it)."""
+    creatures (``subtype``, ``yours``, ``other``, ``attacking`` narrow it).
+    :func:`split_pump` reads three more: a creature an earlier instruction or
+    the trigger names ("that creature", "That Elf": ``"that"``), a targeted one
+    ("target creature an opponent controls", "up to one target Soldier":
+    ``"target"``, with ``opponents`` and ``up_to``), and "the chosen creatures"
+    (``"chosen"``)."""
 
     recipient: PumpRecipient
     attachment: str | None = None
@@ -1354,6 +1361,8 @@ class PumpSubject:
     yours: bool = False
     other: bool = False
     attacking: bool = False
+    opponents: bool = False
+    up_to: bool = False
 
 
 @dataclass(frozen=True)
@@ -1483,3 +1492,253 @@ def parked_pump(text: str) -> ParkedPump | None:
         toughness=amounts.group(2),
         until_end_of_turn=after is not None or before is not None,
     )
+
+
+# ── A pump beside another instruction, or a perpetual one ──────────────────────
+# "return ~ from your graveyard to the battlefield tapped and it perpetually gets
+# +1/+0" (Benalish Partisan), "draw X cards and the chosen creatures get +X/+X and
+# gain trample" (Spry and Mighty), "~ and that creature perpetually get +1/+1"
+# (Leaf-Leap Guide), "Equipped creature gets +2/+1 and has \"…\"" (Heartseeker).
+# Read word by word, like :func:`parked_pump`: who gets it (each of a subject's
+# conjuncts), by how much, what comes before it in its clause and what after.
+_THAT_OBJECT = comb.preceded(
+    comb.keyword({"that"}),
+    comb.alt(comb.value(None, comb.keyword({"creature"})), _SUBTYPE),
+)
+_TARGET_OBJECT = comb.seq(
+    comb.opt(comb.phrase({"up"}, {"to"}, {"one"})),
+    comb.keyword({"target"}),
+    comb.alt(comb.value(None, comb.keyword({"creature"})), _SUBTYPE),
+    comb.opt(
+        comb.alt(
+            comb.value("you", comb.phrase({"you"}, {"control"})),
+            comb.value("opponent", comb.phrase({"an"}, {"opponent"}, {"controls"})),
+        )
+    ),
+)
+_CHOSEN_OBJECTS = comb.phrase({"the"}, {"chosen"}, {"creatures"})
+#: The words a conjunct naming cards starts with: a card is not a creature on the
+#: battlefield ("that Dragon card", "a random Elf creature card in your hand").
+_CARD_DETERMINERS = frozenset({"a", "an", "the", "that", "those", "each", "all"})
+
+
+def _split_subject(subject: str) -> PumpSubject | None:
+    """A :func:`_pump_subject`, or one of the three :class:`PumpSubject` reads
+    :func:`split_pump` adds; ``None`` for words naming none."""
+    if (read := _pump_subject(subject)) is not None:
+        return read
+    that = _THAT_OBJECT.run(subject)
+    if that is not None and not that[1].strip():
+        return PumpSubject("that", subtype=that[0])
+    target = _TARGET_OBJECT.run(subject)
+    if target is not None and not target[1].strip():
+        up_to, _target, subtype, whose = target[0]
+        return PumpSubject(
+            "target",
+            subtype=subtype,
+            yours=whose == "you",
+            opponents=whose == "opponent",
+            up_to=up_to is not None,
+        )
+    chosen = _CHOSEN_OBJECTS.run(subject)
+    if chosen is not None and not chosen[1].strip():
+        return PumpSubject("chosen")
+    return None
+
+
+def _names_cards(words: list[str]) -> bool:
+    norm = [comb.norm_word(w) for w in words]
+    return (
+        bool(norm)
+        and norm[0] in _CARD_DETERMINERS
+        and bool({"card", "cards"} & set(norm))
+    )
+
+
+def _conjuncts(parts: list[list[str]]) -> tuple[PumpSubject | None, ...] | None:
+    """Each conjunct of a subject read: a :class:`PumpSubject`, or ``None`` for
+    one naming cards. ``None`` when a conjunct is neither."""
+    out: list[PumpSubject | None] = []
+    for words in parts:
+        if _names_cards(words):
+            out.append(None)
+            continue
+        read = _split_subject(" ".join(words)) if words else None
+        if read is None:
+            return None
+        out.append(read)
+    return tuple(out)
+
+
+@dataclass(frozen=True)
+class SplitPump:
+    """A pump a parked clause states beside the rest of it: what comes first
+    (``lead``, the instruction before it in its clause: "" when the pump opens
+    the clause), who gets it (``subjects``, one per conjunct: ``None`` for
+    cards), by how much (signed as written), whether ``perpetual``-ly, the
+    keywords it grants with the pump ("and gains flying", in the keyword
+    vocabulary's spelling), anything else after it (``rider``: a quoted ability
+    it gains or has, or a grant the grammar can't read whole), and whether
+    until end of turn."""
+
+    lead: str
+    subjects: tuple[PumpSubject | None, ...]
+    power: str
+    toughness: str
+    perpetual: bool
+    keywords: tuple[str, ...]
+    rider: str
+    until_end_of_turn: bool
+
+
+_QUOTED_RIDER_RX = re.compile(r'^and (?:has|gains?) "', re.IGNORECASE)
+_GRANT_RIDER_RX = re.compile(r"^and (?:has|gains?)\b", re.IGNORECASE)
+
+
+def split_pump(text: str) -> SplitPump | None:
+    """The pump a parked clause states outside any quoted ability, read with
+    what surrounds it (:class:`SplitPump`). ``None`` for a clause with no pump,
+    a pump with a condition ("it perpetually gets +1/+0 if it has the same name
+    as …" — Mace of Disruption), a subject this grammar doesn't read, or words
+    after the pump other than a keyword grant, a quoted ability or a duration
+    (CR 613.4c: an effect that modifies power and/or toughness)."""
+    binding = WHERE_X_BINDING_RX.search(text)
+    words = (text[: binding.start()] if binding else text).split()
+    quoted = False
+    verb = None
+    for i, word in enumerate(words[:-1]):
+        if (
+            not quoted
+            and comb.norm_word(word) in ("get", "gets")
+            and _PT_WORD_RX.fullmatch(words[i + 1])
+        ):
+            verb = i
+            break
+        quoted ^= word.count('"') % 2 == 1
+    if verb is None:
+        return None
+    amounts = _PT_WORD_RX.fullmatch(words[verb + 1])
+    assert amounts is not None
+    end = verb
+    perpetual = end > 0 and comb.norm_word(words[end - 1]) == "perpetually"
+    if perpetual:
+        end -= 1
+    if end > 0 and comb.norm_word(words[end - 1]) == "each":
+        end -= 1
+    start = end
+    while start > 0 and not (
+        words[start - 1][-1] in ",.:;" or comb.norm_word(words[start - 1]) == "then"
+    ):
+        start -= 1
+    if any(comb.norm_word(w) in ("if", "unless") for w in words):
+        return None
+    parts: list[list[str]] = [[]]
+    for word in words[start:end]:
+        if comb.norm_word(word) == "and":
+            parts.append([])
+        else:
+            parts[-1].append(word)
+    lead = ""
+    subjects = _conjuncts(parts)
+    if subjects is None:
+        subjects = _conjuncts(parts[-1:])
+        lead = " and ".join(" ".join(p) for p in parts[:-1])
+        if subjects is None or not all(parts[:-1]):
+            return None
+    tail = " ".join(words[verb + 2 :]).strip(" .")
+    keywords: list[str] = []
+    rider = ""
+    eot = _UNTIL_END_OF_TURN.run(tail) if tail else None
+    if eot is not None:
+        tail = eot[1].strip(" .")
+    if tail and _QUOTED_RIDER_RX.match(tail):
+        rider, tail = tail, ""
+    elif tail:
+        grant = _GRANT.run(tail.removeprefix("and ").strip())
+        rest = grant[1].strip(" .") if grant is not None else tail
+        if rest and (after := _UNTIL_END_OF_TURN.run(rest)) is not None:
+            eot, rest = after, after[1].strip(" .")
+        if grant is not None and all(grant[0]) and not rest:
+            keywords = list(grant[0])
+        elif _GRANT_RIDER_RX.match(tail):
+            # a grant this grammar can't read whole ("and gains reach, trample,
+            # and ward {2}" — Wilson, Majestic Bear): the caller keeps it
+            # parked beside the pump
+            rider = tail
+        else:
+            return None
+        tail = ""
+    lead_words = words[max(0, start - 4) : start]
+    before = _UNTIL_END_OF_TURN.run(" ".join(lead_words)) if start >= 4 else None
+    return SplitPump(
+        lead=lead,
+        subjects=subjects,
+        power=amounts.group(1),
+        toughness=amounts.group(2),
+        perpetual=perpetual,
+        keywords=tuple(keywords),
+        rider=rider,
+        until_end_of_turn=eot is not None or before is not None,
+    )
+
+
+#: Verbs that move a card between zones: a lead using one on the card takes it
+#: away (CR 400.7: it becomes a new object), unless it returns it to the
+#: battlefield.
+_ZONE_MOVING_VERBS = frozenset(
+    {
+        "return",
+        "returns",
+        "exile",
+        "exiles",
+        "sacrifice",
+        "sacrifices",
+        "destroy",
+        "destroys",
+        "put",
+        "puts",
+        "shuffle",
+        "shuffles",
+        "discard",
+        "discards",
+        "mill",
+        "mills",
+    }
+)
+LeadPlace = Literal["returned", "away", "unmoved"]
+
+
+@dataclass(frozen=True)
+class LeadObject:
+    """The card a pump's lead instruction names ("~", or "it") and where the
+    lead leaves it: put onto the battlefield (``"returned"``), moved elsewhere
+    (``"away"``), or not moved (``"unmoved"``: "~ can't be blocked this turn")."""
+
+    who: Literal["self", "it"]
+    place: LeadPlace
+
+
+def lead_object(lead: str) -> LeadObject | None:
+    """What a :class:`SplitPump`'s ``lead`` does with the card its later "it"
+    names: "return ~ from your graveyard to the battlefield tapped" (Benalish
+    Partisan) and "return it to the battlefield" (Managorger Phoenix) put it
+    onto the battlefield; "return ~ to its owner's hand", "exile ~", "sacrifice
+    it" take it away; "~ can't be blocked this turn" (Hurkyl's Prodigy) leaves it
+    where it is. ``None`` for a lead naming no such object, or one this grammar
+    doesn't read."""
+    words = [comb.norm_word(w) or w for w in lead.split()]
+    if len(words) >= 2 and words[0] in _ZONE_MOVING_VERBS and words[1] in ("~", "it"):
+        who: Literal["self", "it"] = "self" if words[1] == "~" else "it"
+        if words[0] not in ("return", "returns"):
+            return LeadObject(who, "away")
+        rest = words[2:]
+        if rest[:3] == ["from", "your", "graveyard"]:
+            rest = rest[3:]
+        on = rest in (
+            ["to", "the", "battlefield"],
+            ["to", "the", "battlefield", "tapped"],
+        )
+        return LeadObject(who, "returned" if on else "away")
+    if words[:1] == ["~"] and not _ZONE_MOVING_VERBS & set(words):
+        return LeadObject("self", "unmoved")
+    return None

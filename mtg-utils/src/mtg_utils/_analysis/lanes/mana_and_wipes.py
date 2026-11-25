@@ -1944,6 +1944,12 @@ def _self_pump(tree: ConceptTree) -> list[Signal]:
             # The overlay's ``anaphoric_pump`` arm marks a delayed trigger's
             # "it gets -1/-0" phase stamps ``SelfRef`` (Jace, Architect of
             # Thought's +1: the attacking creature, not Jace).
+            # A perpetual pump of the card an earlier effect of the ability
+            # returned to the battlefield is recursion that grows it, no
+            # firebreather (Vladimir and Godfrey's Rejuvenation; Dan's call,
+            # 2026-11-25).
+            if c.returned_self:
+                continue
             if t == "Pump" and (tgt is None or targets_the_card(c)):
                 return [Signal("self_pump", "you", "", c.raw, tree.name, "high")]
             if (

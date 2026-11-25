@@ -90,22 +90,47 @@ are already known to it (each draft says where).
 
 **From the where-X promotion (2026-11-25)**
 
-- **Parked pumps the rewrite leaves** (`misparsed_shapes`' parked-pump row
-  takes a pump until end of turn and nothing more; census 2026-11-25, 69 parked
-  clauses holding a pump on 65 legal cards, 11 rewritten):
-  - *Perpetual pumps*, 35 `perpetual_modify_pt` clauses and 7 `unbound_subject`
-    ones ("It perpetually gets +1/+1", a subject phase itself couldn't bind) on
-    Alchemy cards, in about twenty subject shapes ("creature cards in your
-    graveyard", "the topmost creature card in your library", "~ and that Dragon
-    card each", "all cards you own named …"). Phase's typed form is
-    `ApplyPerpetual{target, modification}`, and no lane reads its power and
-    toughness change today (two reads take other parts of it: the perpetual
-    graveyard return and the keyword grant): about
-    fifty already-typed perpetual pumps (Accident-Prone Apprentice's "~
-    perpetually gets +1/+1") carry no pump signal. Dan's call (2026-11-25):
-    rewrite them into that form, and count one as a pump only on a creature on
-    the battlefield. The lane read of the typed form comes first; it moves
-    those fifty cards before any parked clause is rewritten.
+- **Parked pumps the rewrite leaves** (`misparsed_shapes`' parked-pump rows;
+  census 2026-11-25, 69 parked clauses holding a pump on 65 legal cards: 11
+  rewritten by the where-X row, 10 perpetual clauses on 9 cards and 2
+  second-instruction pumps by the perpetual / second-verb / static-line rows;
+  the census missed three parked battlefield pumps: Wilson, Majestic Bear,
+  rewritten, and Alora, Cheerful Thief and Lae'zel, Primal Warrior, left):
+  - *Perpetual pumps*: the typed form is read now (`crosswalk.perpetual`: an
+    `ApplyPerpetual` P/T change on a creature on the battlefield is a `pump`,
+    Dan's call 2026-11-25). Of phase's 54 typed changes on 51 cards, 28 are on
+    the battlefield (18 the card itself, 10 another creature), 24 off it, and 2
+    unread: Darigaaz's Whelp's "Whenever you draw a Dragon card, it perpetually
+    gets +1/+1" (a trigger mode phase leaves `Unknown`; the drawn card, so off
+    anyway) and Penregon Besieged's "choose a creature with the least toughness
+    among creatures your opponents control. It perpetually gets -1/-1" (the
+    choice is a residue; a real shrink of an opponent's creature). Rewritten: 10
+    of the 36 `perpetual_modify_pt` clauses (Chaos Balor ×2, By Elspeth's
+    Command's first mode, Leaf-Leap Guide, Sewer Plague, Darigaaz's Whelp,
+    Freyalise, Benalish Partisan, Managorger Phoenix, Hurkyl's Prodigy), plus
+    Wilson, Majestic Bear's "Target creature you control perpetually gets +1/+1
+    and gains reach, trample, and ward {2}" (the grant the grammar can't read
+    whole stays in the kept residue). A "those creatures" view is a `PumpAll`
+    over the earlier effect's filter, keeping its controller (Chaos Balor's
+    `TargetPlayer`, which can be you, Dan's call 2026-11-25); a raise on a
+    population only opponents control is no pump of yours (no card has one at
+    v0.131.0). Left parked, 33 of the census, and two it missed: cards outside the battlefield only (18: Advanced Floral
+    Invocations, Begin Anew, Blighted Nightmare, Bramblearmor Brawler, Dalkovan
+    Outrider, Elvish Elegy, Feed the Bog, Goblin Morale Sergeant, Golden
+    Sidekick, Grow Old Together, Gyox, Kithkin Brinefarer, Klement, Mycoid
+    Resurrection, Pampered Loamfrill, Thorna and Twigtooth, Thoughtweft's Call,
+    Valgavoth; and the 6 `unbound_subject` "it"s naming a card in a hand, a
+    graveyard or on the stack: By Elspeth's Command's second mode, Dina, Garruk,
+    Guildpact Greenwalker, Richlau, Undersimplify); a group on the battlefield,
+    for which phase has no perpetual form (its engine changes a population only
+    in a zone other than the battlefield): Legion of Clay, and Arming Gala,
+    Coalition Construct, Stalwart Speartail beside cards; "cards you own" in
+    every zone at once (Naktamun Shines Again, Network Marauder ×2, Unbreakable
+    Remnant); a condition (Mace of Disruption); outside the census, Alora,
+    Cheerful Thief's "a creature of your choice an opponent controls
+    perpetually gets -1/-0" (chosen, not targeted: phase's typed filter is a
+    target) and Lae'zel, Primal Warrior's "other creatures you control and
+    creature cards in your hand" (a group beside cards).
   - *A pump behind a parked condition*: Sickle Dancer, Alex Wilder, Trail of
     Mystery (`unparsed_condition` / `unparsed_verb_arguments`; each on a ledger
     row). The condition is what phase parked: typing the pump without it would
@@ -115,15 +140,23 @@ are already known to it (each draft says where).
     Tyrannical Pitlord's "The chosen creature gets +3/+3 and has flying", The
     Muckslinger Gang's (cards outside the battlefield), and two where-X ones,
     Death's Approach and Disturbing Conversion ("Enchanted creature gets
-    -X/-X, where X is …"). A static pump is a static's modifications, not this
-    row's one-shot effect.
-  - *A pump as a clause's second verb* (Dan's call: split them): Heartseeker's
-    "Equipped creature gets +2/+1 and has '…'", Spry and Mighty's "draw X cards
-    and the chosen creatures get +X/+X and gain trample", Defiling Tears, and
-    three perpetual ones (Benalish Partisan, Managorger Phoenix, Hurkyl's
-    Prodigy). Five shapes for six cards.
-  - *An "it" after a targeted effect* is left a residue: it may be that
-    effect's target, which phase writes `ParentTarget`. No card at v0.131.0.
+    -X/-X, where X is …"). (Heartseeker's "Equipped creature gets +2/+1 and
+    has \"…\"" is typed now.)
+  - *A pump as a clause's second instruction*: done for five of the six
+    (Spry and Mighty, Heartseeker, Benalish Partisan, Managorger Phoenix,
+    Hurkyl's Prodigy). Left: Defiling Tears ("Until end of turn, target
+    creature becomes black, gets +1/-1, and gains \"…\""): phase dropped the
+    target with the clause, so the subject is only in the description, and a
+    +1/-1 would read as a shrink on what is a buff.
+  - *Known limits of the pump view* (`crosswalk.perpetual`, no fix yet): a
+    walk over the typed tree doesn't see it — `_etb_pump_unit`
+    (`lanes/stax_and_tempo.py`) reads typed `Pump` nodes, so Leaf-Leap Guide
+    gets no `entered_attacker|you|etb_pump`, and `walk_effect_chain` rebuilds
+    its decorations from the tree, so a lane that walks a unit itself sees the
+    `ApplyPerpetual`, not the pump. And the battlefield groups stay residues,
+    because phase writes no perpetual change over a population on the
+    battlefield: Legion of Clay, Arming Gala, Coalition Construct, Stalwart
+    Speartail, Lae'zel, Primal Warrior.
 - **The combat-buff read misses phase's other combined trigger**
   (`BlocksOrBecomesBlocked`: Chub Toad, Brushwagg — clear buffs). And its typed
   counter arm takes any counter but -1/-1 as a buff, where the recovered arm

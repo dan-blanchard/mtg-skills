@@ -8299,8 +8299,10 @@ def ability_zones(node: object) -> frozenset[str]:
     trigger's ``trigger_zones``, an activated ability's :func:`activation_zone`,
     and an "if this card is in your graveyard" ``SourceInZone`` condition
     (Ichorid) — on the ability, or as an activation restriction (Loathsome Troll's
-    "Activate only if this card is in your graveyard"). Takes a granted ability's
-    body as well as a unit's node."""
+    "Activate only if this card is in your graveyard"), alone or as one conjunct
+    of an ``And`` (Diminished Returner's "Activate only if ~ is in your graveyard
+    and its toughness is 2 or greater"). Takes a granted ability's body as well as
+    a unit's node."""
     zones: set[str] = set()
     tz = getattr(node, "trigger_zones", None)
     if isinstance(tz, list):
@@ -8314,9 +8316,11 @@ def ability_zones(node: object) -> frozenset[str]:
         getattr(node, "condition", None),
         *activation_restriction_conditions(node),
     ):
-        zone = getattr(cond, "zone", None)
-        if tag_of(cond) == "SourceInZone" and isinstance(zone, str):
-            zones.add(zone)
+        conjuncts = list_field(cond, "conditions") if tag_of(cond) == "And" else [cond]
+        for part in conjuncts:
+            zone = getattr(part, "zone", None)
+            if tag_of(part) == "SourceInZone" and isinstance(zone, str):
+                zones.add(zone)
     return frozenset(zones)
 
 

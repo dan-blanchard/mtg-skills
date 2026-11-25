@@ -48375,6 +48375,238 @@
     "type_line": "Creature — Plant Warlock"
    }
   },
+  "Alora, Cheerful Thief": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Halfling",
+       "Rogue"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Alora, Cheerful Thief",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you attack, up to one target attacking creature can't be blocked this turn. At the beginning of the next end step, return that creature to its owner's hand. If you do, a creature of your choice an opponent controls perpetually gets -1/-0.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "HBG"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "e53b46ab-3705-4f77-8477-b9f90d34526f",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you attack, up to one target attacking creature can't be blocked this turn. At the beginning of the next end step, return that creature to its owner's hand. If you do, a creature of your choice an opponent controls perpetually gets -1/-0.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "can't be blocked",
+           "effect_zone": null,
+           "mode": "CantBeBlocked",
+           "modifications": [
+            {
+             "mode": "CantBeBlocked",
+             "type": "AddStaticMode"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Attacking"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "multi_target": {
+         "max": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "min": 0
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "condition": {
+           "phase": "End",
+           "type": "AtNextPhase"
+          },
+          "effect": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "destination": null,
+            "target": {
+             "type": "ParentTarget"
+            },
+            "type": "Bounce"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": {
+            "condition": {
+             "signal": "OptionalEffectPerformed",
+             "type": "EffectOutcome"
+            },
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "description": "a creature of your choice an opponent controls perpetually gets -1/-0",
+             "name": "perpetual_modify_pt",
+             "type": "Unimplemented"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "sub_link": "SequentialSibling",
+            "target_prompt": null
+           },
+           "target_prompt": null
+          },
+          "type": "CreateDelayedTrigger",
+          "uses_tracked_set": false
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "YouAttack",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{3}{U}{U}",
+    "name": "Alora, Cheerful Thief",
+    "oracle_id": "e53b46ab-3705-4f77-8477-b9f90d34526f",
+    "oracle_text": "Whenever you attack, up to one target attacking creature can't be blocked this turn. At the beginning of the next end step, return that creature to its owner's hand. If you do, a creature of your choice an opponent controls perpetually gets -1/-0.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Halfling Rogue"
+   }
+  },
   "Alora, Rogue Companion": {
    "phase_records": [
     {
@@ -249527,6 +249759,548 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Chaos Balor": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Demon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "name": "Chaos Balor",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nWhenever Chaos Balor attacks or dies, choose two. Each mode must target a different player.\n• Target player discards all the cards in their hand, then seeks that many nonland cards.\n• Chaos Balor deals 2 damage to target player and they create two Treasure tokens.\n• Chaos Balor deals 2 damage to each creature target player controls. Those creatures perpetually get +2/+0.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "HBG"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4128793c-fb21-4aa6-810b-1794c1fcc60b",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": null,
+         "static_abilities": [],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "modal": {
+         "allow_repeat_modes": false,
+         "chooser": {
+          "type": "Controller"
+         },
+         "constraints": [
+          {
+           "type": "DifferentTargetPlayers"
+          }
+         ],
+         "max_choices": 2,
+         "min_choices": 2,
+         "mode_count": 3,
+         "mode_descriptions": [
+          "Target player discards all the cards in their hand, then seeks that many nonland cards.",
+          "~ deals 2 damage to target player and they create two Treasure tokens.",
+          "~ deals 2 damage to each creature target player controls. Those creatures perpetually get +2/+0."
+         ]
+        },
+        "mode_abilities": [
+         {
+          "condition": null,
+          "cost": null,
+          "declares_chosen_group": 2147483648,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "qty": {
+             "player": {
+              "type": "Target"
+             },
+             "type": "HandSize"
+            },
+            "type": "Ref"
+           },
+           "target": {
+            "type": "Player"
+           },
+           "type": "Discard"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "destination": "Hand",
+            "enter_tapped": false,
+            "filter": {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": []
+            },
+            "type": "Seek"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "declares_chosen_group": 2147483649,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "target": {
+            "type": "Player"
+           },
+           "type": "DealDamage"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "colors": [],
+            "count": {
+             "type": "Fixed",
+             "value": 2
+            },
+            "enters_attacking": false,
+            "keywords": [],
+            "name": "Treasure",
+            "owner": {
+             "type": "ParentTarget"
+            },
+            "power": {
+             "type": "Fixed",
+             "value": 0
+            },
+            "tapped": false,
+            "toughness": {
+             "type": "Fixed",
+             "value": 0
+            },
+            "type": "Token",
+            "types": [
+             "Artifact",
+             "Treasure"
+            ]
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "target": {
+            "controller": "TargetPlayer",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "DamageAll"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "description": "Those creatures perpetually get +2/+0",
+            "name": "perpetual_modify_pt",
+            "type": "Unimplemented"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         }
+        ],
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ dies",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": null,
+         "static_abilities": [],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "modal": {
+         "allow_repeat_modes": false,
+         "chooser": {
+          "type": "Controller"
+         },
+         "constraints": [
+          {
+           "type": "DifferentTargetPlayers"
+          }
+         ],
+         "max_choices": 2,
+         "min_choices": 2,
+         "mode_count": 3,
+         "mode_descriptions": [
+          "Target player discards all the cards in their hand, then seeks that many nonland cards.",
+          "~ deals 2 damage to target player and they create two Treasure tokens.",
+          "~ deals 2 damage to each creature target player controls. Those creatures perpetually get +2/+0."
+         ]
+        },
+        "mode_abilities": [
+         {
+          "condition": null,
+          "cost": null,
+          "declares_chosen_group": 2147483648,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "qty": {
+             "player": {
+              "type": "Target"
+             },
+             "type": "HandSize"
+            },
+            "type": "Ref"
+           },
+           "target": {
+            "type": "Player"
+           },
+           "type": "Discard"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "destination": "Hand",
+            "enter_tapped": false,
+            "filter": {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": []
+            },
+            "type": "Seek"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "declares_chosen_group": 2147483649,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "target": {
+            "type": "Player"
+           },
+           "type": "DealDamage"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "colors": [],
+            "count": {
+             "type": "Fixed",
+             "value": 2
+            },
+            "enters_attacking": false,
+            "keywords": [],
+            "name": "Treasure",
+            "owner": {
+             "type": "ParentTarget"
+            },
+            "power": {
+             "type": "Fixed",
+             "value": 0
+            },
+            "tapped": false,
+            "toughness": {
+             "type": "Fixed",
+             "value": 0
+            },
+            "type": "Token",
+            "types": [
+             "Artifact",
+             "Treasure"
+            ]
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "target": {
+            "controller": "TargetPlayer",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "DamageAll"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "description": "Those creatures perpetually get +2/+0",
+            "name": "perpetual_modify_pt",
+            "type": "Unimplemented"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         }
+        ],
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Flying",
+     "Seek",
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{3}{R}{R}",
+    "name": "Chaos Balor",
+    "oracle_id": "4128793c-fb21-4aa6-810b-1794c1fcc60b",
+    "oracle_text": "Flying\nWhenever Chaos Balor attacks or dies, choose two. Each mode must target a different player.\n• Target player discards all the cards in their hand, then seeks that many nonland cards.\n• Chaos Balor deals 2 damage to target player and they create two Treasure tokens.\n• Chaos Balor deals 2 damage to each creature target player controls. Those creatures perpetually get +2/+0.",
+    "power": "4",
+    "toughness": "5",
+    "type_line": "Creature — Demon"
+   }
+  },
   "Chaos Defiler": {
    "phase_records": [
     {
@@ -324074,6 +324848,259 @@
     "type_line": "Legendary Creature — Dragon"
    }
   },
+  "Darigaaz's Whelp": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "additional_cost": {
+      "data": {
+       "costs": [
+        {
+         "cost": {
+          "generic": 1,
+          "shards": [
+           "Red"
+          ],
+          "type": "Cost"
+         },
+         "type": "Mana"
+        }
+       ]
+      },
+      "type": "Kicker"
+     },
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dragon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying",
+      {
+       "Kicker": {
+        "generic": 1,
+        "shards": [
+         "Red"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "name": "Darigaaz's Whelp",
+     "non_ability_text": null,
+     "oracle_text": "Kicker {1}{R}\nFlying\nWhenever you draw a Dragon card, it perpetually gets +1/+1.\nWhen Darigaaz's Whelp enters, if it was kicked, seek a Dragon card. Darigaaz's Whelp and that Dragon card each perpetually get +1/+1.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "YDMU"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "84aefd30-87fd-4b33-8192-5eb8bc0ada08",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you draw a Dragon card, it perpetually gets +1/+1.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "modification": {
+          "kind": "ModifyPowerToughness",
+          "power": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": 1
+          }
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ApplyPerpetual"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "Unknown": "Whenever you draw a Dragon card"
+       },
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": {
+        "source": "Kicker",
+        "type": "AdditionalCostPaid"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, if it was kicked, seek a Dragon card. ~ and that Dragon card each perpetually get +1/+1.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "destination": "Hand",
+         "enter_tapped": false,
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Dragon"
+           }
+          ]
+         },
+         "type": "Seek"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "description": "~ and that Dragon card each perpetually get +1/+1",
+          "name": "perpetual_modify_pt",
+          "type": "Unimplemented"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B",
+     "R"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Flying",
+     "Kicker",
+     "Seek"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Darigaaz's Whelp",
+    "oracle_id": "84aefd30-87fd-4b33-8192-5eb8bc0ada08",
+    "oracle_text": "Kicker {1}{R}\nFlying\nWhenever you draw a Dragon card, it perpetually gets +1/+1.\nWhen Darigaaz's Whelp enters, if it was kicked, seek a Dragon card. Darigaaz's Whelp and that Dragon card each perpetually get +1/+1.",
+    "power": "2",
+    "toughness": "1",
+    "type_line": "Creature — Dragon"
+   }
+  },
   "Daring Mechanic": {
    "phase_records": [
     {
@@ -328557,6 +329584,135 @@
     "power": "3",
     "toughness": "2",
     "type_line": "Creature — Dauthi Rogue"
+   }
+  },
+  "Davriel's Withering": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target creature an opponent controls perpetually gets -1/-2.",
+       "duration": null,
+       "effect": {
+        "modification": {
+         "kind": "ModifyPowerToughness",
+         "power": {
+          "type": "Fixed",
+          "value": -1
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": -2
+         }
+        },
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ApplyPerpetual"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "49d1fae1-06da-40eb-adea-84babbfd94e4"
+      ]
+     },
+     "name": "Davriel's Withering",
+     "non_ability_text": null,
+     "oracle_text": "Target creature an opponent controls perpetually gets -1/-2.",
+     "power": null,
+     "printings": [
+      "J21"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "5b4215b2-d473-4521-846d-6d63e93faebe",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Davriel's Withering",
+    "oracle_id": "5b4215b2-d473-4521-846d-6d63e93faebe",
+    "oracle_text": "Target creature an opponent controls perpetually gets -1/-2.",
+    "type_line": "Instant"
    }
   },
   "Davriel, Soul Broker": {
@@ -355493,6 +356649,240 @@
     "oracle_id": "3e554ab4-8179-4d3e-84ba-9a67b51cff7f",
     "oracle_text": "Target creature has base power and toughness 1/1 until end of turn.",
     "type_line": "Instant"
+   }
+  },
+  "Diminished Returner": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "data": {
+          "condition": {
+           "conditions": [
+            {
+             "type": "SourceInZone",
+             "zone": "Graveyard"
+            },
+            {
+             "comparator": "GE",
+             "lhs": {
+              "qty": {
+               "scope": {
+                "type": "Source"
+               },
+               "type": "Toughness"
+              },
+              "type": "Ref"
+             },
+             "rhs": {
+              "type": "Fixed",
+              "value": 2
+             },
+             "type": "QuantityComparison"
+            }
+           ],
+           "type": "And"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 0,
+         "shards": [
+          "Black",
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{B}{B}: ~ perpetually gets -1/-1, then return it to the battlefield. Activate only if ~ is in your graveyard and its toughness is 2 or greater.",
+       "duration": null,
+       "effect": {
+        "modification": {
+         "kind": "ModifyPowerToughness",
+         "power": {
+          "type": "Fixed",
+          "value": -1
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": -1
+         }
+        },
+        "target": {
+         "type": "Any"
+        },
+        "type": "ApplyPerpetual"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Phyrexian",
+       "Skeleton"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "wrong_object"
+     },
+     "name": "Diminished Returner",
+     "non_ability_text": null,
+     "oracle_text": "Diminished Returner enters tapped.\n{B}{B}: Diminished Returner perpetually gets -1/-1, then return it to the battlefield. Activate only if Diminished Returner is in your graveyard and its toughness is 2 or greater.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "YDMU"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "d8ef2c24-1620-42a4-a2ba-884623e089a4",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{B}{B}",
+    "name": "Diminished Returner",
+    "oracle_id": "d8ef2c24-1620-42a4-a2ba-884623e089a4",
+    "oracle_text": "Diminished Returner enters tapped.\n{B}{B}: Diminished Returner perpetually gets -1/-1, then return it to the battlefield. Activate only if Diminished Returner is in your graveyard and its toughness is 2 or greater.",
+    "power": "4",
+    "toughness": "3",
+    "type_line": "Creature — Phyrexian Skeleton"
    }
   },
   "Dimir Charm": {
@@ -462132,6 +463522,237 @@
     "type_line": "Legendary Creature — Angel"
    }
   },
+  "Feed the Bog": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Creature cards in your graveyard perpetually get +1/+1. Then return target creature card with mana value 3 or less from your graveyard to the battlefield.",
+       "duration": null,
+       "effect": {
+        "description": "Creature cards in your graveyard perpetually get +1/+1",
+        "name": "perpetual_modify_pt",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "comparator": "LE",
+            "type": "Cmc",
+            "value": {
+             "type": "Fixed",
+             "value": 3
+            }
+           },
+           {
+            "type": "InZone",
+            "zone": "Graveyard"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "repeatable": true
+      },
+      "type": "Optional"
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Replicate": {
+        "generic": 1,
+        "shards": [
+         "Black"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "name": "Feed the Bog",
+     "non_ability_text": null,
+     "oracle_text": "Replicate {1}{B}\nCreature cards in your graveyard perpetually get +1/+1. Then return target creature card with mana value 3 or less from your graveyard to the battlefield.",
+     "power": null,
+     "printings": [
+      "YSOS"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a7a50b0a-94d5-4e51-bbc7-d8b5a22a65fc",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Replicate — copy this spell once for each time its replicate cost was paid",
+       "destination": null,
+       "execute": {
+        "condition": {
+         "origin": "Replicate",
+         "origin_ordinal": 0,
+         "source": "NonKicker",
+         "type": "AdditionalCostPaid"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "retarget": {
+          "type": "MayChooseNewTargets"
+         },
+         "starting_loyalty_from_casualty_sacrifice": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "CopySpell"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "repeat_for": {
+         "qty": {
+          "origin": "Replicate",
+          "origin_ordinal": 0,
+          "type": "AdditionalCostPaymentCountFor"
+         },
+         "type": "Ref"
+        },
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Stack"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Replicate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Feed the Bog",
+    "oracle_id": "a7a50b0a-94d5-4e51-bbc7-d8b5a22a65fc",
+    "oracle_text": "Replicate {1}{B}\nCreature cards in your graveyard perpetually get +1/+1. Then return target creature card with mana value 3 or less from your graveyard to the battlefield.",
+    "type_line": "Sorcery"
+   }
+  },
   "Feed the Cycle": {
    "phase_records": [
     {
@@ -495119,6 +496740,248 @@
     "type_line": "Legendary Creature — Rat Knight"
    }
   },
+  "Freyalise, Skyshroud Partisan": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 1,
+        "type": "Loyalty"
+       },
+       "description": "[+1]: Untap up to one target Elf. That Elf and a random Elf creature card in your hand perpetually get +1/+1.",
+       "duration": null,
+       "effect": {
+        "scope": {
+         "type": "Single"
+        },
+        "state": {
+         "type": "Untap"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          {
+           "Subtype": "Elf"
+          }
+         ]
+        },
+        "type": "SetTapState"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "multi_target": {
+        "max": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "That Elf and a random Elf creature card in your hand perpetually get +1/+1",
+         "name": "perpetual_modify_pt",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -1,
+        "type": "Loyalty"
+       },
+       "description": "[−1]: Seek an Elf card.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "destination": "Hand",
+        "enter_tapped": false,
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          {
+           "Subtype": "Elf"
+          }
+         ]
+        },
+        "type": "Seek"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -6,
+        "type": "Loyalty"
+       },
+       "description": "[−6]: Conjure a card named Regal Force onto the battlefield.",
+       "duration": null,
+       "effect": {
+        "cards": [
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "name": "Regal Force"
+         }
+        ],
+        "destination": "Battlefield",
+        "tapped": false,
+        "type": "Conjure"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Freyalise"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": "4",
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "e4148be2-ce02-40a0-aca5-8c646f45ad71"
+      ]
+     },
+     "name": "Freyalise, Skyshroud Partisan",
+     "non_ability_text": null,
+     "oracle_text": "[+1]: Untap up to one target Elf. That Elf and a random Elf creature card in your hand perpetually get +1/+1.\n[−1]: Seek an Elf card.\n[−6]: Conjure a card named Regal Force onto the battlefield.",
+     "power": null,
+     "printings": [
+      "J21"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "318f6f35-3e5b-4397-a9d1-2f830b08e07e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Conjure",
+     "Seek"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "loyalty": "4",
+    "mana_cost": "{1}{G}{G}",
+    "name": "Freyalise, Skyshroud Partisan",
+    "oracle_id": "318f6f35-3e5b-4397-a9d1-2f830b08e07e",
+    "oracle_text": "[+1]: Untap up to one target Elf. That Elf and a random Elf creature card in your hand perpetually get +1/+1.\n[−1]: Seek an Elf card.\n[−6]: Conjure a card named Regal Force onto the battlefield.",
+    "type_line": "Legendary Planeswalker — Freyalise"
+   }
+  },
   "Friendly Fire": {
    "phase_records": [
     {
@@ -523555,6 +525418,162 @@
     "oracle_id": "395aa62e-0786-4bd8-a88f-998e4700742e",
     "oracle_text": "You may sacrifice two Foods. If you do, create a 7/7 green Giant creature token. Otherwise, create three Food tokens. (They're artifacts with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
     "type_line": "Sorcery"
+   }
+  },
+  "Giant Regrowth": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Return target card from your graveyard to your hand. If it's a creature card, it perpetually gets +3/+3.",
+       "duration": null,
+       "effect": {
+        "destination": "Hand",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "card_types": [
+          "Creature"
+         ],
+         "type": "RevealedHasCardType"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "modification": {
+          "kind": "ModifyPowerToughness",
+          "power": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": 3
+          }
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ApplyPerpetual"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "name": "Giant Regrowth",
+     "non_ability_text": null,
+     "oracle_text": "Return target card from your graveyard to your hand. If it's a creature card, it perpetually gets +3/+3.",
+     "power": null,
+     "printings": [
+      "YSNC"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "ceb575be-c63c-4e2b-8d00-8a7d7c0014e2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{G}{G}",
+    "name": "Giant Regrowth",
+    "oracle_id": "ceb575be-c63c-4e2b-8d00-8a7d7c0014e2",
+    "oracle_text": "Return target card from your graveyard to your hand. If it's a creature card, it perpetually gets +3/+3.",
+    "type_line": "Instant"
    }
   },
   "Giant Spider": {
@@ -618628,6 +620647,229 @@
     "oracle_id": "18050051-63f6-4091-bf67-7a0701a0791d",
     "oracle_text": "{S}, {T}: Tap target artifact or creature. ({S} can be paid with one mana from a snow source.)",
     "type_line": "Snow Artifact"
+   }
+  },
+  "Ichor Aberration": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Phyrexian",
+       "Horror"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Blue"
+     ],
+     "color_override": [
+      "Black",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Defender",
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "name": "Ichor Aberration",
+     "non_ability_text": null,
+     "oracle_text": "Flying, Defender\nAs long as Ichor Aberration's power is 7 or greater, it can attack as though it didn't have defender.\nWhenever you proliferate, if Ichor Aberration is in your graveyard or on the battlefield, Ichor Aberration perpetually gets +1/+1. You may cast it from your graveyard this turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "YONE"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "1b06a75f-a67b-4184-97e8-3a8d989639b8",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "condition": {
+         "text": "~'s power is 7 or greater",
+         "type": "Unrecognized"
+        },
+        "type": "Not"
+       },
+       "description": "As long as ~'s power is 7 or greater, it can attack as though it didn't have defender.",
+       "effect_zone": null,
+       "mode": "CanAttackWithDefender",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "conditions": [
+         {
+          "type": "SourceInZone",
+          "zone": "Graveyard"
+         },
+         {
+          "type": "SourceInZone",
+          "zone": "Battlefield"
+         }
+        ],
+        "type": "Or"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you proliferate, if ~ is in your graveyard or on the battlefield, ~ perpetually gets +1/+1. You may cast it from your graveyard this turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "modification": {
+          "kind": "ModifyPowerToughness",
+          "power": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": 1
+          }
+         },
+         "target": {
+          "type": "Any"
+         },
+         "type": "ApplyPerpetual"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "permission": {
+           "duration": "UntilEndOfTurn",
+           "granted_to": 0,
+           "mode": "Cast",
+           "type": "PlayFromExile"
+          },
+          "target": {
+           "id": 0,
+           "type": "TrackedSet"
+          },
+          "type": "GrantCastingPermission"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "PlayerPerformedAction",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "player_actions": [
+        "Proliferate"
+       ],
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard",
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "U"
+    ],
+    "keywords": [
+     "Defender",
+     "Flying",
+     "Proliferate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{U}{B}",
+    "name": "Ichor Aberration",
+    "oracle_id": "1b06a75f-a67b-4184-97e8-3a8d989639b8",
+    "oracle_text": "Flying, Defender\nAs long as Ichor Aberration's power is 7 or greater, it can attack as though it didn't have defender.\nWhenever you proliferate, if Ichor Aberration is in your graveyard or on the battlefield, Ichor Aberration perpetually gets +1/+1. You may cast it from your graveyard this turn.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Phyrexian Horror"
    }
   },
   "Ichor Drinker": {
@@ -717596,6 +719838,150 @@
     "type_line": "Legendary Creature — Gith Horror Warrior"
    }
   },
+  "Lae'zel, Primal Warrior": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Gith",
+       "Warrior"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "DoubleStrike"
+     ],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "name": "Lae'zel, Primal Warrior",
+     "non_ability_text": null,
+     "oracle_text": "Double strike\nWhen this creature enters or specializes, other creatures you control and creature cards in your hand perpetually get +1/+1.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "HBG"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a3ad8244-c0cc-468b-aa1a-4fb87bc7a4dc",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters or specializes, other creatures you control and creature cards in your hand perpetually get +1/+1.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "other creatures you control and creature cards in your hand perpetually get +1/+1",
+         "name": "perpetual_modify_pt",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [
+     "Double strike"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{3}{G}{W}",
+    "name": "Lae'zel, Primal Warrior",
+    "oracle_id": "a3ad8244-c0cc-468b-aa1a-4fb87bc7a4dc",
+    "oracle_text": "Double strike\nWhen this creature enters or specializes, other creatures you control and creature cards in your hand perpetually get +1/+1.",
+    "power": "3",
+    "toughness": "6",
+    "type_line": "Legendary Creature — Gith Warrior"
+   }
+  },
   "Lae'zel, Vlaakith's Champion": {
    "phase_records": [
     {
@@ -724663,6 +727049,204 @@
     "type_line": "Instant"
    }
   },
+  "Leaf-Leap Guide": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}, {T}: Return another target creature you control to its owner's hand.",
+       "duration": null,
+       "effect": {
+        "destination": null,
+        "selection": "at_resolution",
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "Another"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Bounce"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Frog",
+       "Scout"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Vigilance"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Leaf-Leap Guide",
+     "non_ability_text": null,
+     "oracle_text": "Vigilance\nWhenever another creature you control enters, Leaf-Leap Guide and that creature perpetually get +1/+1.\n{1}, {T}: Return another target creature you control to its owner's hand.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "YBLB"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "06a2b72c-573c-46db-bc35-2429f696d026",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever another creature you control enters, ~ and that creature perpetually get +1/+1.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "~ and that creature perpetually get +1/+1",
+         "name": "perpetual_modify_pt",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [
+     "Vigilance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{G}{U}",
+    "name": "Leaf-Leap Guide",
+    "oracle_id": "06a2b72c-573c-46db-bc35-2429f696d026",
+    "oracle_text": "Vigilance\nWhenever another creature you control enters, Leaf-Leap Guide and that creature perpetually get +1/+1.\n{1}, {T}: Return another target creature you control to its owner's hand.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Frog Scout"
+   }
+  },
   "Leafkin Avenger": {
    "phase_records": [
     {
@@ -726693,6 +729277,164 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Goblin Soldier"
+   }
+  },
+  "Legion of Clay": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "name": "Legion of Clay",
+     "non_ability_text": null,
+     "oracle_text": "Creatures you control have trample.\nWhenever one or more nontoken artifacts enter under your control, creatures you control perpetually get +1/+1.",
+     "power": null,
+     "printings": [
+      "YBRO"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "32ca8503-b36a-48ee-9628-7d882a1f7597",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures you control have trample.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Trample",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever one or more nontoken artifacts enter under your control, creatures you control perpetually get +1/+1.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "creatures you control perpetually get +1/+1",
+         "name": "perpetual_modify_pt",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "NonToken"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Legion of Clay",
+    "oracle_id": "32ca8503-b36a-48ee-9628-7d882a1f7597",
+    "oracle_text": "Creatures you control have trample.\nWhenever one or more nontoken artifacts enter under your control, creatures you control perpetually get +1/+1.",
+    "type_line": "Enchantment"
    }
   },
   "Legions of Lim-Dûl": {
@@ -745293,6 +748035,249 @@
     "type_line": "Legendary Creature — God Sorcerer Villain"
    }
   },
+  "Longtusk Stalker": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "amount": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "type": "PayEnergy"
+       },
+       "description": "Pay {E}{E}: ~ perpetually gets +1/+0. You may choose a creature card in your hand. If you do, that card perpetually gets +1/+0.",
+       "duration": null,
+       "effect": {
+        "modification": {
+         "kind": "ModifyPowerToughness",
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         }
+        },
+        "target": {
+         "type": "Any"
+        },
+        "type": "ApplyPerpetual"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "candidate_source": "Direct",
+         "chooser": "Controller",
+         "count": 1,
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChooseFromZone",
+         "up_to": false,
+         "zone": "Hand",
+         "zone_owner": "Controller"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "modification": {
+           "kind": "ModifyPowerToughness",
+           "power": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "toughness": {
+            "type": "Fixed",
+            "value": 0
+           }
+          },
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "ApplyPerpetual"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Cat"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "wrong_object",
+      "source_printing_ids": [
+       "b5365cd0-bae1-41b4-9fc1-1fada0425afa"
+      ]
+     },
+     "name": "Longtusk Stalker",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature enters or attacks, you get {E}.\nPay {E}{E}: this creature perpetually gets +1/+0. You may choose a creature card in your hand. If you do, that card perpetually gets +1/+0.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "J21"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "8c5a08b7-7b1f-4ef4-9406-2f62b9f0c09d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ enters or attacks, you get {E}.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "GainEnergy"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "EntersOrAttacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Longtusk Stalker",
+    "oracle_id": "8c5a08b7-7b1f-4ef4-9406-2f62b9f0c09d",
+    "oracle_text": "Whenever this creature enters or attacks, you get {E}.\nPay {E}{E}: this creature perpetually gets +1/+0. You may choose a creature card in your hand. If you do, that card perpetually gets +1/+0.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Cat"
+   }
+  },
   "Lonis, Cryptozoologist": {
    "phase_records": [
     {
@@ -758985,6 +761970,225 @@
     "power": "1",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Advisor"
+   }
+  },
+  "Mace of Disruption": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {1}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "name": "Mace of Disruption",
+     "non_ability_text": null,
+     "oracle_text": "Equipped creature gets +0/+2 and has protection from Demons and from Devils.\nWhenever equipped creature attacks, it perpetually gets +1/+0 if it has the same name as another creature you control or a creature card in your graveyard.\nEquip {1}",
+     "power": null,
+     "printings": [
+      "HBG"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "80b5d11d-1400-4ff9-a5df-ec2a74bb427a",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature gets +0/+2 and has protection from Demons and from Devils.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 0
+        },
+        {
+         "type": "AddToughness",
+         "value": 2
+        },
+        {
+         "keyword": {
+          "Protection": {
+           "CardType": "demons"
+          }
+         },
+         "type": "AddKeyword"
+        },
+        {
+         "keyword": {
+          "Protection": {
+           "CardType": "devils"
+          }
+         },
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever equipped creature attacks, it perpetually gets +1/+0 if it has the same name as another creature you control or a creature card in your graveyard.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "it perpetually gets +1/+0 if it has the same name as another creature you control or a creature card in your graveyard",
+         "name": "unbound_subject",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Mace of Disruption",
+    "oracle_id": "80b5d11d-1400-4ff9-a5df-ec2a74bb427a",
+    "oracle_text": "Equipped creature gets +0/+2 and has protection from Demons and from Devils.\nWhenever equipped creature attacks, it perpetually gets +1/+0 if it has the same name as another creature you control or a creature card in your graveyard.\nEquip {1}",
+    "type_line": "Artifact — Equipment"
    }
   },
   "Madame Null, Power Broker": {
@@ -928184,6 +931388,221 @@
     "type_line": "Creature — Squirrel"
    }
   },
+  "Prairie Survivalist": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Scout"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "name": "Prairie Survivalist",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nAt the beginning of combat on your turn, target creature you control perpetually gets +1/+0. Then choose a creature card in your hand. It perpetually gets +1/+0.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "YOTJ"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "e5991685-3bf0-48d4-9f11-8a21f2914c4f",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, target creature you control perpetually gets +1/+0. Then choose a creature card in your hand. It perpetually gets +1/+0.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "modification": {
+          "kind": "ModifyPowerToughness",
+          "power": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": 0
+          }
+         },
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ApplyPerpetual"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "candidate_source": "Direct",
+          "chooser": "Controller",
+          "count": 1,
+          "filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "ChooseFromZone",
+          "up_to": false,
+          "zone": "Hand",
+          "zone_owner": "Controller"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "modification": {
+            "kind": "ModifyPowerToughness",
+            "power": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "toughness": {
+             "type": "Fixed",
+             "value": 0
+            }
+           },
+           "target": {
+            "type": "ParentTarget"
+           },
+           "type": "ApplyPerpetual"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Prairie Survivalist",
+    "oracle_id": "e5991685-3bf0-48d4-9f11-8a21f2914c4f",
+    "oracle_text": "Flying\nAt the beginning of combat on your turn, target creature you control perpetually gets +1/+0. Then choose a creature card in your hand. It perpetually gets +1/+0.",
+    "power": "0",
+    "toughness": "1",
+    "type_line": "Creature — Human Scout"
+   }
+  },
   "Precipitous Drop": {
    "phase_records": [
     {
@@ -1028422,6 +1031841,155 @@
     "type_line": "Legendary Enchantment — Background"
    }
   },
+  "Scion of Shiv": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [
+          "Red"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{2}{R}: ~ perpetually gets +1/+0.",
+       "duration": null,
+       "effect": {
+        "modification": {
+         "kind": "ModifyPowerToughness",
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         }
+        },
+        "target": {
+         "type": "Any"
+        },
+        "type": "ApplyPerpetual"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dragon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "wrong_object",
+      "source_printing_ids": [
+       "08a3774a-b7ff-48b1-82b6-736dcda75e64"
+      ]
+     },
+     "name": "Scion of Shiv",
+     "non_ability_text": null,
+     "oracle_text": "Flying\n{2}{R}: Scion of Shiv perpetually gets +1/+0.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "J21"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a689fabe-24b6-4cc5-bab5-931edde6f451",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{2}{R}{R}",
+    "name": "Scion of Shiv",
+    "oracle_id": "a689fabe-24b6-4cc5-bab5-931edde6f451",
+    "oracle_text": "Flying\n{2}{R}: Scion of Shiv perpetually gets +1/+0.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Dragon"
+   }
+  },
   "Scion of Stygia": {
    "phase_records": [
     {
@@ -1095110,6 +1098678,237 @@
     "type_line": "Sorcery"
    }
   },
+  "Soul Shredder": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "activation_zone": "Graveyard",
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 2,
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}, Sacrifice two creatures: Return ~ from your graveyard to the battlefield. Activate only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_choice_timing": "Resolution",
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Vehicle"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Haste",
+      {
+       "Crew": {
+        "once_per_turn": null,
+        "power": 1
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "name": "Soul Shredder",
+     "non_ability_text": null,
+     "oracle_text": "Haste\nWhenever one or more other creatures die, Soul Shredder perpetually gets +1/+1. This ability also triggers if Soul Shredder is in your graveyard.\nCrew 1\n{1}, Sacrifice two creatures: Return Soul Shredder from your graveyard to the battlefield. Activate only as a sorcery.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "YDSK"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "1b7e0a9d-cc3d-45ae-a323-177860503852",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever one or more other creatures die, ~ perpetually gets +1/+1. This ability also triggers if ~ is in your graveyard.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "modification": {
+          "kind": "ModifyPowerToughness",
+          "power": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": 1
+          }
+         },
+         "target": {
+          "type": "Any"
+         },
+         "type": "ApplyPerpetual"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "description": "This ability also triggers if ~ is in your graveyard",
+          "name": "unparsed_condition",
+          "type": "Unimplemented"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZoneAll",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Crew",
+     "Haste"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Soul Shredder",
+    "oracle_id": "1b7e0a9d-cc3d-45ae-a323-177860503852",
+    "oracle_text": "Haste\nWhenever one or more other creatures die, Soul Shredder perpetually gets +1/+1. This ability also triggers if Soul Shredder is in your graveyard.\nCrew 1\n{1}, Sacrifice two creatures: Return Soul Shredder from your graveyard to the battlefield. Activate only as a sorcery.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Artifact — Vehicle"
+   }
+  },
   "Soul Snare": {
    "phase_records": [
     {
@@ -1118738,6 +1122537,350 @@
     "oracle_id": "b1bc8e58-ea4f-46a9-b833-d780cf6758b3",
     "oracle_text": "When this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield. You get {E}{E} (two energy counters).\nAt the beginning of your first main phase, sacrifice this enchantment unless you pay {E}.",
     "type_line": "Enchantment"
+   }
+  },
+  "Steady Tortoise // Harried Dash": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Create a 1/1 white Rabbit creature token. It gains haste until end of turn.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "White"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Rabbit",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Rabbit"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "LastCreated"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain haste",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "Haste",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "type": "LastCreated"
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [
+       "Adventure"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "adventure",
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "name": "Harried Dash",
+     "non_ability_text": null,
+     "oracle_text": "Create a 1/1 white Rabbit creature token. It gains haste until end of turn.",
+     "power": null,
+     "printings": [
+      "YWOE"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "5ff9d055-c7e4-4015-8403-9801516a2605",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    },
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Turtle"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Ward": {
+        "data": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "layout": "adventure",
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "name": "Steady Tortoise",
+     "non_ability_text": null,
+     "oracle_text": "Ward {2}\nWhenever you attack, Steady Tortoise perpetually gets +1/+1. This ability also triggers if Steady Tortoise is in exile.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "YWOE"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "5ff9d055-c7e4-4015-8403-9801516a2605",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you attack, ~ perpetually gets +1/+1. This ability also triggers if ~ is in exile.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "modification": {
+          "kind": "ModifyPowerToughness",
+          "power": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": 1
+          }
+         },
+         "target": {
+          "type": "Any"
+         },
+         "type": "ApplyPerpetual"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "description": "This ability also triggers if ~ is in exile",
+          "name": "unbound_subject",
+          "type": "Unimplemented"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "YouAttack",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "81de52ef-7515-4958-abea-fb8ebdcef93c",
+      "name": "Rabbit",
+      "oracle_id": "fee35fc4-a5b5-4c2c-8c6a-62dad166ea72",
+      "type_line": "Token Creature — Rabbit"
+     }
+    ],
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "G"
+      ],
+      "keywords": [
+       "Ward"
+      ],
+      "mana_cost": "{4}{G}",
+      "name": "Steady Tortoise",
+      "oracle_text": "Ward {2}\nWhenever you attack, Steady Tortoise perpetually gets +1/+1. This ability also triggers if Steady Tortoise is in exile.",
+      "power": "3",
+      "toughness": "3",
+      "type_line": "Creature — Turtle"
+     },
+     {
+      "colors": [
+       "R"
+      ],
+      "keywords": [
+       "Ward"
+      ],
+      "mana_cost": "{R}",
+      "name": "Harried Dash",
+      "oracle_text": "Create a 1/1 white Rabbit creature token. It gains haste until end of turn.",
+      "type_line": "Sorcery — Adventure"
+     }
+    ],
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Ward"
+    ],
+    "layout": "adventure",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{4}{G} // {R}",
+    "name": "Steady Tortoise // Harried Dash",
+    "oracle_id": "5ff9d055-c7e4-4015-8403-9801516a2605",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Turtle // Sorcery — Adventure"
    }
   },
   "Steam Augury": {
@@ -1283262,6 +1287405,191 @@
     "type_line": "Creature — Shapeshifter"
    }
   },
+  "Veteran Charger": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Centaur",
+       "Soldier"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4f274e39-6b15-4afd-a1e2-29209fdb858f"
+      ]
+     },
+     "name": "Veteran Charger",
+     "non_ability_text": null,
+     "oracle_text": "When Veteran Charger enters the battlefield, choose a creature card in your hand. It perpetually gets +2/+2.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "J21"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "28a92014-c911-4e64-9072-7f7d9c3d7544",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters the battlefield, choose a creature card in your hand. It perpetually gets +2/+2.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "candidate_source": "Direct",
+         "chooser": "Controller",
+         "count": 1,
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChooseFromZone",
+         "up_to": false,
+         "zone": "Hand",
+         "zone_owner": "Controller"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "modification": {
+           "kind": "ModifyPowerToughness",
+           "power": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "toughness": {
+            "type": "Fixed",
+            "value": 2
+           }
+          },
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "ApplyPerpetual"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Veteran Charger",
+    "oracle_id": "28a92014-c911-4e64-9072-7f7d9c3d7544",
+    "oracle_text": "When Veteran Charger enters the battlefield, choose a creature card in your hand. It perpetually gets +2/+2.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Centaur Soldier"
+   }
+  },
   "Veteran Explorer": {
    "phase_records": [
     {
@@ -1293003,6 +1297331,226 @@
     "power": "3",
     "toughness": "4",
     "type_line": "Creature — Snake Cleric"
+   }
+  },
+  "Vladimir and Godfrey": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "data": {
+          "condition": {
+           "comparator": "GE",
+           "lhs": {
+            "qty": {
+             "filter": {
+              "controller": "You",
+              "properties": [
+               {
+                "comparator": "EQ",
+                "scope": "Current",
+                "stat": "Power",
+                "type": "PtComparison",
+                "value": {
+                 "type": "Fixed",
+                 "value": 1
+                }
+               },
+               {
+                "comparator": "EQ",
+                "scope": "Current",
+                "stat": "Toughness",
+                "type": "PtComparison",
+                "value": {
+                 "type": "Fixed",
+                 "value": 1
+                }
+               },
+               {
+                "type": "InZone",
+                "zone": "Battlefield"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": [
+               "Creature"
+              ]
+             },
+             "type": "ObjectCount"
+            },
+            "type": "Ref"
+           },
+           "rhs": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "type": "QuantityComparison"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
+       "activation_zone": "Graveyard",
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [
+          "White"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Rejuvenation — {2}{W}: Return ~ from your graveyard to the battlefield tapped. It perpetually gets +1/+1. Activate only if you control a 1/1 creature.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": true,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "modification": {
+          "kind": "ModifyPowerToughness",
+          "power": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": 1
+          }
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ApplyPerpetual"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_choice_timing": "Resolution",
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Zombie",
+       "Knight"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "name": "Vladimir and Godfrey",
+     "non_ability_text": null,
+     "oracle_text": "Rejuvenation — {2}{W}: Return Vladimir and Godfrey from your graveyard to the battlefield tapped. It perpetually gets +1/+1. Activate only if you control a 1/1 creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "HBG"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "55fb7c1c-84da-4a64-8410-1d30ab3cc9cd",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Vladimir and Godfrey",
+    "oracle_id": "55fb7c1c-84da-4a64-8410-1d30ab3cc9cd",
+    "oracle_text": "Rejuvenation — {2}{W}: Return Vladimir and Godfrey from your graveyard to the battlefield tapped. It perpetually gets +1/+1. Activate only if you control a 1/1 creature.",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Zombie Knight"
    }
   },
   "Vnwxt, Verbose Host": {
@@ -1325902,6 +1330450,168 @@
     "type_line": "Legendary Creature — Human Citizen"
    }
   },
+  "Wilson, Majestic Bear": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "activation_zone": "Graveyard",
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [
+            "Green",
+            "Green"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "filter": {
+           "type": "SelfRef"
+          },
+          "type": "Exile",
+          "zone": "Graveyard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}{G}{G}, Exile ~ from your graveyard: Target creature you control perpetually gets +1/+1 and gains reach, trample, and ward {2}. Activate only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "description": "Target creature you control perpetually gets +1/+1 and gains reach, trample, and ward {2}",
+        "name": "perpetual_modify_pt",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Bear",
+       "Warrior"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Reach",
+      "Trample",
+      {
+       "Ward": {
+        "data": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "name": "Wilson, Majestic Bear",
+     "non_ability_text": null,
+     "oracle_text": "Reach, trample\nWard {2}\n{1}{G}{G}, Exile Wilson from your graveyard: Target creature you control perpetually gets +1/+1 and gains reach, trample, and ward {2}. Activate only as a sorcery.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "HBG"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "c03efa9a-8107-4e2b-bf76-4924e491ade7",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Reach",
+     "Trample",
+     "Ward"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{G}{G}",
+    "name": "Wilson, Majestic Bear",
+    "oracle_id": "c03efa9a-8107-4e2b-bf76-4924e491ade7",
+    "oracle_text": "Reach, trample\nWard {2}\n{1}{G}{G}, Exile Wilson from your graveyard: Target creature you control perpetually gets +1/+1 and gains reach, trample, and ward {2}. Activate only as a sorcery.",
+    "power": "5",
+    "toughness": "5",
+    "type_line": "Legendary Creature — Bear Warrior"
+   }
+  },
   "Wilson, Refined Grizzly": {
    "phase_records": [
     {
@@ -1332209,6 +1336919,163 @@
     "power": "3",
     "toughness": "2",
     "type_line": "Creature — Devil Citizen"
+   }
+  },
+  "Wizened Githzerai": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Gith",
+       "Monk"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Wizened Githzerai",
+     "non_ability_text": null,
+     "oracle_text": "Psionic Adept — Whenever Wizened Githzerai becomes blocked by a creature, that creature perpetually gets -2/-0.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "HBG"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6175428d-2f4a-4538-a571-decffa36843e",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ becomes blocked by a creature, that creature perpetually gets -2/-0.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "modification": {
+          "kind": "ModifyPowerToughness",
+          "power": {
+           "type": "Fixed",
+           "value": -2
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": 0
+          }
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ApplyPerpetual"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "BecomesBlocked",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Psionic Adept"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Wizened Githzerai",
+    "oracle_id": "6175428d-2f4a-4538-a571-decffa36843e",
+    "oracle_text": "Psionic Adept — Whenever Wizened Githzerai becomes blocked by a creature, that creature perpetually gets -2/-0.",
+    "power": "2",
+    "toughness": "1",
+    "type_line": "Creature — Gith Monk"
    }
   },
   "Wizened Snitches": {

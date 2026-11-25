@@ -690,3 +690,373 @@ def test_parked_pump_grammar_reads_a_bare_pump_only(line):
     from mtg_utils._card_ir.clause_grammar import parked_pump
 
     assert parked_pump(line) is None
+
+
+# ── A perpetual pump, or a pump as a clause's second instruction ───────────────
+
+_UP_TO_ONE = {"min": 0, "max": {"type": "Fixed", "value": 1}}
+
+
+def _plus(power: int, toughness: int, keywords: list[str] | None = None) -> dict:
+    mod: dict = {
+        "kind": "ModifyPowerToughness",
+        "power": {"type": "Fixed", "value": power},
+        "toughness": {"type": "Fixed", "value": toughness},
+    }
+    if keywords:
+        mod["keywords"] = keywords
+    return mod
+
+
+def _typed(types: list, controller: str | None = None) -> dict:
+    return {
+        "type": "Typed",
+        "type_filters": types,
+        "controller": controller,
+        "properties": [],
+    }
+
+
+_TRIGGER = ("triggers", 0, "execute")
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "path", "pumps", "residue_at"),
+    [
+        # (card, where the residue sits, each (path, target) the perpetual
+        # change is written at, where the residue sits after — None: replaced)
+        # "Those creatures perpetually get +2/+0", after a mass damage
+        (
+            "Chaos Balor",
+            (*_TRIGGER, "mode_abilities", 2, "sub_ability"),
+            [((), {"type": "TrackedSet", "id": 0})],
+            None,
+        ),
+        # "~ and that creature perpetually get +1/+1": the card itself, and the
+        # creature whose entering triggered it
+        (
+            "Leaf-Leap Guide",
+            _TRIGGER,
+            [((), {"type": "Any"}), (("sub_ability",), {"type": "TriggeringSource"})],
+            None,
+        ),
+        # a quoted ability beside the change: the residue keeps it
+        (
+            "Sewer Plague",
+            ("abilities", 0),
+            [(("sub_ability",), _typed(["Creature"], "Opponent"))],
+            (),
+        ),
+        # "~ and that Dragon card each …": the sought card is no pump
+        (
+            "Darigaaz's Whelp",
+            ("triggers", 1, "execute", "sub_ability"),
+            [(("sub_ability",), {"type": "Any"})],
+            (),
+        ),
+        # "Untap up to one target Elf. That Elf and a random Elf creature card
+        # in your hand …": the untapped Elf, ahead of the residue
+        (
+            "Freyalise, Skyshroud Partisan",
+            ("abilities", 0, "sub_ability"),
+            [((), {"type": "ParentTarget"})],
+            ("sub_ability",),
+        ),
+        # a pump as the clause's second instruction: after the return it names
+        (
+            "Benalish Partisan",
+            (*_TRIGGER, "sub_ability"),
+            [(("sub_ability",), {"type": "SelfRef"})],
+            (),
+        ),
+        (
+            "Managorger Phoenix",
+            (*_TRIGGER, "sub_ability"),
+            [(("sub_ability",), {"type": "ParentTarget"})],
+            (),
+        ),
+        (
+            "Hurkyl's Prodigy",
+            ("triggers", 1, "execute", "sub_ability"),
+            [(("sub_ability",), {"type": "SelfRef"})],
+            (),
+        ),
+        # a grant the grammar can't read whole ("and gains reach, trample, and
+        # ward {2}"): the residue keeps it
+        (
+            "Wilson, Majestic Bear",
+            ("abilities", 0),
+            [(("sub_ability",), _typed(["Creature"], "You"))],
+            (),
+        ),
+    ],
+    ids=lambda case: case if isinstance(case, str) else "",
+)
+def test_parked_perpetual_pump_canary(name, path, pumps, residue_at):
+    """A perpetual pump phase parks, on a creature on the battlefield, is
+    written as phase's ``ApplyPerpetual`` change on the target phase writes for
+    those words; a residue that holds more than the pump (another instruction,
+    a quoted ability, cards) stays beside it. The face still loads."""
+    (rec,) = test_phase_records(name)
+    parked = _at(rec, path)["effect"]
+    assert parked.get("type") == "Unimplemented", (
+        f"misparsed_shapes perpetual pump: RETIRE-READY — phase types {name}'s "
+        "perpetual pump. Once no residue reads as one, delete the perpetual "
+        "rows' arms, clause_grammar.split_pump and this canary."
+    )
+    after = _at(correct_misparsed_shapes(rec), path)
+    for at, target in pumps:
+        effect = _at(after, at)["effect"]
+        assert effect["type"] == "ApplyPerpetual"
+        assert effect["target"] == target
+        assert effect["modification"]["kind"] == "ModifyPowerToughness"
+    if residue_at is None:
+        assert "Unimplemented" not in str(after)
+    else:
+        assert _at(after, residue_at)["effect"] == parked
+    assert test_signals(name), f"{name} builds no tree after the rewrite"
+
+
+def test_a_targeted_perpetual_pump_keeps_its_grant_and_up_to():
+    """ "Up to one target Soldier perpetually gets +1/+1 and gains flying" (By
+    Elspeth's Command's first mode): phase's change carries the keywords beside
+    the power and toughness (Jaheira, Stirring Harper's "+1/+0 and gains
+    haste"), and "up to one" is the body's ``multi_target``."""
+    (rec,) = test_phase_records("By Elspeth's Command")
+    path = (*_TRIGGER, "mode_abilities", 0)
+    assert _at(rec, path)["effect"]["type"] == "Unimplemented"
+    body = _at(correct_misparsed_shapes(rec), path)
+    assert body["effect"] == {
+        "type": "ApplyPerpetual",
+        "target": _typed([{"Subtype": "Soldier"}]),
+        "modification": _plus(1, 1, ["Flying"]),
+    }
+    assert body["multi_target"] == _UP_TO_ONE
+    # the second mode's "It" is a card chosen from your hand: no pump
+    second = (*_TRIGGER, "mode_abilities", 1, "sub_ability")
+    assert _at(correct_misparsed_shapes(rec), second)["effect"]["type"] == (
+        "Unimplemented"
+    )
+
+
+@pytest.mark.retirement_canary
+def test_second_verb_pump_canary():
+    """ "Draw X cards and the chosen creatures get +X/+X and gain trample"
+    (Spry and Mighty): the pump is typed after the residue, which keeps the
+    draw and the grant, on the creatures the ``TargetOnly`` chose."""
+    (rec,) = test_phase_records("Spry and Mighty")
+    path = ("abilities", 0, "sub_ability")
+    parked = _at(rec, path)["effect"]
+    assert parked.get("type") == "Unimplemented", (
+        "misparsed_shapes second-verb pump: RETIRE-READY — phase types Spry and "
+        "Mighty's pump. Delete the second-verb arm and this canary."
+    )
+    after = _at(correct_misparsed_shapes(rec), path)
+    assert after["effect"] == parked
+    assert after["sub_ability"]["effect"] == {
+        "type": "Pump",
+        "power": {"type": "Variable", "value": "X"},
+        "toughness": {"type": "Variable", "value": "X"},
+        "target": {"type": "ParentTarget"},
+    }
+    assert after["sub_ability"]["duration"] == "UntilEndOfTurn"
+    assert ("pump_makers", "you", "") in {
+        (s.key, s.scope, s.subject) for s in test_signals("Spry and Mighty")
+    }
+
+
+@pytest.mark.retirement_canary
+def test_static_pump_line_canary():
+    """ "Equipped creature gets +2/+1 and has \"{T}, Unattach ~: Destroy target
+    creature.\"" (Heartseeker), parked whole: the pump is phase's static over the
+    equipped creature (Bonesplitter's), the residue stays for the granted
+    ability."""
+    (rec,) = test_phase_records("Heartseeker")
+    parked = rec["abilities"][1]["effect"]
+    assert parked.get("type") == "Unimplemented", (
+        "misparsed_shapes static pump line: RETIRE-READY — phase types "
+        "Heartseeker's static. Delete the static-line arm and this canary."
+    )
+    after = correct_misparsed_shapes(rec)
+    assert after["abilities"][1]["effect"] == parked
+    (static,) = after["static_abilities"]
+    assert static["affected"]["properties"] == [{"type": "EquippedBy"}]
+    assert static["modifications"] == [
+        {"type": "AddPower", "value": 2},
+        {"type": "AddToughness", "value": 1},
+    ]
+    assert ("voltron_makers", "you", "pump") in {
+        (s.key, s.scope, s.subject) for s in test_signals("Heartseeker")
+    }
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # on the battlefield, but no perpetual form phase writes says it: a
+        # group ("creatures you control" — phase's perpetual change reaches a
+        # population only outside the battlefield), alone or beside cards
+        "Legion of Clay",
+        "Lae'zel, Primal Warrior",
+        # "a creature of your choice an opponent controls": chosen, not
+        # targeted, and phase's typed filter is a target
+        "Alora, Cheerful Thief",
+        # off the battlefield: "Creature cards in your graveyard"
+        "Feed the Bog",
+        # "… if it has the same name as …": the condition is what phase parked
+        "Mace of Disruption",
+        # the subject phase dropped lives only in the description
+        "Defiling Tears",
+    ],
+)
+def test_a_pump_with_no_faithful_typed_form_stays_parked(name):
+    (rec,) = test_phase_records(name)
+    assert correct_misparsed_shapes(rec) is rec
+
+
+@pytest.mark.parametrize(
+    "lead",
+    [
+        "return ~ to its owner's hand",
+        "exile ~",
+        "sacrifice it",
+    ],
+)
+def test_an_it_after_a_lead_that_moves_the_card_away_stays_parked(lead):
+    """ "<lead> and it perpetually gets +1/+1": the card the lead took off the
+    battlefield is no pump (``clause_grammar.lead_object``)."""
+    text = f"{lead} and it perpetually gets +1/+1"
+    rec = {
+        "name": "Zzyx Test Wanderer",
+        "card_type": {"core_types": ["Creature"], "subtypes": []},
+        "triggers": [
+            {
+                "mode": "Attacks",
+                "valid_card": {"type": "SelfRef"},
+                "trigger_zones": ["Battlefield"],
+                "description": f"Whenever ~ attacks, {text}.",
+                "execute": {
+                    "effect": {
+                        "type": "Unimplemented",
+                        "name": "perpetual_modify_pt",
+                        "description": text,
+                    }
+                },
+            }
+        ],
+    }
+    assert correct_misparsed_shapes(rec) is rec
+
+
+@pytest.mark.parametrize(
+    ("line", "lead", "recipients", "perpetual", "keywords", "rider"),
+    [
+        (
+            (
+                "return ~ from your graveyard to the battlefield tapped and it "
+                "perpetually gets +1/+0"
+            ),
+            "return ~ from your graveyard to the battlefield tapped",
+            ("it",),
+            True,
+            (),
+            False,
+        ),
+        (
+            "draw X cards and the chosen creatures get +X/+X and gain trample",
+            "draw X cards",
+            ("chosen",),
+            False,
+            ("trample",),
+            False,
+        ),
+        (
+            "~ and that creature perpetually get +1/+1",
+            "",
+            ("self", "that"),
+            True,
+            (),
+            False,
+        ),
+        (
+            "That Elf and a random Elf creature card in your hand perpetually get +1/+1",
+            "",
+            ("that", None),
+            True,
+            (),
+            False,
+        ),
+        (
+            "Up to one target Soldier perpetually gets +1/+1 and gains flying",
+            "",
+            ("target",),
+            True,
+            ("flying",),
+            False,
+        ),
+        (
+            (
+                'Equipped creature gets +2/+1 and has "{T}, Unattach ~: Destroy '
+                'target creature."'
+            ),
+            "",
+            ("attached",),
+            False,
+            (),
+            True,
+        ),
+    ],
+)
+def test_split_pump_grammar(line, lead, recipients, perpetual, keywords, rider):
+    from mtg_utils._card_ir.clause_grammar import split_pump
+
+    pump = split_pump(line)
+    assert pump is not None
+    assert pump.lead == lead
+    assert tuple(s.recipient if s else None for s in pump.subjects) == recipients
+    assert pump.perpetual is perpetual
+    assert pump.keywords == keywords
+    assert bool(pump.rider) is rider
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        # a condition on the pump
+        "it perpetually gets +1/+0 if it has the same name as another creature",
+        # a verb list whose subject phase dropped
+        'become black, gets +1/-1, and gains "{B}: Regenerate ~."',
+        # the pump after another verb of the same subject
+        "It perpetually gains trample and gets +X/+X, where X is ~'s power",
+    ],
+)
+def test_split_pump_grammar_reads_no_conditioned_or_subjectless_pump(line):
+    from mtg_utils._card_ir.clause_grammar import split_pump
+
+    assert split_pump(line) is None
+
+
+@pytest.mark.parametrize(
+    ("lead", "who", "place"),
+    [
+        ("return ~ from your graveyard to the battlefield tapped", "self", "returned"),
+        ("return it to the battlefield", "it", "returned"),
+        ("return ~ to its owner's hand", "self", "away"),
+        ("exile ~", "self", "away"),
+        ("sacrifice it", "it", "away"),
+        ("~ can't be blocked this turn", "self", "unmoved"),
+    ],
+)
+def test_lead_object_grammar(lead, who, place):
+    from mtg_utils._card_ir.clause_grammar import lead_object
+
+    read = lead_object(lead)
+    assert read is not None
+    assert (read.who, read.place) == (who, place)
+
+
+def test_lead_object_grammar_reads_no_other_lead():
+    from mtg_utils._card_ir.clause_grammar import lead_object
+
+    assert lead_object("draw X cards") is None
