@@ -58,6 +58,19 @@ Untapped.gg's MTGA limited card stats (`limited-stats`): Arena Sealed and Premie
 (before release, the Early Access events), pooled with each measured against its own
 format's average. 2HG is sealed, but Sealed alone is too thin to rank most pairs or cards.
 
+**Range (±)**:
+The plus-or-minus beside a card's pooled lift in `limited-stats`: how far the games alone
+could move it: a two-sided 90% range by default (`--confidence`). A label (standout,
+underperformer, data bomb) needs the cautious end of the range to clear the margin, so it
+is a one-sided 95% call.
+_Avoid_: "error" alone (the pair tiers' ± is a rougher one-sigma figure).
+
+**Leaning**:
+A card whose pooled lift clears the margin but whose range reaches back inside it
+(`pooled.leaning`: leaning standouts first, then leaning underperformers). Shown so a
+guide writer sees it, never labelled a standout or a bomb on the data; a leaning rare or
+mythic is a bomb only when the reviewers grade it one.
+
 **Reviewer consensus**:
 chunk.science's aggregate of reviewers' grades for the set. It names the bombs the Arena
 data has too few games to judge (an A− average or better).

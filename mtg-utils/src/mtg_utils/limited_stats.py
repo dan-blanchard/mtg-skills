@@ -1,8 +1,9 @@
 """Untapped.gg MTG Arena limited card stats, turned into guide-ready numbers.
 
     limited-stats --set FRA [--premium-sealed PATH] [--premium-draft PATH]
-                  [--pool-min-games 60] [--margin 10] [--tier-gap 5] [--clash 10]
-                  [--min-games 30] [--reviews | --reviews-json PATH] [--json]
+                  [--pool-min-games 60] [--margin 10] [--confidence 90]
+                  [--tier-gap 5] [--clash 10] [--min-games 30]
+                  [--reviews | --reviews-json PATH] [--json]
     limited-stats --set FRA --event SEALED [--premium-json PATH] [--json]
 
 Untapped.gg publishes per-card limited stats for every Arena set, keyed by the
@@ -18,7 +19,11 @@ With no ``--event`` it reads both Arena Sealed and Premier Draft and puts a
 against its own format's average, then pooled across the formats by games, so
 the two formats' different baselines don't mix. That is the view a 2HG
 prerelease guide reads: 2HG is sealed, but Sealed alone is too thin to rank most
-pairs or cards. ``--event`` keeps the single-format report.
+pairs or cards. Every card's pooled lift carries a ± range (``--confidence``,
+:func:`iwd_standard_error`), and a card is a standout, underperformer or data
+bomb only when the cautious end of that range clears ``--margin``; one whose
+estimate clears it but whose range does not is listed as *leaning*.
+``--event`` keeps the single-format report.
 
 Computation is pure (:func:`build_report` over a payload + a titleId index);
 fetching is separate (:func:`fetch_card_stats`, :func:`fetch_card_index`) and
@@ -111,6 +116,9 @@ REVIEWER_BOMB_MEAN = 90.0
 # A card needs this many games drawn in each format before a gap between the
 # formats is listed as a disagreement.
 _CLASH_FLOOR = 20
+#: The confidence (percent) of a pooled card's ± range; a label needs the
+#: range's cautious end to clear the margin (``--confidence``).
+DEFAULT_CONFIDENCE = 90.0
 
 
 # --- Pure helpers --------------------------------------------------------------
@@ -228,8 +236,69 @@ def build_card_index(
     return index
 
 
+def iwd_standard_error(
+    drawn_games: int, drawn_wins: int, undrawn_games: int, undrawn_wins: int
+) -> float | None:
+    """The standard error of one format's IWD, in percentage points.
+
+    The IWD is the win rate in the games the card was drawn minus the win rate
+    in the games it sat in the deck undrawn. Each rate is a share of wins, and
+    the uncertainty of a share of ``n`` games is ``sqrt(p * (1 - p) / n)``; the
+    two groups of games are treated as independent, so the two variances add
+    and the difference's error is the square root of the sum. ``p`` is read the
+    Agresti-Caffo way, one win and one loss added to each group (``(w + 1) /
+    (n + 2)`` over ``n + 2`` games), so a group that won every game still has a
+    width; at the 60+
+    games a label needs, that moves the result by under 0.1 point for an even
+    record and up to about 0.2 for a lopsided one (55-5 over 60 games).
+    The IWD itself stays the plain difference. ``None`` when either group has
+    no games (there is no IWD then either).
+
+    What it leaves out:
+
+    - The format's average card, which the pooled view subtracts, is treated as
+      exact. It is a mean over a few hundred cards' IWDs, so the games' noise in
+      it is ``sqrt(Σ se²) / N``, about a tenth of a typical card's error
+      (measured: 0.14 against 1.5 points in TRK Sealed, 0.65 against 8.7 in FRA
+      draft): acceptable.
+    - Games are not independent. One deck plays several games of a run (and,
+      in Bo3, of a match), and a good deck wins more whether or not the card is
+      drawn. That clustering widens each rate's true error, but the drawn and
+      undrawn games come from the same decks, so deck strength moves both rates
+      together and largely cancels in their difference. The payload holds no
+      per-deck counts to measure either effect, so the net is unknown: read the
+      range as the games' own noise, not a guarantee.
+    - Bias. An IWD favours cards drawn in long games (more draws) and is skewed
+      by who plays a card; the error says how noisy the number is, not whether
+      it measures the card's strength.
+    - On the free tier the undrawn counts are derived, ``games - drawn``
+      (:func:`_sum_buckets`): ``games`` also counts the games the card sat in
+      the sideboard and never in the main deck (``games - in_main_games``:
+      0.85% of TRK draft card-games, but 28% of Brazen Bluff's draft not-drawn
+      games), and the payload gives no wins split to take them out. The error
+      is the error of that same derived estimate.
+    """
+    if drawn_games <= 0 or undrawn_games <= 0:
+        return None
+    drawn = (drawn_wins + 1) / (drawn_games + 2)
+    undrawn = (undrawn_wins + 1) / (undrawn_games + 2)
+    variance = drawn * (1 - drawn) / (drawn_games + 2) + undrawn * (1 - undrawn) / (
+        undrawn_games + 2
+    )
+    return 100.0 * math.sqrt(variance)
+
+
+def z_score(confidence: float) -> float:
+    """The two-sided normal multiplier for a *confidence* percentage (90 ->
+    1.645): a range of ``z`` standard errors either side holds the true value
+    that share of the time. 0 is the point estimate alone."""
+    return statistics.NormalDist().inv_cdf(0.5 + confidence / 200.0)
+
+
 def card_rows(payload: dict, index: dict[str, dict]) -> list[dict]:
-    """One row per card over the ``ALL`` archetype, summed across rank buckets."""
+    """One row per card over the ``ALL`` archetype, summed across rank buckets.
+
+    ``iwd_se`` is the IWD's standard error (:func:`iwd_standard_error`)."""
     positions = _field_positions(payload.get("metadata", {}).get("fields"))
     rows = []
     for title_id, archetypes in (payload.get("data") or {}).items():
@@ -240,6 +309,12 @@ def card_rows(payload: dict, index: dict[str, dict]) -> list[dict]:
         meta = index.get(str(title_id), {})
         gih_wr = _pct(t["available_wins"], t["available_games"])
         gns_wr = _pct(t["not_available_wins"], t["not_available_games"])
+        se = iwd_standard_error(
+            t["available_games"],
+            t["available_wins"],
+            t["not_available_games"],
+            t["not_available_wins"],
+        )
         rows.append(
             {
                 "title_id": str(title_id),
@@ -258,6 +333,7 @@ def card_rows(payload: dict, index: dict[str, dict]) -> list[dict]:
                     if gih_wr is not None and gns_wr is not None
                     else None
                 ),
+                "iwd_se": None if se is None else round(se, 2),
                 "oh": t["in_opening_hands"],
                 "oh_wr": _pct(t["in_opening_hand_wins"], t["in_opening_hands"]),
             }
@@ -508,13 +584,27 @@ def pair_tiers(
     return out
 
 
-def pooled_cards(reports: dict[str, dict], *, min_games: int = 30) -> list[dict]:
+def pooled_cards(
+    reports: dict[str, dict],
+    *,
+    min_games: int = 30,
+    confidence: float = DEFAULT_CONFIDENCE,
+) -> list[dict]:
     """One row per card: IWD pooled across formats by games drawn.
 
     ``iwd`` is the pooled IWD itself; ``vs_average`` pools each format's IWD
     minus that format's average card (:func:`average_iwd`), the number the
     thresholds read. ``events`` keeps each format's own figures.
+
+    ``se`` is the pooled lift's standard error: the pooled lift is a weighted
+    mean of the formats' lifts (weights ``g_e``, the games drawn in each), and
+    the formats are separate games, so its variance is ``Σ g_e² se_e² / (Σ
+    g_e)²`` over each format's :func:`iwd_standard_error`. ``plus_minus`` is
+    ``se`` times :func:`z_score` of *confidence*: the half-width of the range,
+    shared by ``iwd`` and ``vs_average`` (the average is taken as exact). Each
+    format's entry carries its own ``se`` and ``plus_minus`` too.
     """
+    z = z_score(confidence)
     averages = {
         ev: average_iwd(report["cards"], min_games) for ev, report in reports.items()
     }
@@ -533,6 +623,8 @@ def pooled_cards(reports: dict[str, dict], *, min_games: int = 30) -> list[dict]
                 "gih": row["gih"],
                 "iwd": row["iwd"],
                 "vs_average": round(row["iwd"] - avg, 1),
+                "se": row["iwd_se"],
+                "plus_minus": round(z * row["iwd_se"], 1),
             }
     out = []
     for card in cards.values():
@@ -540,8 +632,16 @@ def pooled_cards(reports: dict[str, dict], *, min_games: int = 30) -> list[dict]
         drawn = sum(e["gih"] for e in events)
         iwd = sum(e["gih"] * e["iwd"] for e in events) / drawn
         rel = sum(e["gih"] * e["vs_average"] for e in events) / drawn
+        se = math.sqrt(sum((e["gih"] * e["se"]) ** 2 for e in events)) / drawn
         out.append(
-            card | {"gih": drawn, "iwd": round(iwd, 1), "vs_average": round(rel, 1)}
+            card
+            | {
+                "gih": drawn,
+                "iwd": round(iwd, 1),
+                "vs_average": round(rel, 1),
+                "se": round(se, 2),
+                "plus_minus": round(z * se, 1),
+            }
         )
     out.sort(key=lambda c: (-c["vs_average"], -c["gih"]))
     return out
@@ -666,6 +766,14 @@ def reviewer_bombs(
     return out
 
 
+def _with_review(card: dict, reviews: dict[str, dict]) -> dict:
+    """*card* with the reviewers' average grade and count, when they graded it."""
+    review = _review_of(card, reviews)
+    if review is None:
+        return card
+    return card | {"review_mean": review["mean"], "review_sources": review["sources"]}
+
+
 def build_pooled(
     reports: dict[str, dict],
     *,
@@ -675,24 +783,51 @@ def build_pooled(
     margin: float = 10.0,
     tier_gap: float = 5.0,
     clash: float = 10.0,
+    confidence: float = DEFAULT_CONFIDENCE,
     reviews: dict[str, dict] | None = None,
 ) -> dict:
     """The pooled view over each format's :func:`build_report`.
 
-    A standout or underperformer is ``margin`` points from the average card
-    with ``pool_min_games`` drawn across the formats; the data bombs are the
-    rares / mythics among the standouts, and every rare / mythic under that
-    sample is listed as thin (a reviewer's call, not the data's), special
-    guests from other sets included (they're in the set's boosters), once a
-    handful have been drawn so a card seen once doesn't crowd the list.
+    A standout is a card with ``pool_min_games`` drawn across the formats
+    whose lift is ``margin`` points over the average card even at the low end
+    of its range (``vs_average - plus_minus``, at *confidence*:
+    :func:`pooled_cards`); an underperformer is ``margin`` under it even at the
+    high end. A card whose point estimate clears the margin but whose cautious
+    end does not is ``leaning`` (``lean``: ``"standout"`` / ``"underperformer"``),
+    never a label. The data bombs are the rares / mythics among the standouts,
+    and every rare / mythic under the games floor is listed as thin (a
+    reviewer's call, not the data's), special guests from other sets included
+    (they're in the set's boosters), once a handful have been drawn so a card
+    seen once doesn't crowd the list. The floor stays beside the range: it is
+    not redundant (on FRA's thin data, five cards under 60 drawn clear the
+    range at 90%, from Flesh Duplicate's 2 games to Garruk, Veiled Butcher's
+    24; ten at 80%, two at 95%), and under it the
+    range itself is least trustworthy (few decks, so the clustering
+    :func:`iwd_standard_error` can't see matters most).
 
     ``reviews`` (:func:`parse_reviews`) puts the reviewers' average grade and
-    count on each thin rare (``review_mean`` / ``review_sources``) and adds
+    count on each thin rare and each leaning rare / mythic (``review_mean`` /
+    ``review_sources``: the data can't call either, so the reviewers do) and adds
     ``reviewer_bombs`` (:func:`reviewer_bombs`); without it both are absent.
     """
-    cards = pooled_cards(reports, min_games=min_games)
+    cards = pooled_cards(reports, min_games=min_games, confidence=confidence)
     sampled = [c for c in cards if c["gih"] >= pool_min_games]
-    standouts = [c for c in sampled if c["vs_average"] >= margin]
+    # Rounded as printed, so a reader can check the arithmetic on the page.
+    standouts = [
+        c for c in sampled if round(c["vs_average"] - c["plus_minus"], 1) >= margin
+    ]
+    under = [
+        c for c in sampled if round(c["vs_average"] + c["plus_minus"], 1) <= -margin
+    ]
+    labelled = {c["title_id"] for c in (*standouts, *under)}
+    # Leaning standouts first, then leaning underperformers, each furthest first.
+    leaning = [
+        c | {"lean": "standout" if c["vs_average"] > 0 else "underperformer"}
+        for c in sorted(
+            sampled, key=lambda c: (c["vs_average"] < 0, -abs(c["vs_average"]))
+        )
+        if abs(c["vs_average"]) >= margin and c["title_id"] not in labelled
+    ]
     rare = {"rare", "mythic"}
     formats = {}
     for event, report in reports.items():
@@ -709,6 +844,11 @@ def build_pooled(
             "games": report["summary"]["games"]["total"],
             "average_pair": None if avg_pair is None else round(avg_pair, 1),
             "average_iwd": None if avg_iwd is None else round(avg_iwd, 1),
+            # The undrawn games behind each IWD and its error: Premium counts
+            # them, the free tier derives them (:func:`iwd_standard_error`).
+            "not_drawn": (
+                "counted" if report["summary"]["source"] == "premium" else "derived"
+            ),
         }
     thin_rares = [
         c
@@ -717,14 +857,9 @@ def build_pooled(
     ]
     graded = {}
     if reviews is not None:
-        thin_rares = [
-            c
-            | (
-                {"review_mean": r["mean"], "review_sources": r["sources"]}
-                if (r := _review_of(c, reviews)) is not None
-                else {}
-            )
-            for c in thin_rares
+        thin_rares = [_with_review(c, reviews) for c in thin_rares]
+        leaning = [
+            _with_review(c, reviews) if c["rarity"] in rare else c for c in leaning
         ]
         graded = {"reviewer_bombs": reviewer_bombs(cards, reviews, pool_min_games)}
     return {
@@ -736,16 +871,16 @@ def build_pooled(
             "tier_gap": tier_gap,
             "clash": clash,
             "clash_floor": _CLASH_FLOOR,
+            "confidence": confidence,
+            "z": round(z_score(confidence), 3),
         },
         "formats": formats,
         "pairs": pair_tiers(reports, tier_gap=tier_gap, clash=clash),
         "color_depth": color_depth(cards, pool_min_games),
         "standouts": standouts,
         "data_bombs": [c for c in standouts if c["rarity"] in rare],
-        "underperformers": sorted(
-            (c for c in sampled if c["vs_average"] <= -margin),
-            key=lambda c: c["vs_average"],
-        ),
+        "underperformers": sorted(under, key=lambda c: c["vs_average"]),
+        "leaning": leaning,
         "thin_rares": thin_rares,
         **graded,
         "disagreements": format_disagreements(cards, clash=clash),
@@ -1003,9 +1138,14 @@ def _signed(value: float | None) -> str:
     return "--" if value is None else f"{value:+.1f}"
 
 
-def _per_event(events: dict[str, dict], count: str) -> str:
+def _plus_minus(entry: dict, *, ranged: bool) -> str:
+    return f" ±{entry['plus_minus']:.1f}" if ranged and "plus_minus" in entry else ""
+
+
+def _per_event(events: dict[str, dict], count: str, *, ranged: bool = False) -> str:
     return " · ".join(
-        f"{ev} {_signed(e['vs_average'])} ({e[count]})" for ev, e in events.items()
+        f"{ev} {_signed(e['vs_average'])}{_plus_minus(e, ranged=ranged)} ({e[count]})"
+        for ev, e in events.items()
     )
 
 
@@ -1015,14 +1155,32 @@ def _review_note(card: dict) -> str:
     return f"  reviewers {card['review_mean']:.1f} ({card['review_sources']})"
 
 
-def _card_line(card: dict, code: str, *, bracket: bool = False) -> str:
-    iwd = _signed(card["iwd"])
+def _card_line(
+    card: dict, code: str, *, bracket: bool = False, ranged: bool = False
+) -> str:
+    """One card of the pooled view; *ranged* prints its ± (no ± at confidence
+    0, where the line is the point estimate's, as before the range)."""
+    pm = _plus_minus(card, ranged=ranged)
+    iwd = f"{_signed(card['iwd'])}{pm}"
     iwd = f"[{iwd}]" if bracket else iwd
+    lean = f"{card['lean']}?  " if "lean" in card else ""
+    leaning_rare = card.get("lean") == "standout" and card["rarity"] in {
+        "rare",
+        "mythic",
+    }
+    mark = "*" if leaning_rare else " "
     return (
-        f"  {iwd:>7}  {_label(card, code)}  vs avg {_signed(card['vs_average'])},"
-        f" {card['gih']} drawn  ({_per_event(card['events'], 'gih')})"
+        f" {mark}{iwd:>{13 if ranged else 7}}  {lean}{_label(card, code)}"
+        f"  vs avg {_signed(card['vs_average'])}{pm},"
+        f" {card['gih']} drawn  ({_per_event(card['events'], 'gih', ranged=ranged)})"
         f"{_review_note(card)}"
     )
+
+
+def _one_sided(confidence: float) -> float:
+    """The one-sided level of a two-sided *confidence* range: a label tests one
+    end only, so a 90% range is a 95% call."""
+    return 50.0 + confidence / 2.0
 
 
 def _reviewer_bomb_line(card: dict, code: str) -> str:
@@ -1037,27 +1195,73 @@ def _reviewer_bomb_line(card: dict, code: str) -> str:
     )
 
 
+def _leaning_lines(leaning: list[dict], code: str, margin: float) -> list[str]:
+    """The leaning list, leaning standouts first, then leaning underperformers."""
+    lines = [
+        "",
+        (
+            f"## Leaning (the estimate clears {margin:g} points, the range reaches"
+            " back inside: not a label)"
+        ),
+    ]
+    for lean, title in (
+        (
+            "standout",
+            (
+                "leaning standouts (* rare / mythic: a bomb only if reviewers"
+                " grade it one)"
+            ),
+        ),
+        ("underperformer", "leaning underperformers"),
+    ):
+        group = [c for c in leaning if c["lean"] == lean]
+        if group:
+            lines.append(f"  {title}:")
+            lines.extend(_card_line(c, code, ranged=True) for c in group)
+    if not leaning:
+        lines.append("  none")
+    return lines
+
+
 def render_pooled(pooled: dict, set_code: str) -> str:
     code = set_code.upper()
     th = pooled["thresholds"]
+    # Confidence 0 is the point estimate alone: the text is the one before the
+    # range existed (no ± on the cards, no leaning list, the old headings).
+    ranged = th["confidence"] > 0
     lines = [
         f"# {code} pooled — {' + '.join(pooled['events'])} (Untapped.gg)",
         "Each pair and card is measured against its own format's average, then",
         "pooled across the formats by games.",
-        "",
-        "## Formats",
     ]
+    if ranged:
+        lines.append(
+            f"A card's ± is a two-sided {th['confidence']:g}% range of its IWD (and"
+            " of its lift over the average card). A label needs the cautious end"
+            f" of it to clear {th['margin']:g} points, and tests that one end"
+            f" only: a one-sided {_one_sided(th['confidence']):g}% call."
+        )
+    lines += ["", "## Formats"]
     for event, f in pooled["formats"].items():
         lines.append(
             f"  {event}: {f['source']}, fetched {f['fetched_at']}, {f['games']} games;"
             f" average pair {_fmt(f['average_pair'])},"
             f" average card IWD {_signed(f['average_iwd'])}"
+            + (
+                "; not drawn = games - drawn (free tier: the IWD and its ± count"
+                " a sideboard game as not drawn)"
+                if ranged and f["not_drawn"] == "derived"
+                else ""
+            )
         )
     for event, reason in pooled["missing"].items():
         lines.append(f"  {event}: missing ({reason})")
     lines += [
         "",
-        f"## Colour pairs (vs the average pair; tiers at ±{th['tier_gap']:g})",
+        (
+            f"## Colour pairs (vs the average pair; tiers at ±{th['tier_gap']:g}"
+            + ("; a pair's ± is one rough sigma)" if ranged else ")")
+        ),
     ]
     for e in pooled["pairs"]:
         flag = "  <- formats clash" if e["clash"] else ""
@@ -1078,10 +1282,11 @@ def render_pooled(pooled: dict, set_code: str) -> str:
             for color, d in pooled["color_depth"].items()
         ),
     ]
+    at_end = " at the low end of its range" if ranged else ""
     sections = (
         (
             (
-                f"## Standouts (IWD {th['margin']:g}+ over the average card,"
+                f"## Standouts (IWD {th['margin']:g}+ over the average card{at_end},"
                 f" {th['pool_min_games']}+ drawn)"
             ),
             pooled["standouts"],
@@ -1093,7 +1298,10 @@ def render_pooled(pooled: dict, set_code: str) -> str:
             False,
         ),
         (
-            f"## Underperformers (IWD {th['margin']:g}+ under the average card)",
+            (
+                f"## Underperformers (IWD {th['margin']:g}+ under the average card"
+                + (" at the high end of its range)" if ranged else ")")
+            ),
             pooled["underperformers"],
             False,
         ),
@@ -1108,9 +1316,11 @@ def render_pooled(pooled: dict, set_code: str) -> str:
     )
     for heading, cards, bracket in sections:
         lines += ["", heading]
-        lines.extend(_card_line(c, code, bracket=bracket) for c in cards)
+        lines.extend(_card_line(c, code, bracket=bracket, ranged=ranged) for c in cards)
         if not cards:
             lines.append("  none")
+        if ranged and heading.startswith("## Underperformers"):
+            lines += _leaning_lines(pooled["leaning"], code, th["margin"])
     if "reviewer_bombs" in pooled:
         lines += [
             "",
@@ -1233,6 +1443,18 @@ def _report(
     help="Points apart before the formats count as disagreeing.",
 )
 @click.option(
+    "--confidence",
+    default=DEFAULT_CONFIDENCE,
+    show_default=True,
+    type=click.FloatRange(min=0, max=100, max_open=True),
+    help=(
+        "Pooled view: the two-sided percent confidence of each card's ± range; a"
+        " standout / underperformer needs the range's cautious end past --margin,"
+        " so a label is a one-sided call at 50 + confidence/2 (90 -> 95%). 0 ="
+        " the point estimate alone."
+    ),
+)
+@click.option(
     "--reviews",
     "with_reviews",
     is_flag=True,
@@ -1258,6 +1480,7 @@ def main(
     margin: float,
     tier_gap: float,
     clash: float,
+    confidence: float,
     with_reviews: bool,  # noqa: FBT001 — a click flag
     reviews_json: Path | None,
     as_json: bool,  # noqa: FBT001 — a click flag
@@ -1319,6 +1542,7 @@ def main(
         margin=margin,
         tier_gap=tier_gap,
         clash=clash,
+        confidence=confidence,
         reviews=reviews,
     )
     if as_json:

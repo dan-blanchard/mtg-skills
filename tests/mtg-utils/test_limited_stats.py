@@ -196,6 +196,12 @@ class TestCardRows:
         assert row["iwd"] == 25.0
         assert row["oh"] == 5
         assert row["oh_wr"] == 60.0
+        # Drawn 26-14, not drawn 8-12, one win and one loss added to each.
+        drawn, undrawn = 27 / 42, 9 / 22
+        expected = (
+            100 * (drawn * (1 - drawn) / 42 + undrawn * (1 - undrawn) / 22) ** 0.5
+        )
+        assert row["iwd_se"] == pytest.approx(expected, abs=0.01)
 
     def test_missing_title_id_gets_placeholder_name(self):
         rows = ls.card_rows(FREE_PAYLOAD, {})
@@ -221,6 +227,10 @@ class TestCardRows:
         assert row["gih"] == 54
         assert row["gns"] == 45  # explicit 40 + 5, not derived 110 - 54
         assert row["gns_wr"] == pytest.approx(48.9)
+        # The error reads the counted not-drawn games: 22 of 45 won.
+        assert row["iwd_se"] == pytest.approx(
+            ls.iwd_standard_error(54, 37, 45, 22), abs=0.01
+        )
         assert ls.payload_source(payload) == "premium"
         assert ls.payload_source(FREE_PAYLOAD) == "file"
 
@@ -418,7 +428,8 @@ def _pair(colors, games, win_rate):
     return {"colors": colors, "games": games, "win_rate": win_rate}
 
 
-def _card(title_id, gih, iwd, *, rarity="common", colors="W", card_set="TST"):
+def _card(title_id, gih, iwd, *, rarity="common", colors="W", card_set="TST", se=0.0):
+    """A format's card row; ``se`` is its IWD's standard error (0: exact)."""
     return {
         "title_id": title_id,
         "name": f"Card {title_id}",
@@ -427,6 +438,7 @@ def _card(title_id, gih, iwd, *, rarity="common", colors="W", card_set="TST"):
         "set": card_set,
         "gih": gih,
         "iwd": iwd,
+        "iwd_se": se,
     }
 
 
@@ -487,11 +499,149 @@ class TestPooledCards:
         # IWD (30*15 + 90*10) / 120; vs average (30*10 + 90*10) / 120.
         assert one["iwd"] == pytest.approx(11.2, abs=0.05)
         assert one["vs_average"] == 10.0
-        assert one["events"]["SEALED"] == {"gih": 30, "iwd": 15.0, "vs_average": 10.0}
+        assert one["events"]["SEALED"] == {
+            "gih": 30,
+            "iwd": 15.0,
+            "vs_average": 10.0,
+            "se": 0.0,
+            "plus_minus": 0.0,
+        }
 
     def test_card_without_iwd_skipped(self):
         reports = {"SEALED": _report(cards=[_card("1", 0, None), _card("2", 40, 5.0)])}
         assert [c["title_id"] for c in ls.pooled_cards(reports)] == ["2"]
+
+    def test_error_pools_as_a_weighted_mean(self):
+        # Sealed: 30 drawn, se 6; draft: 90 drawn, se 2. The pooled lift is
+        # (30 x + 90 y) / 120, so its se is sqrt((30*6)^2 + (90*2)^2) / 120.
+        reports = {
+            "SEALED": _report(cards=[_card("1", 30, 15.0, se=6.0)]),
+            "PREMIER_DRAFT": _report(cards=[_card("1", 90, 10.0, se=2.0)]),
+        }
+        card = ls.pooled_cards(reports, confidence=90)[0]
+        se = (180**2 + 180**2) ** 0.5 / 120
+        assert card["se"] == pytest.approx(se, abs=0.005)
+        assert card["plus_minus"] == pytest.approx(1.645 * se, abs=0.05)
+        assert card["events"]["SEALED"]["plus_minus"] == pytest.approx(9.9)
+
+
+class TestStandardError:
+    def test_hand_checkable_counts(self):
+        # Drawn 59-39 -> (59+1)/(98+2) = 0.6; not drawn 199-199 -> 200/400 = 0.5.
+        # 0.6*0.4/100 + 0.5*0.5/400 = 0.003025, whose root is 0.055.
+        assert ls.iwd_standard_error(98, 59, 398, 199) == pytest.approx(5.5)
+
+    def test_a_perfect_record_still_has_a_width(self):
+        assert ls.iwd_standard_error(10, 10, 10, 0) > 0
+
+    def test_no_games_on_either_side_has_no_error(self):
+        assert ls.iwd_standard_error(0, 0, 50, 25) is None
+        assert ls.iwd_standard_error(50, 25, 0, 0) is None
+
+    @pytest.mark.parametrize(
+        ("confidence", "z"), [(0, 0.0), (80, 1.2816), (90, 1.6449), (95, 1.9600)]
+    )
+    def test_z_score(self, confidence, z):
+        assert ls.z_score(confidence) == pytest.approx(z, abs=1e-4)
+
+
+class TestCautiousEnd:
+    """A label needs the cautious end of the range past the margin."""
+
+    def _reports(self):
+        # Average card: 0 (the six 30+ cards' IWDs sum to 0). At 90%, se 2 is
+        # ±3.3, se 4 ±6.6, se 6 ±9.9.
+        cards = [
+            _card("sure", 100, 15.0, rarity="rare", se=2.0),
+            _card("maybe", 100, 15.0, rarity="rare", se=4.0),
+            _card("sure-flop", 100, -15.0, se=2.0),
+            _card("maybe-flop", 100, -15.0, se=4.0),
+            _card("big-up", 100, 18.0, rarity="uncommon", se=6.0),
+            _card("big-flop", 100, -18.0, se=6.0),
+            # Under the 60-game floor (and the 30-game average): never a
+            # label, never leaning, however narrow its range.
+            _card("thin-big", 20, 40.0, se=1.0),
+        ]
+        return {"SEALED": _report([_pair("WR", 10, 50.0)], cards)}
+
+    def _ids(self, pooled, key):
+        return [c["title_id"] for c in pooled[key]]
+
+    def test_only_the_cautious_end_labels(self):
+        pooled = ls.build_pooled(self._reports(), margin=10.0, confidence=90)
+        assert self._ids(pooled, "standouts") == ["sure"]
+        assert self._ids(pooled, "data_bombs") == ["sure"]
+        assert self._ids(pooled, "underperformers") == ["sure-flop"]
+        # Leaning standouts first, then leaning underperformers, furthest first.
+        assert [(c["title_id"], c["lean"]) for c in pooled["leaning"]] == [
+            ("big-up", "standout"),
+            ("maybe", "standout"),
+            ("big-flop", "underperformer"),
+            ("maybe-flop", "underperformer"),
+        ]
+        maybe = next(c for c in pooled["cards"] if c["title_id"] == "maybe")
+        assert maybe["vs_average"] - maybe["plus_minus"] < 10.0 <= maybe["vs_average"]
+        assert pooled["thresholds"]["confidence"] == 90
+        assert pooled["thresholds"]["z"] == pytest.approx(1.645)
+
+    def test_confidence_zero_is_the_point_estimate(self):
+        pooled = ls.build_pooled(self._reports(), margin=10.0, confidence=0)
+        assert self._ids(pooled, "standouts") == ["big-up", "sure", "maybe"]
+        assert pooled["leaning"] == []
+
+    def test_confidence_zero_text_is_the_point_estimates(self):
+        text = ls.render_pooled(ls.build_pooled(self._reports(), confidence=0), "tst")
+        assert "% range" not in text
+        assert "±0.0" not in text
+        assert "## Leaning" not in text
+        assert "Card sure [rare W]  vs avg +15.0, 100 drawn  (SEALED +15.0 (100))" in (
+            text
+        )
+
+    def test_under_the_floor_never_leans(self):
+        pooled = ls.build_pooled(self._reports(), confidence=90)
+        assert "thin-big" not in self._ids(pooled, "leaning")
+        assert "thin-big" not in self._ids(pooled, "standouts")
+
+    def test_leaning_rares_carry_the_reviewers_grade(self):
+        reviews = ls.parse_reviews(
+            "window.TST_DATA = "
+            + json.dumps(
+                {
+                    "cards": [
+                        {
+                            "name": n,
+                            "rarity": "Rare",
+                            "consensus": {"mean": 93.0, "sourceCount": 6},
+                        }
+                        for n in ("Card maybe", "Card big-up")
+                    ]
+                }
+            )
+        )
+        pooled = ls.build_pooled(self._reports(), confidence=90, reviews=reviews)
+        leaning = {c["title_id"]: c for c in pooled["leaning"]}
+        assert leaning["maybe"]["review_mean"] == 93.0
+        assert leaning["maybe"]["review_sources"] == 6
+        # Only a rare or mythic: the data can't call it, so the reviewers do.
+        assert "review_mean" not in leaning["big-up"]
+        text = ls.render_pooled(pooled, "tst")
+        assert "reviewers 93.0 (6)" in text[text.index("## Leaning") :]
+
+    def test_text_shows_the_range_and_the_leaning_list(self):
+        text = ls.render_pooled(ls.build_pooled(self._reports(), confidence=90), "tst")
+        assert "A card's ± is a two-sided 90% range" in text
+        assert "a one-sided 95% call" in text
+        leaning = text[text.index("## Leaning") :].split("\n\n")[0]
+        assert "*" + " " * 3 + "+15.0 ±6.6  standout?  Card maybe [rare W]" in leaning
+        assert "underperformer?  Card maybe-flop" in leaning
+        assert "Card sure " not in leaning
+        assert leaning.index("leaning standouts") < leaning.index("Card big-up")
+        assert leaning.index("Card maybe ") < leaning.index("leaning underperformers")
+        assert leaning.index("leaning underperformers") < leaning.index("Card big-flop")
+        standouts = text[text.index("## Standouts") :].split("\n\n")[0]
+        assert "Card sure [rare W]  vs avg +15.0 ±3.3, 100 drawn" in standouts
+        assert "SEALED +15.0 ±3.3 (100)" in standouts
 
 
 class TestBuildPooled:
@@ -560,6 +710,7 @@ class TestBuildPooled:
             "## Standouts",
             "## Data bombs",
             "## Underperformers",
+            "## Leaning",
             "## Thin rares",
             "## Formats disagree",
         ):
@@ -583,6 +734,35 @@ class TestPooledCli:
         assert list(out["events"]) == ["SEALED", "PREMIER_DRAFT"]
         assert out["pooled"]["missing"] == {}
 
+    def test_confidence_option_reaches_the_json(self, cache):
+        _seed_card_files(cache)
+        with patch(
+            "mtg_utils.limited_stats.requests.get",
+            return_value=_response(FREE_PAYLOAD),
+        ):
+            default, wide = (
+                json.loads(
+                    CliRunner()
+                    .invoke(ls.main, ["--set", "TST", "--json", *extra])
+                    .output
+                )["pooled"]
+                for extra in ([], ["--confidence", "95"])
+            )
+        assert default["thresholds"]["confidence"] == ls.DEFAULT_CONFIDENCE
+        assert wide["thresholds"]["confidence"] == 95
+        assert "leaning" in wide
+        assert default["formats"]["SEALED"]["not_drawn"] == "derived"
+        for pooled, z in ((default, 1.645), (wide, 1.96)):
+            for card in pooled["cards"]:
+                assert card["plus_minus"] == pytest.approx(z * card["se"], abs=0.06)
+        assert any(c["plus_minus"] for c in wide["cards"])
+
+    @pytest.mark.parametrize("value", ["100", "-5"])
+    def test_confidence_out_of_range(self, value):
+        result = CliRunner().invoke(ls.main, ["--set", "TST", "--confidence", value])
+        assert result.exit_code == 2
+        assert "--confidence" in result.output
+
     def test_text_puts_pooled_view_first(self, cache):
         _seed_card_files(cache)
         with patch(
@@ -595,6 +775,49 @@ class TestPooledCli:
         assert result.output.index("# TST SEALED") < result.output.index(
             "# TST PREMIER_DRAFT"
         )
+
+    def test_premium_counts_its_not_drawn_games(self, cache, tmp_path):
+        # A Premium-layout Sealed payload (explicit not_available_* counts) for a
+        # fictional card, the free payload for draft.
+        premium = {
+            "data": {
+                "100": {
+                    "ALL": {
+                        "d": [
+                            [100, 60, 100, [100], 0, [0]],
+                            [50, 35, 45, 32, 40, 20],
+                            [10, 7, 0, 0, 0, 0],
+                        ]
+                    }
+                }
+            },
+            "metadata": {"fields": ls.DEFAULT_FIELDS, "games": {}},
+        }
+        path = tmp_path / "premium-sealed.json"
+        path.write_text(json.dumps(premium))
+        _seed_card_files(cache)
+        with patch(
+            "mtg_utils.limited_stats.requests.get",
+            return_value=_response(FREE_PAYLOAD),
+        ):
+            runs = [
+                CliRunner().invoke(
+                    ls.main, ["--set", "TST", "--premium-sealed", str(path), *extra]
+                )
+                for extra in (["--json"], [])
+            ]
+        assert all(r.exit_code == 0 for r in runs), runs[0].output
+        pooled = json.loads(runs[0].output)["pooled"]
+        assert pooled["formats"]["SEALED"]["not_drawn"] == "counted"
+        assert pooled["formats"]["PREMIER_DRAFT"]["not_drawn"] == "derived"
+        sealed = next(c for c in pooled["cards"] if c["title_id"] == "100")
+        assert sealed["events"]["SEALED"]["se"] == pytest.approx(
+            ls.iwd_standard_error(50, 35, 40, 20), abs=0.01
+        )
+        formats = runs[1].output.split("## Formats")[1].split("\n\n")[0]
+        sealed_line, draft_line = formats.strip().split("\n")
+        assert "not drawn =" not in sealed_line
+        assert "not drawn = games - drawn" in draft_line
 
     def test_one_format_missing_still_pools(self, cache, premium_file):
         _seed_card_files(cache)

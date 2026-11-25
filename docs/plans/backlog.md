@@ -405,9 +405,24 @@ are already known to it (each draft says where).
   text path misses Tomik, Izzet Sparkmage (a damage *replacement*, not an "each
   opponent" clause), reads Cruel Calculations as target-player (phase drops its player
   target), and differs on removal reach for about 18 cards.
-- **The pooled view's error bar is rough.** `pair_tiers.error` is a binomial σ at 50%
-  over deck games, but the pair rate is card-weighted (each deck counts once per card),
-  so the true spread is wider. Good enough to say "±3–4"; not a significance test.
+- **The pooled pair tiers' error bar is still rough.** Cards now carry a real ± and need
+  its cautious end past the margin (`iwd_standard_error`, `--confidence`, 2026-11-25);
+  pairs do not. `pair_tiers.error` is a binomial σ at 50% over deck games, but the pair
+  rate is card-weighted (each deck counts once per card), and the payload holds no deck
+  wins per archetype (only `metadata.games`), so an honest σ isn't computable from it.
+  Measured at 90% (1.645σ past the ±5 gap): TRK's one tiered pair (UB −5.2, σ 0.3) and
+  both of FRA's (WU +6.7 σ 3.7, UR −6.1 σ 5.2) would drop to middle. Colour depth (a mean
+  of commons' lifts) could carry `sqrt(Σ se²)/n` the same way. Dan to decide whether
+  either gets the cards' rule.
+- **Free-tier "not drawn" includes sideboard games.** The free tier has no
+  `not_available_*`, so `_sum_buckets` derives not drawn as `games - available_games`;
+  `games` also counts games the card sat only in the sideboard (`games - in_main_games`:
+  0.85% of TRK draft card-games, 0.02% of Sealed; `in_side_games` overstates it, since a
+  game with copies in both counts in each), and there is no wins split to remove them.
+  Premium counts not-drawn directly. This is the real limit of the free data for a
+  low-play card, larger than its ±: Brazen Bluff's draft not-drawn games are 28%
+  sideboard-only, enough to move its draft lift by about ±6; Red Alert! about 1; the top
+  mythics 0.1 or less.
 
 **From walking phase's branch shapes (2026-10-09)**
 
