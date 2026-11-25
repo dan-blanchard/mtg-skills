@@ -23,9 +23,9 @@ from mtg_utils._analysis.signal_specs import SPECS, avenue_spec_for, spec_scope_
 from mtg_utils._card_ir.crosswalk import (
     ends_the_game,
     is_evasive_body,
+    pt_mod_signs,
     reach_amount,
     self_drawbacks,
-    static_def_adds_power,
     team_buff_sites,
     unbound_x_reach,
 )
@@ -148,7 +148,7 @@ def _one_shot_team_pump(trees: Sequence[ConceptTree]) -> bool:
     and a one-shot grant with no pump (Azorius Charm's lifelink, Crash Through's
     trample) is a trick, not a closer."""
     return any(
-        unit.origin != "static" and static_def_adds_power(sdef)
+        unit.origin != "static" and pt_mod_signs(sdef)[0] > 0
         for tree in trees
         for unit, sdef in team_buff_sites(tree)
     )

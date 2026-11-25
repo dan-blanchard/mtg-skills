@@ -69,7 +69,6 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_mod_sites,
     iter_nested_granted_bodies,
-    iter_static_defs,
     iter_typed_nodes,
     keyword_resource_events,
     lets_you_play_exiled,
@@ -84,7 +83,6 @@ from mtg_utils._card_ir.crosswalk import (
     requires_condition_inner,
     residue_is,
     reveal_until_player,
-    static_def_scales_up,
     static_mode_tag,
     tag_of,
     targets_the_card,
@@ -2921,8 +2919,8 @@ def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
     control gets +2/+2 and gains indestructible" — Aethershield Artificer:
     the pump is a nested static modification, not a ``Pump`` effect; the
     overlay surfaces it as a static-role ``pump`` concept in the SAME unit),
-    and a counted raise the same way ("it gets +1/+1 for each card type among
-    cards in your graveyard" — Ursine Monstrosity: :func:`static_def_scales_up`).
+    and a counted one the same way ("it gets +1/+1 for each card type among
+    cards in your graveyard" — Ursine Monstrosity's ``AddDynamicPower``).
     ``deals_damage`` is DELIBERATELY excluded so Renown / self_counter_grow
     shapes (Skirk Commando) never over-fire. Scope "you".
     """
@@ -2937,10 +2935,7 @@ def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
             c.concept == "pump"
             or (c.concept == "place_counter" and _buffs_with_counters(c))
             for c in unit.effects
-        ) or (
-            any(c.concept == "pump" for c in unit.statics)
-            or any(static_def_scales_up(d) for d in iter_static_defs(unit.node))
-        ):
+        ) or any(c.concept == "pump" for c in unit.statics):
             return [Signal("combat_buff_engine", "you", "", "", tree.name, "high")]
     return []
 

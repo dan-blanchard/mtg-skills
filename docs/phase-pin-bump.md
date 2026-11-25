@@ -255,4 +255,4 @@ Each has a comment at the read that learned it.
   `CantAttack` static on `ScopedPlayer` (was `ProhibitActivity`); "you may play
   the chosen cards" → `GrantCastingPermission` (was `CastFromZone`); a counted
   pump → `AddDynamicPower` under a `GenericEffect` where phase wrote a fixed
-  `AddPower` (`reads.static_def_scales_up`).
+  `AddPower` (a `pump` concept like the fixed form; `reads.pt_mod_signs` reads its sign).

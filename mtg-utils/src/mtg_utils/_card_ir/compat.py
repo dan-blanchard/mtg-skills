@@ -323,8 +323,6 @@ _TAG_CATEGORY: dict[str, str] = {
 # 90% bar), RemoveKeyword (ability_loss 49%), RemoveAllAbilities
 # (base_pt_set 62%), RemoveType (state 53%), SetCardTypes (base_pt_set 54%).
 _MOD_TAG_CATEGORY: dict[str, str] = {
-    "AddDynamicPower": "pump",  # 100% x10.3 n=290; raw-match dom 100%
-    "AddDynamicToughness": "pump",  # 100% x10.3 n=204; raw-match dom 100%
     "SetDynamicPower": "characteristic_pt",  # 100% x136.9 n=204
     "SetDynamicToughness": "characteristic_pt",  # 100% x136.9 n=149
     "ChangeController": "gain_control",  # 100% x82.6 n=41; raw-match 100%
@@ -776,9 +774,10 @@ def _static_effect(cnode: ConceptNode, cov: CompatCoverage) -> Effect:
     v = getattr(cnode.node, "value", MISSING)
     qty = Quantity(op="fixed", factor=v) if isinstance(v, int) else None
     # The gap tally is for a concept-mapped anthem whose value SHOULD be a
-    # plain int but isn't; a tag-routed dynamic mod (AddDynamicPower …) is
-    # valueless by definition, not a gap.
-    if qty is None and not tag_routed and cat in ("pump", "base_pt_set"):
+    # plain int but isn't; a counted mod (AddDynamicPower …) and a tag-routed
+    # dynamic one are valueless by definition, not a gap.
+    counted = tag in ("AddDynamicPower", "AddDynamicToughness")
+    if qty is None and not (tag_routed or counted) and cat in ("pump", "base_pt_set"):
         cov.unported["gap:static_dynamic_value"] += 1
     amount: Quantity | None = None
     toughness: Quantity | None = None

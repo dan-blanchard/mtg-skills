@@ -52,6 +52,7 @@ from mtg_utils._card_ir.crosswalk.cost_text import (
 )
 from mtg_utils._card_ir.crosswalk.reads import (
     _PAYLIFE_COST_TAGS,
+    _PT_MOD_FIELDS,
     CURVE_COST_KEYWORDS,
     FLIP_COIN_TAGS,
     GrantedTrigger,
@@ -1438,8 +1439,8 @@ def _keyword_effect_units(root: TypedMirrorNode) -> list[AbilityUnit]:
 
 # Modification tag → a coarse static-concept the land/anthem lanes read.
 _MOD_CONCEPTS: dict[str, str] = {
-    "AddPower": "pump",
-    "AddToughness": "pump",
+    # The fixed raises and their counted forms ("+1/+1 for each …", "+X/+0").
+    **dict.fromkeys(_PT_MOD_FIELDS, "pump"),
     "SetPower": "set_pt",
     "SetToughness": "set_pt",
     "AddType": "add_type",

@@ -6845,6 +6845,17 @@ def test_opponent_exile_makers_graveyard_hate(name):
     assert ("opponent_exile_makers", "opponents", "") in _idents(name)
 
 
+def test_opponent_exile_makers_reads_whose_graveyard_through_the_shared_read():
+    """The owner is :func:`crosswalk.graveyard_exile_kind`'s to say: a player
+    the card picks is hate ("Exile X target cards from target player's
+    graveyard" — Suffer the Past), and a player exiling a card of their own
+    choice from their own graveyard is not ("choose a player at random. That
+    player exiles an instant or sorcery card from their graveyard" — Wildfire
+    Devils, which copies it: the exile's actor is the graveyard's owner)."""
+    assert ("opponent_exile_makers", "opponents", "") in _idents("Suffer the Past")
+    assert "opponent_exile_makers" not in _keys("Wildfire Devils")
+
+
 def test_opponent_exile_makers_excludes_self_blink():
     """Cloudshift exiles and returns YOUR creature (origin not Graveyard) → no
     opponent_exile_makers."""

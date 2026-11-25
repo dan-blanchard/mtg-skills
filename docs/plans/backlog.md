@@ -56,16 +56,12 @@ category on about 2,500 records now, so many of these are already known to it.
   Thought Dissector's `cheat_into_play|Artifact` waits on phase (upstream draft
   34): its reveal parks as `compound_reveal_until`, and the `dig_until` recovery
   token reads only "your library".
-- **Cleanups the follow-up review named and left** (2026-11-24):
-  - `AddDynamicPower` / `AddDynamicToughness` aren't `pump` concepts where the
-    fixed `AddPower` / `AddToughness` are (`core._MOD_CONCEPTS`), so
-    `static_def_scales_up` is asked in two lanes; mapping them there would reach
-    every lane that reads a static pump, and changes signals. Beside it,
-    `static_def_adds_power` counts a negated dynamic amount as a raise, where
-    `static_def_scales_up` reads the sign: one predicate should stand.
-  - `opponent_exile_makers`' owner test repeats part of `graveyard_exile_kind`,
-    which treats a chosen player's graveyard as an opponent's too: calling it
-    would change signals.
+- **`combat_buff_engine` fires on a shrink** (found 2026-11-25). Neither its
+  effect arm (`c.concept == "pump"`) nor its static arm reads the sign, so a
+  combat trigger whose only pump lowers a creature is a "combat buff": about 52
+  cards (the flanking cards, Fear of Falling, Plague Wight, Silumgar, the
+  Drifting Death, Old Man Willow). `reads.pt_mod_signs` gates the static arm
+  and the pump's own sign the effect arm; a signal change, so it wants a diff.
 - **A spell's `SelfRef` bound to the object it acted on stays guarded
   read-side** (`protection._filter_recipient`, `attack_deterrent`,
   `has_structural_self_counter_grow`, each with its canary). One

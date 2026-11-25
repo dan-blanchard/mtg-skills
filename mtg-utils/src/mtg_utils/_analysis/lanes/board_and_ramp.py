@@ -1902,9 +1902,8 @@ def _every_arm_lanes(
     return [lane for lane in per_arm[0] if all(lane in arm for arm in per_arm)]
 
 
-# The modifications a grant-site payoff arm reads: a pump, a set P/T and a
-# keyword grant (``crosswalk.core._MOD_CONCEPTS``' pump / set_pt /
-# grant_keyword), never an animation's ``AddType``.
+# The modifications a grant-site payoff arm reads: a fixed pump, a set P/T and
+# a keyword grant, never a counted pump or an animation's ``AddType``.
 _MOD_PAYOFF_TAGS: frozenset[str] = frozenset(
     {"AddPower", "AddToughness", "SetPower", "SetToughness", "AddKeyword"}
 )
@@ -2597,8 +2596,8 @@ def _or_wrapped_generic_creature_filter(filt: object) -> object | None:
 
 
 # Modification tags the ``creatures_matter`` team-anthem arm treats as a payoff
-# over the ``affected`` filter — mirrors ``_MOD_CONCEPTS``' pump/set_pt/
-# grant_keyword coarse buckets (CR 613.4c layer-7 P/T + CR 702.1 keyword
+# over the ``affected`` filter — the fixed pump, set P/T and keyword-grant
+# modifications (CR 613.4c layer-7 P/T + CR 702.1 keyword
 # abilities) plus the two SCALING P/T mod tags (``_DYNAMIC_PT_MODS`` below,
 # at line ~6023 — module-level forward reference, safe at call time) a
 # continuous counter-scaled anthem uses instead of the fixed ``Add*`` pair
@@ -3478,10 +3477,9 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-# Modification tags that mirror the pump / grant_keyword / set_pt CONCEPTS
-# ``_MOD_CONCEPTS`` (``crosswalk.py``) decorates a static-ability def's
-# ``modifications`` into — the ADD_TYPE tag is deliberately excluded (a
-# different concept, not a go-wide anthem shape).
+# The fixed pump, keyword-grant and set-P/T modifications of a static-ability
+# def — a counted pump and the ADD_TYPE tag are deliberately excluded (not a
+# go-wide anthem shape).
 _TYPE_MATTERS_GOWIDE_MOD_TAGS: frozenset[str] = frozenset(
     {"AddPower", "AddToughness", "AddKeyword", "SetPower", "SetToughness"}
 )

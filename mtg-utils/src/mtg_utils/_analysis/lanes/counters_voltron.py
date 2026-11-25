@@ -1072,12 +1072,10 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
 
 # ADR-0038 W3 batch 3 — the P/T-modifying node tags any_counter_matters' pump
 # arm gates on: the FIXED forms (``Pump``/``PumpAll`` effects, ``AddPower``/
-# ``AddToughness`` static mods — mapped to ``concept="pump"`` by
-# ``EFFECT_CONCEPTS``/``_MOD_CONCEPTS``) AND the DYNAMIC forms
+# ``AddToughness`` static mods) AND the DYNAMIC forms
 # (``AddDynamicPower``/``AddDynamicToughness`` — "+X/+X where X is …", Kyler /
-# Luxior's counter-scaled anthem) which decorate as ``concept="other"`` since
-# ``_MOD_CONCEPTS`` maps only the fixed pair. Read off the node's own tag, never
-# ``concept``, so both forms are covered.
+# Luxior's counter-scaled anthem). Read off the node's own tag: the ``pump``
+# concept also holds the ``Pump`` effects' other shapes.
 _PT_PUMP_TAGS: frozenset[str] = frozenset(
     {
         "Pump",
@@ -1129,8 +1127,7 @@ def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
       can ALSO carry its own dedicated named-kind lane elsewhere — additive, not
       exclusive). The PUMP gate (the node's own tag — ``Pump``/``PumpAll``, or a
       ``AddPower``/``AddToughness``/``AddDynamicPower``/``AddDynamicToughness``
-      static mod; NOT ``concept`` — the dynamic static forms decorate as
-      ``concept="other"``, only ``_MOD_CONCEPTS`` maps the FIXED forms) matters: a
+      static mod, read by tag) matters: a
       non-pump effect that merely happens to scale by a counter count (draw /
       damage / mill / life-gain / token-count "for each charge counter on this
       artifact") is a DIFFERENT lane entirely and must NOT fire here — legacy's

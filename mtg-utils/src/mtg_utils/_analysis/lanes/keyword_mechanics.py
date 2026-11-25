@@ -42,7 +42,6 @@ from mtg_utils._card_ir.crosswalk import (
     color_count_preds,
     condition_tags,
     control_recipient_scope,
-    controller_side,
     corrected_scope,
     count_operand_filter,
     count_operand_qty,
@@ -62,7 +61,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_excluded_zones,
     filter_inanyzone_zones,
     filter_inzone_zones,
-    filter_owners,
     filter_predicates,
     granted_keyword_names,
     granted_trigger_events,
@@ -2477,24 +2475,15 @@ def _opponent_exile_makers(tree: ConceptTree) -> list[Signal]:
                 Signal("opponent_exile_makers", "opponents", "", "", tree.name, "high")
             ]
         for c in unit.effects:
-            if c.concept != "change_zone" or change_zone_dirs(c.node)[1] != "Exile":
+            origin, destination = change_zone_dirs(c.node)
+            if c.concept != "change_zone" or destination != "Exile":
                 continue
-            if (
-                change_zone_dirs(c.node)[0] == "Graveyard"
-                and (
-                    tag_of(getattr(c.node, "target", None)) == "Player"
-                    or c.scope == "opponents"
-                    # the owner phase types ("from defending player's
-                    # graveyard" — Graven Abomination, Rysorian Badger)
-                    or any(
-                        controller_side(owner) == "opponents"
-                        for owner in filter_owners(effect_filter(c.node))
-                    )
-                )
-            ) or (
-                tag_of(c.node) == "ChangeZoneAll"
-                and answers_its_target(c.node)
-                and graveyard_exile_kind(c.node, corrected_scope(c)) == "opponents"
+            from_graveyard = origin == "Graveyard"
+            # Whose graveyard is the shared read's to say; the concept's own
+            # opponent scope fires the lane too.
+            hate = graveyard_exile_kind(c.node, corrected_scope(c)) == "opponents"
+            if (hate and (from_graveyard or tag_of(c.node) == "ChangeZoneAll")) or (
+                from_graveyard and c.scope == "opponents"
             ):
                 return [
                     Signal(

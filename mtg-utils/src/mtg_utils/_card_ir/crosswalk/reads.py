@@ -7986,20 +7986,6 @@ def pump_keyword_grants(
                     yield unit, c, kw
 
 
-def static_def_adds_power(sdef: object) -> bool:
-    """Whether a static def's modifications raise power: a positive ``AddPower``
-    (Overrun's +3, Triumph of the Hordes' +1) or an ``AddDynamicPower``
-    (Craterhoof Behemoth's +X, X the number of creatures you control) — CR
-    613.4c's power-changing effects."""
-    for mod in getattr(sdef, "modifications", None) or ():
-        tag = tag_of(mod)
-        if tag == "AddDynamicPower":
-            return True
-        if tag == "AddPower" and (mod_value(mod) or 0) > 0:
-            return True
-    return False
-
-
 # ── Keyword grants and protective keywords ─────────────────────────────────────
 # Shared by the AddKeyword grant lanes (``lanes.triggers_damage``) and the
 # board-protection reads (``crosswalk.protection``), so the two walk one way.
@@ -9078,19 +9064,6 @@ def pt_mod_signs(static_def: object) -> tuple[int, int]:
     return net(signs["power"]), net(signs["toughness"])
 
 
-def static_def_scales_up(static_def: object) -> bool:
-    """Whether a continuous effect raises power or toughness (CR 613.4c) by a
-    counted amount: an ``AddDynamicPower`` / ``AddDynamicToughness`` phase
-    doesn't negate ("gets +1/+0 for each card you've drawn this turn" — Fists
-    of Flame; "+X/+X, where X is the number of creatures you control" —
-    Craterhoof Behemoth), never a scaling shrink (Toxrill, the Corrosive)."""
-    return any(
-        tag_of(mod) in ("AddDynamicPower", "AddDynamicToughness")
-        and _pt_mod_sign(mod) > 0
-        for mod in getattr(static_def, "modifications", None) or ()
-    )
-
-
 # ── Granted alternative costs, time-counter references, modified permanents ──
 
 
@@ -9946,6 +9919,18 @@ _GY_OWNER_SCOPE: dict[str, GraveyardExile] = {
 }
 
 
+def _effect_doer(node: object) -> str | None:
+    """The controller tag of the player an effect names as the one doing it
+    ("That player exiles an instant or sorcery card from their graveyard" —
+    Wildfire Devils' ``actor``, a ``ChosenPlayer``), or ``None`` when the
+    effect's controller does it. (:func:`effect_actor_scope` is the player an
+    effect acts ON, read off its wrapper.)"""
+    actor = getattr(node, "actor", None)
+    if not isinstance(actor, MirrorVariant) or actor.key != "Player":
+        return None
+    return filter_controller(_variant_field(actor.inner, "player"))
+
+
 def graveyard_exile_kind(
     node: TypedMirrorNode, scope: str | None = None
 ) -> GraveyardExile | None:
@@ -9960,8 +9945,10 @@ def graveyard_exile_kind(
       to one target card from a graveyard" — Afterthought Sentry,
       Necrogenesis; "exile all graveyards" — Rest in Peace);
     * ``"own"`` — no hate: your own graveyard, a card an earlier clause named
-      (the discarded card Necropotence exiles), or each player exiling from
-      their own (Living Death's mass reanimation).
+      (the discarded card Necropotence exiles), or a player exiling from their
+      own (Living Death's mass reanimation; the card of their choice a random
+      player exiles for Wildfire Devils to copy — the player doing the
+      exile is the graveyard's owner).
 
     Each half of a compound target names its own graveyard (Spelltwine: "…
     from your graveyard and … from an opponent's graveyard"); a half that is
@@ -9981,6 +9968,8 @@ def graveyard_exile_kind(
     owners = filter_owners(filt)
     if not any(owners) and scope in _GY_OWNER_SCOPE:
         return _GY_OWNER_SCOPE[scope]
+    if (doer := _effect_doer(node)) is not None and set(owners) == {doer}:
+        return "own"
     sides = {controller_side(o) for o in owners}
     if "you" in sides:
         return "own"

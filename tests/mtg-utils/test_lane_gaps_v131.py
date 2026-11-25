@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils._card_ir.crosswalk import iter_static_defs, static_def_scales_up
+from mtg_utils._card_ir.crosswalk import iter_static_defs, pt_mod_signs
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.testkit import test_card, test_signals
 
@@ -61,10 +61,10 @@ def test_a_counted_combat_pump_is_a_combat_buff(name):
 def test_a_counted_shrink_is_no_raise():
     # Toxrill, the Corrosive: "Creatures you don't control get -1/-1 for each
     # slime counter on them" — a ``Multiply`` by a negative factor.
-    assert not any(
-        static_def_scales_up(d) for d in _static_defs("Toxrill, the Corrosive")
-    )
-    assert any(static_def_scales_up(d) for d in _static_defs("Craterhoof Behemoth"))
+    assert {pt_mod_signs(d) for d in _static_defs("Toxrill, the Corrosive")} == {
+        (-1, -1)
+    }
+    assert (1, 1) in {pt_mod_signs(d) for d in _static_defs("Craterhoof Behemoth")}
 
 
 # ── "Those creatures gain X" after a mass effect lands on that group ────────────

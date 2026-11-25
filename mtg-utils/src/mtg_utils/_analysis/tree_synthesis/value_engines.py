@@ -362,10 +362,6 @@ _SELF_ETB_HARM_CONCEPTS = frozenset(
 )
 # Recipient tags naming the controller or the trigger's own source.
 _SELF_ETB_OWN_RECIPIENTS = frozenset({"Controller", "SelfRef"})
-# A trigger's temporary grant (a ``GenericEffect`` carrying modifications):
-# "target creature gets +2/+0 and gains haste" (Inner-Flame Acolyte),
-# Craterhoof's "+X/+X and trample" (``AddDynamicPower``).
-_SELF_ETB_STATIC_TAGS = frozenset({"AddDynamicPower", "AddDynamicToughness"})
 # Keyword actions phase types with no ``EFFECT_CONCEPTS`` row (they decorate as
 # ``other``): bolster and endure put +1/+1 counters or make a Spirit, learn
 # draws or fetches a Lesson, a spellbook draft conjures a card into your hand —
@@ -399,9 +395,10 @@ def _is_self_etb_payload(unit: AbilityUnit, c: ConceptNode) -> bool:
     opponent-mill stays value), and the undying / shuffle-back
     self-preservation returns :func:`is_clone_value_effect` sheds too."""
     if c.role == "static":
-        return c.concept in ("pump", "grant_keyword") or (
-            tag_of(c.node) in _SELF_ETB_STATIC_TAGS
-        )
+        # A trigger's temporary grant (a ``GenericEffect`` carrying
+        # modifications): "target creature gets +2/+0 and gains haste"
+        # (Inner-Flame Acolyte), Craterhoof's "+X/+X and trample".
+        return c.concept in ("pump", "grant_keyword")
     if tag_of(c.node) in _SELF_ETB_ACTION_TAGS:
         return True
     if c.concept not in _SELF_ETB_PAYLOAD_CONCEPTS:
