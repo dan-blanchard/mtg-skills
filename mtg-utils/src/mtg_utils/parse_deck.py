@@ -28,7 +28,14 @@ from pathlib import Path
 
 import click
 
-from mtg_utils.formats import FOIL_FINISHES, FORMATS, Format, get_format
+from mtg_utils.formats import (
+    FOIL_FINISHES,
+    FORMATS,
+    POOL_KIND_KEY,
+    Format,
+    PoolKind,
+    get_format,
+)
 
 
 def _detect_format(content: str) -> str:
@@ -346,12 +353,14 @@ def parse_deck(
     format: str = "commander",  # noqa: A002
     deck_size: int | None = None,
     pool_only: bool = False,
+    pool_kind: PoolKind | None = None,
 ) -> dict:
     return parse_deck_text(
         path.read_text(encoding="utf-8"),
         format=format,
         deck_size=deck_size,
         pool_only=pool_only,
+        pool_kind=pool_kind,
     )
 
 
@@ -361,6 +370,7 @@ def parse_deck_text(
     format: str = "commander",  # noqa: A002
     deck_size: int | None = None,
     pool_only: bool = False,
+    pool_kind: PoolKind | None = None,
 ) -> dict:
     """Parse raw deck-list text (auto-detecting Moxfield / MTGO / Arena / CSV / plain).
 
@@ -380,7 +390,9 @@ def parse_deck_text(
     across its Deck and Sideboard sections. A list with section headers keeps its
     deck / sideboard split; a bare list (or ``pool_only``) is ALL pool — the deck is
     empty and the sideboard is the whole pool. ``pool`` is ``[]`` for every other
-    format.
+    format. ``pool_kind`` states what the pool was drawn from (a cube, or a set)
+    where the caller knows it; left ``None``, the cards decide
+    (``HydratedDeck.pool_kind``).
     """
     source = _detect_format(content)
     result = _PARSERS[source](content)
@@ -427,6 +439,10 @@ def parse_deck_text(
         if pool_only or not _has_section_headers(content):
             result["cards"] = []
             result["sideboard"] = [dict(e) for e in result["pool"]]
+        if pool_kind is not None:
+            # Stated, it overrides the detection from the cards
+            # (``HydratedDeck.pool_kind``).
+            result[POOL_KIND_KEY] = pool_kind
 
     result["total_cards"] = sum(
         c.get("quantity", 1) for c in result["commanders"]
@@ -479,6 +495,20 @@ def parse_deck_text(
     default=False,
     help="Sealed / draft: the whole list is the opened pool (no deck built yet).",
 )
+@click.option(
+    "--cube",
+    "pool_kind",
+    flag_value="cube",
+    default=None,
+    help="Sealed / draft: say the pool is a cube's instead of leaving it to be "
+    "detected from the cards. A cube deck is measured against the cube template.",
+)
+@click.option(
+    "--no-cube",
+    "pool_kind",
+    flag_value="set",
+    help="Sealed / draft: say the pool is one set's, over the detection.",
+)
 def main(
     deck_path: Path,
     deck_format: str,
@@ -486,14 +516,24 @@ def main(
     output_path: Path | None,
     *,
     pool_only: bool,
+    pool_kind: PoolKind | None,
 ) -> None:
     """Parse a deck list file and output JSON."""
     try:
         result = parse_deck(
-            deck_path, format=deck_format, deck_size=deck_size, pool_only=pool_only
+            deck_path,
+            format=deck_format,
+            deck_size=deck_size,
+            pool_only=pool_only,
+            pool_kind=pool_kind,
         )
     except ValueError as e:
         raise click.BadParameter(str(e), param_hint="--deck-size") from e
+    if pool_kind is not None and POOL_KIND_KEY not in result:
+        click.echo(
+            f"Note: {deck_format} has no opened pool; --cube / --no-cube ignored.",
+            err=True,
+        )
     payload = json.dumps(result, indent=2)
     if output_path is not None:
         if output_path.resolve() == deck_path.resolve():

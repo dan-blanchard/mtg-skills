@@ -12,10 +12,11 @@ import requests
 
 from mtg_utils._http import USER_AGENT
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
-from mtg_utils.card_classify import get_oracle_text
+from mtg_utils.card_classify import build_card_lookup, get_oracle_text
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.formats import FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.names import normalize_card_name
 
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
 SPELLBOOK_VARIANTS_URL = "https://backend.commanderspellbook.com/variants"
@@ -114,6 +115,31 @@ def _is_format_legal(variant: dict, legality_key: str | None = "commander") -> b
     key = legality_key.lower()
     legalities = variant.get("legalities", {})
     return any(v for k, v in legalities.items() if k.lower() == key)
+
+
+def _front_face(name: str) -> str:
+    return name.split(" // ", maxsplit=1)[0]
+
+
+def _pool_names(hd: HydratedDeck) -> frozenset[str]:
+    """Every (folded) name the opened pool's cards answer to: each entry's own
+    name and front face, and every face and Arena alias of the records joined
+    to them (``build_card_lookup``'s keys)."""
+    names = {
+        normalize_card_name(face)
+        for entry in hd.pool
+        for face in (entry["name"], _front_face(entry["name"]))
+    }
+    return frozenset(names | set(build_card_lookup(hd.deck_records(zones=("pool",)))))
+
+
+def _held(name: str, names: frozenset[str]) -> bool:
+    """Whether ``names`` (:func:`_pool_names`) holds the card Spellbook calls
+    ``name``, by its whole name or its front face."""
+    return (
+        normalize_card_name(name) in names
+        or normalize_card_name(_front_face(name)) in names
+    )
 
 
 def _resolve_name(
@@ -215,12 +241,27 @@ def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
             continue
         combos.append(entry)
 
+    # A pool-bounded deck can only complete a near-miss with a card it opened: one
+    # naming any other card is no near-miss (a powered-cube draft deck's five were
+    # all cards outside its pool, 2026-11-02). Asked before the popularity cut, so
+    # a completion the pool holds is never crowded out by ones it doesn't.
+    pool_names = _pool_names(hd) if hd.format.pool_bounded else None
+    pool_records = (
+        hd.deck_records(zones=("pool",))
+        if pool_names is not None and deck_records is not None
+        else None
+    )
+
     near_misses = []
     for variant in results.get("almostIncluded", []):
         if not _is_format_legal(variant, legality_key):
             continue
         entry = _extract_combo(variant)
         missing_cards = [c for c in entry["cards"] if c not in all_card_names]
+        if pool_names is not None and not all(
+            _held(c, pool_names) for c in missing_cards
+        ):
+            continue
         # Unmet generic requirements — only checkable with hydrated deck data; without
         # it we fall back to the cards-only count (legacy behavior).
         unmet_templates = (
@@ -234,6 +275,12 @@ def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
         if missing_cards:
             entry["missing_card"] = missing_cards[0]
         else:
+            # Likewise a generic piece ("a Persist Creature") nothing the pool
+            # holds can be.
+            if pool_records is not None and _unmet_templates(
+                unmet_templates, pool_records
+            ):
+                continue
             entry["missing_template"] = unmet_templates[0]["name"]
         near_misses.append(entry)
 

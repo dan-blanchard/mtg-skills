@@ -1139,8 +1139,14 @@ def focus(
         if len(main_pool) >= lane_floor:
             lane_pool = main_pool
             pool_carers = carers_of(mains)
+    # The half is the least PLAYED one, so it needs a play measure: EDHREC's
+    # where it means something (``Calibration.playrate_meaningful``, the
+    # Commander family), else the deck's meta archetype's shares (ADR-0059). A
+    # powered-cube draft deck's The Wandering Emperor and Ragavan went as "a
+    # lane feeder few decks play" on EDHREC's Commander rank (2026-11-02).
+    measured = any(c.play_measured(playrate=cal.playrate_meaningful) for c in lane_pool)
     lane_upgrade_cards: list[str] = []
-    if len(lane_pool) >= lane_floor:
+    if measured and len(lane_pool) >= lane_floor:
         lane_pool.sort(key=lambda c: (c.name in pool_carers, c.least_played_key))
         lane_upgrade_cards = [c.name for c in lane_pool[: len(lane_pool) // 2]]
 

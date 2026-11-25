@@ -38,7 +38,7 @@ from mtg_utils.deck_cli import (
     resolve_bulk_path,
     wildcards_option,
 )
-from mtg_utils.formats import resolve_deck_medium
+from mtg_utils.formats import PoolKind, resolve_deck_medium
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.theme_presets import seed_signal_key_index
 
@@ -141,6 +141,22 @@ def _ensure_ir() -> None:
     "result. Advisory; proposes no switch.",
 )
 @click.option(
+    "--cube",
+    "pool_kind",
+    flag_value="cube",
+    default=None,
+    help="Sealed / draft: treat the pool as a cube's for this run, over the "
+    "deck JSON's pool_kind and the detection from its cards. A cube deck is "
+    "measured against the cube template: the creature count is advisory and "
+    "interaction has no ceiling.",
+)
+@click.option(
+    "--no-cube",
+    "pool_kind",
+    flag_value="set",
+    help="Sealed / draft: treat the pool as one set's for this run.",
+)
+@click.option(
     "--output",
     "output",
     type=click.Path(),
@@ -163,11 +179,21 @@ def main(
     meta: str,
     collection_path: Path | None,
     compare_commanders: bool,
+    pool_kind: PoolKind | None,
     output: str | None,
 ) -> None:
     """Diagnose DECK_JSON and (with --max-swaps) propose swaps."""
     bulk_path = resolve_bulk_path(bulk_data)
     hd = acquire_for_cli(deck_json, bulk_data)
+    if pool_kind is not None:
+        if hd.format.pool_bounded:
+            hd = hd.with_pool_kind(pool_kind)
+        else:
+            click.echo(
+                f"Note: {hd.format.name} has no opened pool; --cube / --no-cube "
+                "ignored.",
+                err=True,
+            )
     by_name = hd.by_name
 
     def spellbook(deck: dict) -> dict:

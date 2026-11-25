@@ -47,6 +47,11 @@ CostMode = Literal["usd", "wildcards"]
 #: fact reads it (``has_commander``, ``pool_bounded``, ``size_is_minimum``, …); no
 #: caller compares format names.
 Family = Literal["commander", "constructed", "limited"]
+#: What a pool-bounded deck's opened pool was drawn from: one set's boosters, or
+#: a cube. The cards decide it (``HydratedDeck.pool_kind``) unless the deck JSON
+#: states it under :data:`POOL_KIND_KEY` (``parse-deck --cube`` / ``--no-cube``).
+PoolKind = Literal["set", "cube"]
+POOL_KIND_KEY = "pool_kind"
 
 #: The statuses under which a card may be played (Vintage's restricted list is a copy
 #: limit, not a ban; a card banned as a commander is legal in the 99).

@@ -640,6 +640,26 @@ class TestLimitedPool:
         pool = parse_deck_text(text, format="sealed")["pool"]
         assert pool == [{"name": "Stone by Sunlight", "quantity": 2, "set": "hob"}]
 
+    def test_cube_flag_states_the_pools_kind(self, tmp_path):
+        # Unstated, the cards decide later (``HydratedDeck.pool_kind``).
+        assert "pool_kind" not in parse_deck_text(self.ARENA, format="draft")
+        cube = parse_deck_text(self.ARENA, format="draft", pool_kind="cube")
+        assert cube["pool_kind"] == "cube"
+        retail = parse_deck_text(self.ARENA, format="sealed", pool_kind="set")
+        assert retail["pool_kind"] == "set"
+        # A format with no pool has no kind to state.
+        modern = parse_deck_text(self.ARENA, format="modern", pool_kind="cube")
+        assert "pool_kind" not in modern
+        path = tmp_path / "pool.txt"
+        path.write_text(self.ARENA)
+        for flag, kind in (("--cube", "cube"), ("--no-cube", "set")):
+            cli = CliRunner().invoke(main, [str(path), "--format", "draft", flag])
+            assert cli.exit_code == 0, cli.output
+            assert json.loads(cli.output)["pool_kind"] == kind
+        cli = CliRunner().invoke(main, [str(path), "--format", "modern", "--cube"])
+        assert cli.exit_code == 0, cli.output
+        assert "--cube / --no-cube ignored" in cli.output
+
     def test_other_formats_carry_an_empty_pool(self):
         assert parse_deck_text(self.ARENA, format="modern")["pool"] == []
         assert parse_deck_text(self.ARENA, format="commander")["pool"] == []

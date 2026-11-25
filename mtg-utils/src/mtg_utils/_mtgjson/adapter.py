@@ -54,6 +54,17 @@ _IMAGE_SIZES: tuple[str, ...] = ("small", "normal", "art_crop")
 # MTGJSON ``availability`` → Scryfall ``games``. Drop the dead digital clients
 # (dreamcast/shandalar) Scryfall never lists.
 _GAMES = {"paper", "arena", "mtgo"}
+#: MTGJSON set types sold as boosters to draft: with a booster of its own
+#: (``load.flatten`` asks the set's ``booster`` contents too), such a set is one
+#: a retail limited pool is opened from. A card's printings among them ride on
+#: its records as ``draft_sets`` (``hydrated_deck.detect_pool_kind``). The type
+#: alone is not enough: MTGJSON files The List, a reprint sheet of five thousand
+#: cards with no booster of its own, under ``masters``, and it prints over half
+#: of a Commander cube. Promo and Secret Lair sets are left out by type: one of
+#: those prints 21 of a powered cube pool's 45 cards.
+DRAFT_SET_TYPES = frozenset(
+    {"expansion", "core", "masters", "draft_innovation", "alchemy", "funny"}
+)
 
 # Scryfall populates top-level power/toughness/mana_cost/colors for multi-face cards
 # that are a SINGLE physical card (flip/adventure creatures, split spells); a true
@@ -257,6 +268,7 @@ def translate_card(
     card_by_uuid: dict | None = None,
     legalities_index: dict | None = None,
     arena_index: dict | None = None,
+    draft_sets_index: dict | None = None,
     set_meta: dict | None = None,
 ) -> dict:
     """Translate one physical card (1 entry, or 2+ face-entries) to a Scryfall dict.
@@ -268,6 +280,11 @@ def translate_card(
     Scryfall — which tracks Arena availability precisely — does not. Legalities are
     emitted as aggregated, never rewritten here. Without the index (a lone printing,
     a token) the printing's own availability stands in.
+
+    ``draft_sets_index`` is the oracle-level list of booster sets
+    (:data:`DRAFT_SET_TYPES`) the card is printed in, also built in
+    ``load.flatten``; it becomes the record's ``draft_sets``, absent without the
+    index or for a card no booster set prints.
 
     ``token_parts`` is the precomputed oracle-level ``token`` all_parts list for this
     card (built in ``load.flatten`` so a token-less promo printing still carries the
@@ -386,6 +403,9 @@ def translate_card(
         if img:
             rec["image_uris"] = img
 
+    draft_sets = (draft_sets_index or {}).get(oracle_id)
+    if draft_sets:
+        rec["draft_sets"] = draft_sets
     if set_meta:
         rec["set_type"] = set_meta.get("set_type")
         rec["set_name"] = set_meta.get("set_name")

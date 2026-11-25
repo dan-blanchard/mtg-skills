@@ -16,7 +16,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
+from mtg_utils._analysis.budgets import banded_slot_budgets, template_of
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.mana_audit import mana_audit
 
@@ -44,7 +44,7 @@ def main(
         mana_audit(hd)["land_band"],
         deck_size=deck_size,
         shape=shape,
-        template=template_for(hd.format.family),
+        template=template_of(hd),
         deck_mana=hd.deck_mana,
     )
     if as_json:

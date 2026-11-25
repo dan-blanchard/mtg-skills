@@ -112,28 +112,14 @@ category on about 2,500 records now, so many of these are already known to it.
   line. (Akiri's row was the third until phase v0.131.0 left her trigger an
   `Unknown` mode holding the clause; `clause_grammar.attached_attackers_kind`
   reads it now.)
-**From a powered-cube draft tune (2026-11-02)**
+**From a powered-cube draft tune (2026-11-02; the three problems fixed 2026-11-25, ADR-0055's amendment)**
 
-`deck-tune` on an Arena powered-cube draft deck (`--format draft`, 40 cards, a
-54-card pool; Jeskai with True-Name Nemesis, Ragavan, The Wandering Emperor,
-Balance) gave advice that didn't fit the deck. Swaps stayed inside the pool; the
-problems are what drives them.
-
-- **The limited template is the retail-set template.** It wants 14-17
-  creatures and 3-8 interaction, so a cube control deck with 10 creatures and
-  14 interaction reads as `off-template`. Its `role_short` swap cut True-Name
-  Nemesis for Containment Priest. A cube draft (or a sealed cube pool) needs its
-  own shape bands, or the creature floor read as advisory.
-- **The `upgrade` issue ranks by play rate.** It proposed The Wandering Emperor →
-  Stormchaser's Talent, Ragavan → Talisman of Conviction and Bilbo → Screaming
-  Nemesis as "more decks play it". That rate is EDHREC's, which says nothing about
-  a cube card, and a limited deck should never take an upgrade on it.
-- **Near-miss combo issues aren't scoped to the pool.** `issues.py`'s
-  `near_miss_combo` loop names any missing card, so the scorecard's top issue
-  (severity 9) was "Transcendence completes Fractured Identity" and Felidar
-  Guardian / Knowledge Pool / Omen Machine followed, none of them in the pool.
-  Under a `pool`, a near-miss whose missing card isn't in the pool should be
-  dropped (or reported as information, never as an issue).
+- **The cube deck's one remaining swap is a closer for True-Name Nemesis.** With
+  the cube template, no play rate and pool-scoped near-misses, `deck-tune` on the
+  same deck (`~/mtg/powered-cube-draft/2026-11-02/deck.json`) proposes one swap:
+  True-Name Nemesis ("feeds only avenues nobody built toward") for Screaming
+  Nemesis, under `wincon_short` ("≈1 closers — usually wants 2-3"). The closer
+  count and the fed-only read are Commander-shaped; neither was looked at.
 
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 

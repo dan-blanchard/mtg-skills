@@ -321,6 +321,36 @@ def test_snapshot_serves_the_pool_panel_and_no_wildcards():
     assert engine.snapshot(_state("modern"))["pool"] is None
 
 
+def test_a_cube_pools_budget_rows_are_the_cube_templates():
+    # The pool's own cards say what it was drawn from (``HydratedDeck.pool_kind``):
+    # one booster set printing them all is a retail pool, no set printing half of
+    # them a cube's, whose creature count is a fact and never a shortfall.
+    def rows(sets_by_name):
+        index = {
+            name: {**INDEX[name], "draft_sets": list(sets)}
+            for name, sets in sets_by_name.items()
+        }
+        session = DeckSession("draft")
+        for name in sets_by_name:
+            session.add(name, 1, zone="pool")
+        session.add("Bear", 1)
+        state = ForgeState(
+            by_name=index,
+            search_fn=_refusing_search,
+            session=session,
+            bulk_available=True,
+        )
+        budgets = engine.budgets(state)
+        assert engine.snapshot(state)["budgets"] == budgets
+        return budgets
+
+    retail = rows({"Bear": ["hob"], "Eagle": ["hob"], "Troll": ["hob"]})
+    assert not retail["creatures"]["advisory"]
+    cube = rows({"Bear": ["hob"], "Eagle": ["lea"], "Troll": ["ice"]})
+    assert cube["creatures"]["advisory"]
+    assert cube["interaction"]["max"] > retail["interaction"]["max"]
+
+
 def test_export_writes_the_derived_sideboard():
     state = _state(pool=[("Bear", 3), ("Troll", 1)], cards=[("Bear", 2)])
     text = _client(state).get("/api/export?fmt=arena").json()["text"]

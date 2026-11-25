@@ -636,6 +636,45 @@ def test_flatten_is_quiet_when_the_file_carries_the_key(capsys):
     assert STALE_COMPETITIVE_BRAWL_WARNING not in capsys.readouterr().err
 
 
+def test_flatten_lists_the_booster_sets_a_card_is_printed_in():
+    # One card in an expansion, a masters set, a promo set and a reprint sheet
+    # MTGJSON files under ``masters`` with no booster of its own (The List): every
+    # printing's record lists the two sets sold as boosters. A card none of them
+    # prints carries no list at all.
+    def _set(kind, *cards, booster=True):
+        return {
+            "type": kind,
+            "name": kind,
+            "releaseDate": "2020-01-01",
+            "cards": cards,
+            **({"booster": {"draft": {}}} if booster else {}),
+        }
+
+    def _card(uuid, oid, code):
+        return _printing(
+            uuid=uuid,
+            identifiers={"scryfallOracleId": oid, "scryfallId": f"s-{uuid}"},
+            setCode=code,
+        )
+
+    data = {
+        "EXP": _set("expansion", _card("u1", "oid-a", "EXP")),
+        "MAS": _set("masters", _card("u2", "oid-a", "MAS")),
+        "PRM": _set("promo", _card("u3", "oid-a", "PRM"), _card("u4", "oid-b", "PRM")),
+        "LST": _set(
+            "masters",
+            _card("u5", "oid-a", "LST"),
+            _card("u6", "oid-b", "LST"),
+            booster=False,
+        ),
+    }
+    by_id = {r["id"]: r for r in flatten(data)}
+    for printing in ("s-u1", "s-u2", "s-u3", "s-u5"):
+        assert by_id[printing]["draft_sets"] == ["exp", "mas"]
+    assert "draft_sets" not in by_id["s-u4"]
+    assert "draft_sets" not in by_id["s-u6"]
+
+
 def _printing(name="Card", **over):
     base = {
         "name": name,

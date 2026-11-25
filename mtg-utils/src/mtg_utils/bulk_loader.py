@@ -39,7 +39,9 @@ from mtg_utils._sidecar import load_pickle_sidecar, write_pickle_sidecar
 # resolves Player.log card ids through (``CardPool.by_arena_id``). v6: legalities carry
 # ``competitivebrawl`` (MTGJSON's Competitive Brawl key). v7: records carry
 # ``illustration_id`` and ``frame`` (art identity, lgs-search's printing equivalence).
-SIDECAR_VERSION = 7
+# v8: records carry ``draft_sets`` (the booster sets a card is printed in, which tell
+# a cube pool from a retail one — ``hydrated_deck.detect_pool_kind``).
+SIDECAR_VERSION = 8
 SIDECAR_SUFFIX = ".idx.pkl"
 
 

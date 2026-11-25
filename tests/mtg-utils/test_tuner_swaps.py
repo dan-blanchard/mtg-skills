@@ -379,6 +379,26 @@ def test_a_premium_card_is_never_a_band_trim():
     assert next(c.name for r, c in cuts if r == "over:ramp") == "Sol Ring"
 
 
+def test_a_trim_orders_by_play_rate_only_where_it_means_something():
+    """EDHREC counts Commander decks: where the family's play rate isn't
+    meaningful (a sealed or 60-card deck) an over-band trim takes the costlier
+    card, never "the least played"; a deck with a meta archetype orders by its
+    shares instead (ADR-0059)."""
+    cheap = _cc("Cheap Rock", "spine", roles=["ramp"], cmc=2.0, edhrec_rank=30000)
+    dear = _cc("Dear Rock", "spine", roles=["ramp"], cmc=4.0, edhrec_rank=500)
+    kw = {"budgets": {"ramp": _band(11, 8, 10)}, "focus": CutFocus()}  # over by 1
+
+    def trimmed(cards, **flags):
+        return [c.name for _why, c in cut_candidates(cards, **kw, **flags)]
+
+    assert trimmed([cheap, dear]) == ["Cheap Rock"]
+    assert trimmed([cheap, dear], playrate_meaningful=False) == ["Dear Rock"]
+    shared = [replace(cheap, meta_share=0.9), replace(dear, meta_share=0.2)]
+    assert trimmed(shared, playrate_meaningful=False) == ["Dear Rock"]
+    shared = [replace(cheap, meta_share=0.2), replace(dear, meta_share=0.9)]
+    assert trimmed(shared, playrate_meaningful=False) == ["Cheap Rock"]
+
+
 def test_role_over_trim_cuts_least_played_excess_not_a_staple():
     # Ramp over by 1. A premium staple (Sol Ring, rank 1, serving no thematic
     # avenue) and a fringe on-theme ramp (rank 30000). The over-band trim must cut

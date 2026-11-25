@@ -399,6 +399,8 @@ parse-deck <arena-export.txt> --format sealed --output <working-dir>/deck.json
 deck-hydrate <working-dir>/deck.json
 ```
 
+A **cube** draft or sealed pool needs no flag: the tools tell it from a set's by its cards (no one booster set prints half of them) and measure the deck against the cube template (the creature count is advisory, interaction has no ceiling). Pass `--cube` / `--no-cube` to `parse-deck` only when that read is wrong. A cube has no set to scan, so skip `set-scan` for it.
+
 The export's Deck section becomes `cards`, Deck + Sideboard become the `pool` zone, and the Sideboard section stays the sideboard. Then, **before forming any opinion about a colour pair**:
 
 1. `pool-colors <working-dir>/deck.json` — every mono colour and colour pair the pool supports on equal footing (playables, creatures, removal, evasion, power-4-plus bodies, rares). Read the whole table; the best pair is a finding, not a premise.

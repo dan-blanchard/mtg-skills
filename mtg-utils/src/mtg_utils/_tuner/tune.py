@@ -14,7 +14,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from mtg_utils import _gc
-from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
+from mtg_utils._analysis.budgets import banded_slot_budgets, template_of
 from mtg_utils._analysis.commander_need import Need, commander_needs, need_predicate
 from mtg_utils._analysis.multipliers import commander_multipliers
 from mtg_utils._analysis.signals import read_deck_signals
@@ -199,8 +199,9 @@ def tune(
     """Diagnose the deck and (when ``max_swaps>0``) propose budgeted swaps.
 
     Every band and floor is the deck's FAMILY's (``Format.family``): the template
-    (``budgets.template_for``) and the calibration (``calibration_for``), so a
-    60-card deck is measured against 60-card norms. The Commander-only axes —
+    (``budgets.template_of`` — a cube pool's limited deck takes the cube template)
+    and the calibration (``calibration_for``), so a 60-card deck is measured
+    against 60-card norms. The Commander-only axes —
     commander fit, grant coverage, the bracket gate, commander suggestions — are
     ``None`` / skipped outside the Commander family, never a silent no-op.
 
@@ -225,7 +226,7 @@ def tune(
     commander_names = {e["name"] for e in deck.get("commanders") or []}
     deck_size = hd.format.deck_size
     fmt = hd.format.name
-    template = template_for(hd.format.family)
+    template = template_of(hd)
     cal = calibration_for(hd.format.family)
     # The Game the deck plays (starting life, pod vs one opponent, whether commander
     # damage wins), from the Format under the build's medium — ``Format.game`` resolves

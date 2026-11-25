@@ -417,3 +417,79 @@ def test_pool_is_a_zone_that_hydrates_but_never_counts(tmp_path):
     assert [r["name"] for r in again.deck_records(zones=("pool",))] == [
         "Llanowar Elves"
     ]
+
+
+# --- the pool's kind: a set's boosters, or a cube ---------------------------------
+# ``draft_sets`` (the booster sets a card is printed in) is a fact of the bulk the
+# snapshot omits, so each test overlays it on the real record.
+
+
+def _pooled(sets_by_name, **deck_keys):
+    index = {
+        name: {**test_card(name), "draft_sets": list(sets)}
+        for name, sets in sets_by_name.items()
+    }
+    deck = {
+        "format": "draft",
+        "cards": [],
+        "pool": [{"name": name, "quantity": 1} for name in sets_by_name],
+        **deck_keys,
+    }
+    return HydratedDeck.from_parsed(deck, index)
+
+
+def test_a_deck_with_no_pool_has_no_pool_kind():
+    assert HydratedDeck.from_parsed(_deck(), BY_NAME).pool_kind is None
+
+
+def test_a_pool_one_set_prints_is_a_sets():
+    # A retail pool: its set prints every card but the bonus sheet's guest. The
+    # basic land counts for nothing either way.
+    hd = _pooled(
+        {
+            "Llanowar Elves": ["dom", "m19"],
+            "Murder": ["dom", "m20"],
+            "Serra Angel": ["dom"],
+            "Swords to Plowshares": ["ice"],
+            "Forest": ["dom", "m19", "m20", "ice"],
+        }
+    )
+    assert hd.pool_kind == "set"
+
+
+def test_a_pool_no_set_prints_half_of_is_a_cubes():
+    hd = _pooled(
+        {
+            "Llanowar Elves": ["dom", "m19"],
+            "Murder": ["m20"],
+            "Serra Angel": ["lea"],
+            "Swords to Plowshares": ["ice"],
+            "Sol Ring": ["leb"],
+            "Forest": ["dom", "m19", "m20", "ice", "lea", "leb"],
+        }
+    )
+    assert hd.pool_kind == "cube"
+
+
+def test_a_pool_whose_records_list_no_sets_reads_as_a_sets():
+    # No card data behind the join (or a bulk older than the field): the retail
+    # template stands.
+    deck = {
+        "format": "sealed",
+        "cards": [],
+        "pool": [{"name": "Llanowar Elves", "quantity": 1}],
+    }
+    assert HydratedDeck.from_parsed(deck, BY_NAME).pool_kind == "set"
+
+
+def test_the_decks_own_pool_kind_overrides_the_cards():
+    one_set = {"Llanowar Elves": ["dom"], "Murder": ["dom"]}
+    assert _pooled(one_set, pool_kind="cube").pool_kind == "cube"
+    scattered = {"Llanowar Elves": ["dom"], "Murder": ["m20"], "Sol Ring": ["leb"]}
+    assert _pooled(scattered).pool_kind == "cube"
+    assert _pooled(scattered, pool_kind="set").pool_kind == "set"
+    # One run's override leaves the deck it came from alone.
+    hd = _pooled(one_set)
+    assert hd.with_pool_kind("cube").pool_kind == "cube"
+    assert hd.pool_kind == "set"
+    assert "pool_kind" not in hd.deck

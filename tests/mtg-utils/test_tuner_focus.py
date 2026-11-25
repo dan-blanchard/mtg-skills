@@ -5,6 +5,7 @@ from dataclasses import replace
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
+from mtg_utils._tuner.calibration import CONSTRUCTED, LIMITED
 from mtg_utils._tuner.classify import CardClass
 from mtg_utils._tuner.metrics import focus
 from mtg_utils.testkit import test_card
@@ -1491,6 +1492,27 @@ def test_the_upgrade_slots_are_off_lane_little_played_and_the_deep_lanes_half():
     assert fr["lane_upgrade_cards"][0] == "Drawing Polymorph"
     # Below the floor (eleven doers besides the premium one) the lane is whole.
     assert run([*classes[:12], staple, *off])["lane_upgrade_cards"] == []
+
+    # The half is the least PLAYED one, so it needs a play measure. EDHREC counts
+    # Commander decks and says nothing about a 60-card or a limited deck's cards:
+    # there the lane has no half, unless the deck's meta archetype measures them.
+    def run_as(cal, cards):
+        return focus(
+            cards,
+            deck_size=100,
+            deck_signals=[_sig("cheat_into_play")],
+            commander_idents=frozenset({("cheat_into_play", "you", "")}),
+            emitters=emitters,
+            cal=cal,
+        )["lane_upgrade_cards"]
+
+    shared = [
+        replace(c, meta_share=0.9 - i / 100) if c in lane else c
+        for i, c in enumerate(classes)
+    ]
+    for cal in (CONSTRUCTED, LIMITED):
+        assert run_as(cal, classes) == []
+        assert run_as(cal, shared)
 
 
 def test_only_a_main_theme_shields_an_off_lane_card_from_the_upgrade_slots():

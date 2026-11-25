@@ -17,6 +17,7 @@ from pathlib import Path
 
 from mtg_utils._mtgjson.adapter import (
     COMPETITIVE_BRAWL_KEY,
+    DRAFT_SET_TYPES,
     aggregate_legalities,
     token_part,
     translate_card,
@@ -101,9 +102,19 @@ def flatten(data: dict, *, price_index: dict | None = None) -> list[dict]:
     # oversized/promo printing can't make a legal card read not_legal (see adapter).
     # Also track per-oracle Arena availability: it rides on each record as
     # ``arena_available``; ``formats.Format.legality`` gates Arena-pool formats on it.
+    # And the booster sets each card is printed in (``draft_sets``): what tells a
+    # retail limited pool, drawn from one of them, from a cube's.
     raw_leg: dict[str, list[dict | None]] = {}
     arena: dict[str, bool] = {}
-    for s in data.values():
+    drafted: dict[str, set[str]] = {}
+    for code, s in data.items():
+        # A set sold as boosters to draft; one string per set, shared by every
+        # card's list.
+        booster_set = (
+            code.lower()
+            if s.get("type") in DRAFT_SET_TYPES and s.get("booster")
+            else None
+        )
         for t in s.get("tokens") or []:
             if t.get("uuid"):
                 token_by_uuid[t["uuid"]] = t
@@ -116,9 +127,13 @@ def flatten(data: dict, *, price_index: dict | None = None) -> list[dict]:
                 arena[oid] = arena.get(oid, False) or (
                     "arena" in (c.get("availability") or [])
                 )
+                if booster_set:
+                    drafted.setdefault(oid, set()).add(booster_set)
     legalities_index = {
         oid: aggregate_legalities(legs) for oid, legs in raw_leg.items()
     }
+    # One list per card, shared by its printings' records.
+    draft_sets_index = {oid: sorted(codes) for oid, codes in drafted.items()}
 
     # Oracle-level token graph: a representative token record per token oracle_id, and
     # the union of token oracle_ids each maker produces across ALL its printings — so a
@@ -169,6 +184,7 @@ def flatten(data: dict, *, price_index: dict | None = None) -> list[dict]:
                     card_by_uuid=card_by_uuid,
                     legalities_index=legalities_index,
                     arena_index=arena,
+                    draft_sets_index=draft_sets_index,
                     set_meta=set_meta,
                 )
             )

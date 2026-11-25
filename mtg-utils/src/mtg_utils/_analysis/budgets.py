@@ -10,7 +10,8 @@ family's base deck size and scaled to the deck's: the Command Zone template (Ep.
 verified multi-source) for the Commander family; a deliberately minimal constructed
 template — interaction (sweepers fold in), card draw, and an advisory creature count,
 since ramp and wipes are archetype choices in 60-card; and a limited template of
-creatures, interaction and curve buckets. A row counts by template ROLE
+creatures, interaction and curve buckets, with a cube's own form (the creature
+count advisory, no interaction ceiling). A row counts by template ROLE
 (``roles.role_of`` — a view over the signal path, ADR-0051) or by a plain record
 predicate (a type-line or mana-value count, labelled as such: a "threat" is not a
 role). ``slot_budgets`` takes an optional ``shape``: ``None`` (the always-on Budgets
@@ -22,12 +23,16 @@ counted roles here — they are Tier-2 advisory flags (ADR-0024).
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.costs import effective_mana_value
 from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils.card_classify import is_creature, is_land
 from mtg_utils.formats import Family
+
+if TYPE_CHECKING:
+    from mtg_utils.hydrated_deck import HydratedDeck
 
 
 @dataclass(frozen=True)
@@ -203,6 +208,25 @@ LIMITED_TEMPLATE = Template(
     ),
 )
 
+
+# A cube's limited deck (ADR-0055's cube amendment): a cube is built to draft
+# archetypes a retail set has no room for, so a ten-creature control deck with
+# fourteen answers is a deck, not a mistake. The creature count is a fact shown
+# beside the rows (the retail norm as its reference), never a slot to fill;
+# interaction keeps its floor and has no ceiling. Lands and the curve rows are
+# the retail ones: a cube deck still needs its early plays and a capped top end.
+def _cube_row(row: BudgetRow) -> BudgetRow:
+    if row.key == "creatures":
+        return replace(row, advisory=True)
+    if row.key == "interaction":  # the deck's own size is no ceiling
+        return replace(row, band=(row.band[0], LIMITED_TEMPLATE.base_size))
+    return row
+
+
+CUBE_TEMPLATE = replace(
+    LIMITED_TEMPLATE, rows=tuple(_cube_row(row) for row in LIMITED_TEMPLATE.rows)
+)
+
 TEMPLATES: dict[str, Template] = {
     t.family: t for t in (COMMANDER_TEMPLATE, CONSTRUCTED_TEMPLATE, LIMITED_TEMPLATE)
 }
@@ -215,6 +239,16 @@ def template_for(family: Family) -> Template:
     except KeyError:
         msg = f"no template for family {family!r}; expected one of {sorted(TEMPLATES)}"
         raise ValueError(msg) from None
+
+
+def template_of(hd: HydratedDeck) -> Template:
+    """The template a deck is measured against: its family's, or the cube
+    template for a limited deck drawn from a cube (``HydratedDeck.pool_kind``).
+    Every budgets reader (the tuner, ``slot-budgets``, deck-forge's rows) asks
+    here."""
+    if hd.pool_kind == "cube":
+        return CUBE_TEMPLATE
+    return template_for(hd.format.family)
 
 
 def banded_slot_budgets(
@@ -263,8 +297,8 @@ def slot_budgets(
     with commanders excluded) is exactly the second band ADR-0041 exists to
     eliminate, and no longer exists.
 
-    ``template`` is the family's (``template_for(fmt.family)``); ``None`` is the
-    Commander template. ``commander`` is the deck context the ramp row counts under
+    ``template`` is the deck's (``template_of(hd)``); ``None`` is the Commander
+    template. ``commander`` is the deck context the ramp row counts under
     (``roles.DeckMana``): a rock whose mana is dead for this commander isn't ramp.
     """
     tmpl = template or COMMANDER_TEMPLATE

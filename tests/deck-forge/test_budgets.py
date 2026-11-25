@@ -4,9 +4,11 @@ import pytest
 
 from mtg_utils._analysis.budgets import (
     CONSTRUCTED_TEMPLATE,
+    CUBE_TEMPLATE,
     LIMITED_TEMPLATE,
     slot_budgets,
     template_for,
+    template_of,
 )
 from mtg_utils._analysis.roles import (
     _ir_draws,
@@ -14,6 +16,7 @@ from mtg_utils._analysis.roles import (
     role_of,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.testkit import test_card, test_card_ir
 
 
@@ -477,6 +480,46 @@ def test_limited_template_rows_and_curve_buckets():
     assert b["six_plus"]["current"] == 1
     assert (b["creatures"]["min"], b["creatures"]["max"]) == (14, 17)
     assert b["interaction"]["current"] == 1
+
+
+def test_cube_template_reports_creatures_and_caps_no_interaction():
+    # A cube control deck: ten creatures and fourteen answers is a deck, where
+    # the retail template calls it four creatures short and six answers over.
+    records = [_creature(i, 2) for i in range(10)] + [MURDER] * 14
+    retail = slot_budgets(
+        records, deck_size=40, land_band=(16, 17), template=LIMITED_TEMPLATE
+    )
+    assert retail["creatures"]["deviation"] == -4
+    assert retail["interaction"]["deviation"] == 6
+    cube = slot_budgets(
+        records, deck_size=40, land_band=(16, 17), template=CUBE_TEMPLATE
+    )
+    assert list(cube) == list(retail)
+    assert cube["creatures"]["advisory"]
+    assert (cube["creatures"]["min"], cube["creatures"]["max"]) == (14, 17)
+    assert cube["interaction"]["deviation"] == 0
+    assert cube["interaction"]["min"] == retail["interaction"]["min"]
+    # The lands and curve rows are the retail ones.
+    for row in ("lands", "two_drops", "three_drops", "six_plus"):
+        assert cube[row] == retail[row]
+
+
+def test_a_cube_pool_takes_the_cube_template():
+    def deck(fmt="draft", **keys):
+        return HydratedDeck.from_parsed(
+            {
+                "format": fmt,
+                "cards": [],
+                "pool": [{"name": "Murder", "quantity": 1}],
+                **keys,
+            },
+            {"Murder": MURDER},
+        )
+
+    assert template_of(deck()) is LIMITED_TEMPLATE
+    assert template_of(deck(pool_kind="cube")) is CUBE_TEMPLATE
+    # Only a limited deck has a pool to be a cube's.
+    assert template_of(deck("modern", pool_kind="cube")) is CONSTRUCTED_TEMPLATE
 
 
 def test_template_scales_from_its_own_base_size():

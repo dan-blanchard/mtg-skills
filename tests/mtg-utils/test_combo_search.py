@@ -956,6 +956,82 @@ class TestPoolBoundedDeck:
         payload = mock_session.post.call_args.kwargs["json"]
         assert payload["main"] == [{"card": "Viscera Seer"}]
 
+    def test_a_near_miss_needs_its_missing_card_in_the_pool(
+        self, sample_combo_response
+    ):
+        """A pool-bounded deck completes a near-miss only with a card it opened: one
+        naming any other card is dropped, and before the popularity cut, so the
+        completion the pool holds is never crowded out by a likelier one it
+        doesn't (a powered-cube draft deck's five near-misses all named cards
+        outside its pool, 2026-11-02)."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = sample_combo_response
+        mock_resp.raise_for_status = MagicMock()
+        cards = SAMPLE_DECK["commanders"] + SAMPLE_DECK["cards"]
+        deck = {
+            "format": "draft",
+            "commanders": [],
+            "cards": cards,
+            "sideboard": [{"name": "Gravecrawler", "quantity": 1}],
+            "pool": [*cards, {"name": "Gravecrawler", "quantity": 1}],
+        }
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+            # Unbounded, the likelier near-miss (missing Dramatic Reversal) leads.
+            open_deck = {**deck, "format": "modern", "pool": []}
+            for variant in sample_combo_response["results"]["almostIncluded"]:
+                variant["legalities"]["modern"] = True
+            unbounded = combo_search(_cs_hd(open_deck), max_near_misses=1)
+            pooled = combo_search(_cs_hd(deck), max_near_misses=1)
+        assert [n["missing_card"] for n in unbounded["near_misses"]] != ["Gravecrawler"]
+        assert [n["missing_card"] for n in pooled["near_misses"]] == ["Gravecrawler"]
+
+    def test_a_generic_piece_must_be_something_the_pool_holds(self):
+        # The deck runs Moritte and is one persist creature short: a near-miss
+        # only when the pool holds a persist creature to bring in.
+        moritte = test_card("Moritte of the Frost")
+
+        def near_misses(*pool_only):
+            names = ["Moritte of the Frost", *(c["name"] for c in pool_only)]
+            deck = {
+                "format": "sealed",
+                "commanders": [],
+                "cards": [{"name": "Moritte of the Frost"}],
+                "sideboard": [],
+                "pool": [{"name": n} for n in names],
+            }
+            return _mock_combo_search(_API, deck, hydrated=[moritte, *pool_only])[
+                "near_misses"
+            ]
+
+        assert near_misses(_VANILLA) == []
+        assert [n["missing_template"] for n in near_misses(_PERSIST_CREATURE)] == [
+            "Persist Creature"
+        ]
+
+    def test_the_pool_answers_to_a_cards_whole_name_and_its_front_face(self):
+        from mtg_utils.combo_search import _held, _pool_names
+
+        pathway = test_card("Branchloft Pathway // Boulderloft Pathway")
+
+        def pooled(name, records=None):
+            deck = {"format": "draft", "cards": [], "pool": [{"name": name}]}
+            return _pool_names(HydratedDeck.from_parsed(deck, records=records))
+
+        whole, front = pathway["name"], "Branchloft Pathway"
+        # With no card data the pool's own spelling is all there is: either
+        # spelling of the card matches either spelling in the pool.
+        for typed in (whole, front):
+            names = pooled(typed)
+            assert _held(whole, names)
+            assert _held(front, names)
+            assert not _held("Grindstone", names)
+        # With its record, every face answers.
+        assert _held("Boulderloft Pathway", pooled(whole, [pathway]))
+
 
 def test_asked_early_hands_back_the_answer_already_on_the_way():
     """The deck it was started for gets the one early answer (or its failure);

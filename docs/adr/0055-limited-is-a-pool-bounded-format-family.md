@@ -81,3 +81,49 @@ what it replaced for one undo (a first draft, never a finished deck); a paper se
 `card-search --format sealed` is never Arena-gated. Non-goals: pack generation and
 draft simulation (cube-wizard's), a matchup model, ranking the colour pairs
 (enumerated on equal footing; the choice is the builder's).
+
+**Amendment (2026-11-25): a cube's pool, and no play rate.** A powered-cube draft
+deck (40 cards from a 54-card pool, 2026-11-02) got advice built for a retail set:
+ten creatures and fourteen answers read as off-template, its lane's "least played"
+half was traded away on EDHREC's Commander play rate, and its top issue named a
+combo piece nobody had opened.
+
+- **A pool has a kind.** `HydratedDeck.pool_kind` is `"set"` or `"cube"` (`None`
+  with no pool): a cube's when no one booster set prints at least half of the
+  pool's nonbasic cards. A retail pool is one set plus its bonus sheet, so its set
+  prints nearly all of it (95% or more of 45 cards sampled from each of 17
+  sets); a cube's best set prints a fraction (6 of the powered cube pool's 45;
+  over 20,000 random 45-card pools from a 312-card Commander cube, 22% at the
+  median and 47% at most). Each record lists the booster sets its card is
+  printed in (`draft_sets`, built with the bulk): a set MTGJSON types
+  `expansion`, `core`, `masters`, `draft_innovation`, `alchemy` or `funny` AND
+  lists booster contents for. The type alone is not enough: The List, a reprint
+  sheet of five thousand cards with no booster of its own, is typed `masters`
+  and prints 56% of that Commander cube; a promo set prints 21 of the powered
+  pool's 45. The deck JSON's own `pool_kind` key overrides the cards
+  (`parse-deck --cube` / `--no-cube`), and `deck-tune --cube` / `--no-cube`
+  overrides both for one run.
+- **A cube deck has its own template.** `budgets.template_of(hd)` is the one
+  template choice the tuner, `slot-budgets` and deck-forge's rows all make. The
+  cube template keeps the lands and curve rows, reports the creature count as
+  advisory (the retail band as its reference) and gives interaction no ceiling
+  (the row's ceiling is the deck's size, so the hub's bar reads "14/40").
+- **No play rate where it means nothing.** EDHREC counts Commander decks, and
+  `Calibration.playrate_meaningful` was already off for the limited and
+  constructed families. Two reads went around it: the deep lane's "least
+  played" half (`metrics.focus`) and the least-played tiebreak of a band trim
+  (`cuts.cut_candidates`). Both ask the switch now, and order by the deck's
+  meta archetype's shares where it has one (ADR-0059). The fix reaches 60-card
+  decks too.
+- **A near-miss stays inside the pool.** `combo_search` keeps a pool-bounded
+  deck's near-miss only when the pool holds its missing card (or a card that
+  can be its missing generic piece), asked before the popularity cut, so the tuner, `combo-search`, `proposal-check` and the hub
+  see the same ones.
+
+The hub only detects: a deck-forge session carries no `pool_kind`, and no
+switch sets one.
+
+Rejected: an explicit flag alone (a deck JSON says nothing about where its pool
+came from, and the cards do); an advisory creature count for every limited deck
+(a retail sealed deck short on creatures is short); archetype shape bands for a
+cube (no source for the bands).

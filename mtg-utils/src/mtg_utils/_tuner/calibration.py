@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from mtg_utils._analysis.budgets import Template, template_for
+from mtg_utils._analysis.budgets import template_for
 from mtg_utils.formats import Family
 
 
@@ -77,15 +77,12 @@ class Calibration:
         return self.playrate_meaningful and multiplayer
 
     @property
-    def template(self) -> Template:
-        """The family's budgets template — the one place its base size lives."""
-        return template_for(self.family)
-
-    @property
     def base_size(self) -> int:
         """The deck size every floor here is stated at: the family template's, so
-        the two can never disagree about what "per deck" means."""
-        return self.template.base_size
+        the two can never disagree about what "per deck" means. (The template a
+        deck is measured against is ``budgets.template_of``'s: a cube's keeps
+        this base size.)"""
+        return template_for(self.family).base_size
 
     def scaled(self, value: int, deck_size: int) -> int:
         """``value`` (stated at ``base_size``) at ``deck_size``, Python-rounded."""

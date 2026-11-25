@@ -144,6 +144,9 @@ def cut_candidates(
     def premium(card: CardClass) -> bool:
         return playrate_meaningful and is_premium(card.edhrec_rank)
 
+    def least_played(card: CardClass) -> float:
+        return card.least_played(playrate=playrate_meaningful)
+
     def viable_served(card: CardClass) -> int:
         return len(focus.viable.intersection(card.served))
 
@@ -182,7 +185,7 @@ def cut_candidates(
             # Backup, 2026-11-02).
             and not (needs is not None and needs(c.record) > 0)
         ),
-        key=lambda c: c.least_played_key,
+        key=least_played,
     ):
         push("low_value", c)
 
@@ -234,7 +237,7 @@ def cut_candidates(
                 viable_served(c),
                 _is_fixing(c),
                 c.name in focus.commander_cards,
-                c.least_played_key,
+                least_played(c),
                 -c.cmc,
             )
         )
@@ -284,7 +287,7 @@ def cut_candidates(
     # 2026-11-02).
     for c in sorted(
         (c for c in classes if c.name in focus.upgrade_cards),
-        key=lambda c: (supplies(c), c.least_played_key),
+        key=lambda c: (supplies(c), least_played(c)),
     ):
         push("upgrade", c)
 

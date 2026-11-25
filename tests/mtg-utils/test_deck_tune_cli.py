@@ -303,6 +303,35 @@ def test_a_sealed_deck_tunes_over_its_pool_never_the_bulk(tmp_path, monkeypatch)
     assert [c["name"] for c in found] == ["Krenko, Mob Boss"]
 
 
+def test_cube_flag_overrides_the_pools_kind_for_the_run(tmp_path, monkeypatch):
+    captured = _spy_tune(monkeypatch)
+    deck = _write(
+        tmp_path,
+        "deck.json",
+        {
+            "format": "draft",
+            "commanders": [],
+            "cards": [{"name": "Mountain", "quantity": 17}],
+            "sideboard": [],
+            "pool": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        },
+    )
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    for flags, kind in (([], "set"), (["--cube"], "cube"), (["--no-cube"], "set")):
+        res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd, *flags])
+        assert res.exit_code == 0, res.output
+        assert captured["hd"].pool_kind == kind
+
+
+def test_cube_flag_on_a_deck_with_no_pool_is_noted_not_fatal(tmp_path, monkeypatch):
+    _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", CONSTRUCTED_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd, "--cube"])
+    assert res.exit_code == 0, res.output
+    assert "--cube / --no-cube ignored" in res.output
+
+
 def test_the_deck_jsons_own_medium_is_the_default(tmp_path, monkeypatch):
     # One medium resolution with deck-forge's session and deck-rank
     # (``resolve_deck_medium``): no flag, so the deck JSON's ``medium`` decides —

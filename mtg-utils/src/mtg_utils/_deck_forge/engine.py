@@ -23,7 +23,7 @@ from pathlib import Path
 
 from mtg_utils import card_search, mark_owned, ownership
 from mtg_utils._analysis import staples
-from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
+from mtg_utils._analysis.budgets import banded_slot_budgets, template_of
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import role_of
 from mtg_utils._analysis.signal_specs import (
@@ -1832,7 +1832,7 @@ def budgets(state: ForgeState) -> dict:
         hd.expanded(zones=("cards",)),
         mana_audit(hd)["land_band"],
         deck_size=state.session.deck_size,
-        template=template_for(hd.format.family),
+        template=template_of(hd),
         deck_mana=hd.deck_mana,
     )
 
@@ -1877,7 +1877,7 @@ def snapshot(state: ForgeState) -> dict:
             hd.expanded(zones=("cards",)),
             mana["land_band"],
             deck_size=state.session.deck_size,
-            template=template_for(fmt.family),
+            template=template_of(hd),
             deck_mana=hd.deck_mana,
         ),
         # The counted deck (commanders + main deck): a sideboard or an opened pool

@@ -144,6 +144,18 @@ class CardClass:
             return self.meta_share
         return -(self.edhrec_rank if self.edhrec_rank is not None else 10**9)
 
+    def play_measured(self, *, playrate: bool) -> bool:
+        """Whether the card has a play measure to order it by: its meta share
+        (ADR-0059), or EDHREC's rank where that means something (``playrate``:
+        ``Calibration.playrate_meaningful`` — EDHREC counts Commander decks and
+        says nothing about a sealed or 60-card deck's card)."""
+        return playrate or self.meta_share is not None
+
+    def least_played(self, *, playrate: bool) -> float:
+        """:attr:`least_played_key` where the card has a play measure
+        (:meth:`play_measured`); no order otherwise."""
+        return self.least_played_key if self.play_measured(playrate=playrate) else 0.0
+
 
 # The repeatable-draw commander keys that arm the hellbent anti-synergy
 # predicate (ADR-0040 §2: a "no cards in hand"-gated grant under a

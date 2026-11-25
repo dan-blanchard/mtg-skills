@@ -32,14 +32,15 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from collections.abc import Callable, Iterator, Mapping
+from collections import Counter
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, get_args
 
 from mtg_utils._sidecar import atomic_write_json
-from mtg_utils.card_classify import build_card_lookup
+from mtg_utils.card_classify import build_card_lookup, is_basic_land
 from mtg_utils.card_pool import CardPool, NoBulkError
-from mtg_utils.formats import Format
+from mtg_utils.formats import POOL_KIND_KEY, Format, PoolKind
 
 if TYPE_CHECKING:
     from mtg_utils._analysis.roles import DeckMana
@@ -137,6 +138,32 @@ class _DeckSource(Protocol):
 #: hydrated like any zone, counted by none of the deck analyses (they walk the zones
 #: they mean by name).
 ZONES = ("commanders", "cards", "sideboard", "companion", "pool")
+
+
+#: A retail pool's share of nonbasic cards its own set prints. The bonus sheet's
+#: guests are the rest: a card or two a booster, never half.
+RETAIL_POOL_SHARE = 0.5
+
+
+def detect_pool_kind(records: Iterable[dict]) -> PoolKind:
+    """Whether an opened pool's cards came from a cube: no one booster set
+    prints at least :data:`RETAIL_POOL_SHARE` of its nonbasic cards (each record's
+    ``draft_sets``). A retail pool is one set plus its bonus sheet, so its set
+    prints nearly all of it; a cube's best set prints a fraction (6 of a powered
+    cube pool's 45 cards, 2026-11-25). A pool whose records carry no
+    ``draft_sets`` (no card data, or a bulk older than the field) reads as a
+    set's."""
+    by_set: Counter[str] = Counter()
+    nonbasic = 0
+    for record in records:
+        if is_basic_land(record):
+            continue
+        nonbasic += 1
+        by_set.update(record.get("draft_sets") or ())
+    if not by_set:
+        return "set"
+    best = max(by_set.values())
+    return "set" if best >= nonbasic * RETAIL_POOL_SHARE else "cube"
 
 
 def _distinct_names(deck: Mapping) -> list[str]:
@@ -406,6 +433,25 @@ class HydratedDeck:
         """The deck's ``Format`` with its own ``deck_size`` applied — every analysis
         reads legality / size / family from here, never from the raw dict."""
         return self._format
+
+    @property
+    def pool_kind(self) -> PoolKind | None:
+        """What the opened pool was drawn from (``None``: the deck has no pool, or
+        its format none to open):
+        the deck's own ``pool_kind`` key where it states one, else
+        :func:`detect_pool_kind` over the pool's cards. A cube deck is measured
+        against the cube template (``budgets.template_of``)."""
+        if not (self._format.pool_bounded and self.pool):
+            return None
+        stated = self._deck.get(POOL_KIND_KEY)
+        if stated in get_args(PoolKind):
+            return stated
+        return detect_pool_kind(self.deck_records(zones=("pool",)))
+
+    def with_pool_kind(self, kind: PoolKind) -> HydratedDeck:
+        """This deck with its pool's kind stated (``deck-tune --cube`` /
+        ``--no-cube``: one run's override of the detection)."""
+        return type(self)({**self._deck, POOL_KIND_KEY: kind}, self._records)
 
     @property
     def deck_mana(self) -> DeckMana:
