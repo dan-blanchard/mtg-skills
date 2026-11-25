@@ -58,6 +58,35 @@ def test_a_counted_combat_pump_is_a_combat_buff(name):
     assert ("combat_buff_engine", "you", "") in _idents(name)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "Whenever ~ attacks or blocks, it gets +X/+X until end of turn" (the
+        # pump itself rewritten from a where-X residue)
+        "Freelance Muscle",
+        # "Whenever ~ attacks or blocks, other creatures you control get +1/+0"
+        "Hamlet Captain",
+    ],
+)
+def test_an_attacks_or_blocks_pump_is_a_combat_buff(name):
+    assert ("combat_buff_engine", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # flanking: "the blocking creature gets -1/-1 until end of turn"
+        "Benalish Cavalry",
+        # "Whenever ~ attacks or blocks, put a -1/-1 counter on it."
+        "Dusk Urchins",
+        # "target creature defending player controls gets -2/-0"
+        "Fear of Falling",
+    ],
+)
+def test_a_combat_shrink_is_no_combat_buff(name):
+    assert "combat_buff_engine" not in {key for key, _scope, _subject in _idents(name)}
+
+
 def test_a_counted_shrink_is_no_raise():
     # Toxrill, the Corrosive: "Creatures you don't control get -1/-1 for each
     # slime counter on them" — a ``Multiply`` by a negative factor.

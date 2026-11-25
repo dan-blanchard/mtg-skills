@@ -107,6 +107,30 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   ``test_countered_exile_instead_canary`` and
   ``test_cast_trigger_exile_instead_canary`` fail once phase types them.
 
+* **A pump phase parks.** "Whenever ~ attacks or blocks, it gets
+  +X/+X until end of turn, where X is the greatest power and/or toughness among
+  other creatures you control" (Freelance Muscle) leaves an ``Unimplemented``
+  ``where_x_binding`` residue holding only "where X is …": the pump itself is
+  dropped, so no read sees one. Phase types a pump by an X it leaves unresolved
+  as ``Pump`` / ``PumpAll`` with a ``Variable`` amount ("{X}, {T}: Target
+  creature gets -X/+X until end of turn" — Belbe's Armor), on ``SelfRef`` for
+  "~ gets" (Shivan Dragon), a creature filter with ``EquippedBy`` for "equipped
+  creature gets" (Adventuring Gear) and one with ``controller: You`` /
+  ``Another`` / ``Attacking`` for a group (Aardwolf's Advantage, Ambergris,
+  Army of Allah). The residue is rewritten to that node where the shared clause
+  grammar reads its sentence as a pump and nothing more
+  (``clause_grammar.parked_pump``); a trigger's "it" is the trigger's own
+  source, ``SelfRef`` where the trigger watches only itself and
+  ``TriggeringSource`` otherwise, phase's two forms for it. Ten cards at
+  v0.131.0. A clause parked whole that is such a pump is the same row: "Untap
+  all creatures you control. Those creatures get +1/+1 until end of turn"
+  (Gideon, Martial Paragon's ``plural_rider_after_mass_tap_population``),
+  whose "those creatures" is the ``TrackedSet`` phase writes for "they" after
+  a mass effect (Savage Offensive). A pump with a condition or a grant beside
+  it is not ("if your team controls another Warrior, ~ gets +1/+1": the
+  parked condition is the gap, and a ledger row serves it).
+  ``test_parked_pump_canary`` fails once phase types the pump.
+
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
 
@@ -117,7 +141,9 @@ import re
 from collections.abc import Iterator
 
 from mtg_utils._card_ir.clause_grammar import (
+    ParkedPump,
     attached_attackers_kind,
+    parked_pump,
     subtype_keyword_grant,
 )
 from mtg_utils._card_ir.dropped_keywords import add_keyword, static_def
@@ -362,6 +388,118 @@ def _cast_trigger_graveyard_exile(trig: object) -> dict | None:
     return effect if _graveyard_exile_of_parent(effect) else None
 
 
+def _chain(body: object) -> Iterator[dict]:
+    """An ability body and each ``sub_ability`` after it."""
+    while isinstance(body, dict):
+        yield body
+        body = body.get("sub_ability")
+
+
+def _described_bodies(rec: dict) -> Iterator[tuple[dict, str, dict | None, bool]]:
+    """``(body, description, trigger, follows)`` for every body of each ability's
+    and each trigger's own chain: the description is the ability's or trigger's
+    whole text, ``trigger`` the trigger a body runs for (``None`` in an
+    ability), ``follows`` whether an earlier effect of the chain precedes it."""
+    for ability in rec.get("abilities") or ():
+        if isinstance(ability, dict):
+            for i, body in enumerate(_chain(ability)):
+                yield body, str(ability.get("description") or ""), None, i > 0
+    for trig in rec.get("triggers") or ():
+        if isinstance(trig, dict):
+            for i, body in enumerate(_chain(trig.get("execute"))):
+                yield body, str(trig.get("description") or ""), trig, i > 0
+
+
+_SENTENCE_START_RX = re.compile(r"[.:]\"?\s+")
+
+
+def _binding_sentence(residue: str, description: str) -> str:
+    """The sentence a ``where_x_binding`` residue was cut from: the residue's own
+    text where it holds the instruction (The Kami War's "~ gets +X/+0 until end
+    of turn, where X is …"), else the description from the last sentence break
+    before the residue through its end."""
+    at = description.find(residue)
+    if at <= 0:
+        return residue
+    start = max(
+        (m.end() for m in _SENTENCE_START_RX.finditer(description, 0, at)), default=0
+    )
+    return description[start : at + len(residue)]
+
+
+def _pump_amount(written: str) -> dict:
+    """Phase's amount node for a signed amount as written: ``Variable`` for X
+    ("+X", "-X"), ``Fixed`` otherwise."""
+    if written[1:].upper() == "X":
+        return {"type": "Variable", "value": written.lstrip("+").upper()}
+    return {"type": "Fixed", "value": int(written)}
+
+
+def _pump_target(pump: ParkedPump, trig: dict | None, *, follows: bool) -> dict | None:
+    """The target phase writes for ``pump``'s subject; ``None`` for a pronoun
+    that names nothing this row can know: an "it" outside a trigger, a "those
+    creatures" with no earlier effect (``follows``) for it to name."""
+    who = pump.subject
+    if who.recipient == "self":
+        return {"type": "SelfRef"}
+    if who.recipient == "it":
+        if trig is None:
+            return None
+        watches_itself = (trig.get("valid_card") or {}).get("type") == "SelfRef"
+        return {"type": "SelfRef" if watches_itself else "TriggeringSource"}
+    if who.recipient == "those":
+        return {"type": "TrackedSet", "id": 0} if follows else None
+    types: list[object] = ["Creature"]
+    if who.subtype is not None:
+        types.append({"Subtype": who.subtype})
+    named = (who.attachment, "Another" if who.other else None)
+    properties = [{"type": name} for name in named if name is not None]
+    if who.attacking:
+        properties.append({"type": "Attacking"})
+    return {
+        "type": "Typed",
+        "type_filters": types,
+        "controller": "You" if who.yours else None,
+        "properties": properties,
+    }
+
+
+#: The targets phase writes on a ``Pump`` (one object); any other is a
+#: ``PumpAll``'s (a group: a filter, or the set an earlier effect acted on).
+_ONE_OBJECT = frozenset({"SelfRef", "TriggeringSource"})
+
+
+def _parked_pump(
+    body: dict, description: str, trig: dict | None, *, follows: bool
+) -> dict | None:
+    """The typed pump for a body whose effect is a residue the clause grammar
+    reads as a pump until end of turn and nothing more: a
+    ``where_x_binding`` cut from a pump's sentence, or a parked clause that is
+    the pump itself ("Those creatures get +1/+1 until end of turn" — Gideon,
+    Martial Paragon, after "Untap all creatures you control"). Else ``None``."""
+    effect = body.get("effect") or {}
+    if effect.get("type") != "Unimplemented":
+        return None
+    text = str(effect.get("description") or "")
+    if effect.get("name") == "where_x_binding":
+        text = _binding_sentence(text, description)
+    pump = parked_pump(text)
+    # A pump with no duration is a static ability's line ("Enchanted creature
+    # gets -X/-X, where X is …" — Death's Approach), which phase types as a
+    # static's modifications, never as this one-shot effect.
+    if pump is None or not pump.until_end_of_turn:
+        return None
+    target = _pump_target(pump, trig, follows=follows)
+    if target is None:
+        return None
+    return {
+        "type": "Pump" if target["type"] in _ONE_OBJECT else "PumpAll",
+        "power": _pump_amount(pump.power),
+        "toughness": _pump_amount(pump.toughness),
+        "target": target,
+    }
+
+
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
     sweeps = [
@@ -397,6 +535,11 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for trig in rec.get("triggers") or ()
         if (effect := _cast_trigger_graveyard_exile(trig)) is not None
     ]
+    pumps = [
+        (body, pump)
+        for body, description, trig, follows in _described_bodies(rec)
+        if (pump := _parked_pump(body, description, trig, follows=follows)) is not None
+    ]
     found = (
         sweeps,
         split_flips,
@@ -406,6 +549,7 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         grants,
         power_returns,
         countered_exiles,
+        pumps,
     )
     if not any(found):
         return rec
@@ -468,6 +612,11 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         target = memo[id(sub)]
         assert isinstance(target, dict)
         target["origin"] = None
+    for body, typed in pumps:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        target["effect"] = typed
+        target["duration"] = "UntilEndOfTurn"
     if grants:
         parked = {id(memo[id(body)]) for body, _static in grants}
         out["abilities"] = [

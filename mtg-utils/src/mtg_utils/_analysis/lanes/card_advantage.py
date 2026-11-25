@@ -69,6 +69,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_mod_sites,
     iter_nested_granted_bodies,
+    iter_static_defs,
     iter_typed_nodes,
     keyword_resource_events,
     lets_you_play_exiled,
@@ -78,6 +79,8 @@ from mtg_utils._card_ir.crosswalk import (
     optional_clause_actor,
     own_turn_step_triggers,
     permission_tag,
+    pt_mod_signs,
+    pump_is_negative,
     recipient_tag,
     recursion_card_types,
     requires_condition_inner,
@@ -441,10 +444,12 @@ _TARGET_PLAYER_DRAW_PHRASE_RE = re.compile(
     re.IGNORECASE,
 )
 # Combat-frame trigger events (CR 508 / 509.3a) — the combat_buff_engine
-# anchor. ``deals_damage`` is DELIBERATELY absent so Renown / the separate
-# self_counter_grow shapes don't over-fire (mirrors the live exclusion).
+# anchor, phase's combined "attacks or blocks" trigger among them (Freelance
+# Muscle, Velukan Dragon). ``deals_damage`` is DELIBERATELY absent so Renown /
+# the separate self_counter_grow shapes don't over-fire (mirrors the live
+# exclusion).
 _COMBAT_BUFF_EVENTS: frozenset[str] = frozenset(
-    {"attacks", "blocks", "becomes_blocked"}
+    {"attacks", "blocks", "attacksorblocks", "becomes_blocked"}
 )
 # Land-to-graveyard payoff trigger events (CR 701.21a / 603.6c).
 _LAND_SAC_EVENTS: frozenset[str] = frozenset({"dies", "leaves", "sacrificed"})
@@ -2898,7 +2903,8 @@ def _buffs_with_counters(c: ConceptNode) -> bool:
     and parking it as a residue the ``place_counter`` token recovers — one whose
     clause names a +1/+1 counter (an experience or rad counter is no buff)."""
     if not c.recovered_by:
-        return True
+        # a -1/-1 counter shrinks what it lands on (Dusk Urchins)
+        return counter_kind_any(c.node) != "M1M1"
     # Erithizon's "on target creature of defending player's choice": the
     # opponent aims it (its ruling), so it is no buff you can direct.
     return OTHER_CHOOSER not in c.subject and "+1/+1 counter" in c.subject
@@ -2931,11 +2937,18 @@ def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
         )
         if not combat:
             continue
+        # A buff raises: a shrink is no combat buff, as an effect ("it gets
+        # -1/-1 until end of turn" — the flanking cards, Fear of Falling) or as
+        # a static grant (:func:`pt_mod_signs`).
         if any(
-            c.concept == "pump"
+            (c.concept == "pump" and not pump_is_negative(c.node))
             or (c.concept == "place_counter" and _buffs_with_counters(c))
             for c in unit.effects
-        ) or any(c.concept == "pump" for c in unit.statics):
+        ) or any(
+            max(pt_mod_signs(d)) > 0
+            for d in iter_static_defs(unit.node)
+            if any(c.concept == "pump" for c in unit.statics)
+        ):
             return [Signal("combat_buff_engine", "you", "", "", tree.name, "high")]
     return []
 

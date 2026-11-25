@@ -5043,23 +5043,19 @@ BRIDGES.update(
                 kind="upstream_parse_failure",
                 todo=(
                     "upstream phase-rs report candidate (Dan posts): a creature "
-                    "reanimation leaves no graveyard-to-battlefield node — Custodi "
-                    "Soulcaller's and Venerable Warsinger's 'mana value X or less' "
-                    "returns park as an Unimplemented node carrying only their X "
-                    "clause; Can't Stay Away types the spell as a replacement "
-                    "(Aberrant Return and Vigor Mortis did too, typed since "
-                    "v0.118.0). Retires per card as phase types the ChangeZone"
+                    "reanimation leaves no graveyard-to-battlefield node — Can't "
+                    "Stay Away types the spell as a replacement (Aberrant Return "
+                    "and Vigor Mortis did too, typed since v0.118.0; Custodi "
+                    "Soulcaller's and Venerable Warsinger's 'mana value X or "
+                    "less' returns, parked as where_x_binding residues, are read "
+                    "by the recovery stage since 2026-11-25). Retires as phase "
+                    "types the ChangeZone"
                 ),
                 census=(
-                    "3 hits / the legal corpus (Can't Stay Away, Custodi "
-                    "Soulcaller, Venerable Warsinger), MTGJSON 2026-10-17 @ phase "
-                    "v0.104.0, 2026-10-25"
+                    "1 hit / the legal corpus (Can't Stay Away), MTGJSON "
+                    "2026-11-24 @ phase v0.131.0, 2026-11-25"
                 ),
-                pins=(
-                    "Can't Stay Away",
-                    "Custodi Soulcaller",
-                    "Venerable Warsinger",
-                ),
+                pins=("Can't Stay Away",),
                 gap=_no_graveyard_reanimation,
                 match=_oracle_match(_CREATURE_REANIMATION_RX),
                 subject="reanimate",
@@ -5357,20 +5353,18 @@ BRIDGES.update(
                     "upstream phase-rs report candidate (Dan posts): a 'deals X "
                     "damage to that player / target opponent, where X is …' burn "
                     "keeps only the where_x_binding residue, its damage clause "
-                    "dropped. Retires on the bump that types the damage"
+                    "dropped. The recovery stage reads the burn from the "
+                    "binding's sentence since 2026-11-25 (Dwarven Shrine, Power "
+                    "Surge, Psychic Allergy); Concert Kaboomist's 'is turned face "
+                    "up' twin stays out of that read. Retires on the bump that "
+                    "types the damage"
                 ),
                 census=(
-                    "4 hits / the legal corpus's where-X player burns with no "
-                    "damage node (Concert Kaboomist, Dwarven Shrine, Power Surge, "
-                    "Psychic Allergy), MTGJSON 2026-10-17 @ phase v0.104.0, "
-                    "2026-10-25"
+                    "1 hit / the legal corpus's where-X player burns no read "
+                    "serves (Concert Kaboomist), MTGJSON 2026-11-24 @ phase "
+                    "v0.131.0, 2026-11-25"
                 ),
-                pins=(
-                    "Concert Kaboomist",
-                    "Dwarven Shrine",
-                    "Power Surge",
-                    "Psychic Allergy",
-                ),
+                pins=("Concert Kaboomist",),
                 gap=_no_player_reaching_damage_node,
                 match=_oracle_match(_WHERE_X_PLAYER_BURN_RX),
             ),
@@ -5777,25 +5771,16 @@ BRIDGES.update(
 # Two team boosts whose amount phase can't bind, so the boost goes with it:
 # Candlekeep Inspiration's "creatures you control have base power and toughness
 # X/X, where X is the number of cards you own in exile and in your graveyard
-# that are instant cards …" parks whole as an ``unparsed_quantity`` residue, and
-# Huntmaster Liger's mutate trigger ("other creatures you control get +X/+X until
-# end of turn, where X is the number of times ~ has mutated") keeps only a
-# ``where_x_binding`` residue for its X, no pump.
+# that are instant cards …" parks whole as an ``unparsed_quantity`` residue.
+# (Huntmaster Liger's mutate-count team pump, a ``where_x_binding`` residue, is
+# rewritten as a typed ``PumpAll`` by ``misparsed_shapes`` since 2026-11-25.)
 _TEAM_BASE_PT_X_RX = re.compile(
     r"^creatures you control have base power and toughness X/X\b", re.IGNORECASE
-)
-_MUTATE_COUNT_RX = re.compile(r"\bthe number of times ~ has mutated\b", re.IGNORECASE)
-_TEAM_PUMP_X_RX = re.compile(
-    r"\bother creatures you control get \+X/\+X until end of turn\b", re.IGNORECASE
 )
 
 
 def _team_base_pt_parked(tree: ConceptTree) -> bool:
     return _says(_TEAM_BASE_PT_X_RX, tree.residues("unparsed_quantity"))
-
-
-def _mutate_count_unbound(tree: ConceptTree) -> bool:
-    return _says(_MUTATE_COUNT_RX, tree.residues("where_x_binding"))
 
 
 BRIDGES.update(
@@ -5821,25 +5806,6 @@ BRIDGES.update(
                 pins=("Candlekeep Inspiration",),
                 gap=_team_base_pt_parked,
                 match=_team_base_pt_parked,
-            ),
-            Bridge(
-                bridge_id="mutate_count_team_pump_dropped",
-                key="team_buff",
-                subject="pump",
-                kind="dropped_clause",
-                todo=(
-                    "upstream phase-rs report candidate (Dan posts): Huntmaster "
-                    "Liger's mutate trigger keeps a where_x_binding residue for "
-                    "'the number of times ~ has mutated' and drops the team pump "
-                    "it sizes. Retires on the bump that binds the mutate count"
-                ),
-                census=(
-                    "1 hit / the legal corpus (Huntmaster Liger), MTGJSON "
-                    "2026-10-17 @ phase v0.104.0, 2026-10-25"
-                ),
-                pins=("Huntmaster Liger",),
-                gap=_mutate_count_unbound,
-                match=_oracle_match(_TEAM_PUMP_X_RX),
             ),
         )
     }

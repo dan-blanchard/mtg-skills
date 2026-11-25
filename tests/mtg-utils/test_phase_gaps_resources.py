@@ -8,7 +8,7 @@ it outright. Each is filled one way, and each way retires itself:
   grammar token, and the shared reads (``keyword_action_events``,
   ``keyword_counter_placements``, ``keyword_resource_events``) read the token
   (``recovered_by``): connive, amass and investigate off a ``where_x_binding``
-  residue's sentence (``TokenRule.from_binding_sentence``), devour, gaining and
+  residue's sentence (the verb its X belongs to), devour, gaining and
   paying {E}, and foretell.
 * **A lane arm over a recovered reading** — Jetmir's Fixer's Treasure-spent
   condition (``treasure_matters``).
@@ -144,26 +144,77 @@ def test_officious_interrogation_investigates():
     assert "clue_makers|you|" in _idents("Officious Interrogation")
 
 
-def test_binding_sentence_reads_only_flagged_tokens():
-    """The binding's sentence recovers only a ``from_binding_sentence`` row:
-    "You scry X, where X is …" names an allowlisted verb (scry) without the flag.
-    Erestor of the Council's binding was such a ``where_x_binding`` residue
-    through phase v0.104.0; v0.118.0 parks the whole "scry X, where X is …" clause
-    as its own residue, which the scry row reads like any parked verb."""
-    sentence = "You scry X, where X is the number of opponents"
-    assert (parse_clause(sentence) or scan_clause(sentence)) == "scry"
-    assert not ALLOWLIST["scry"].from_binding_sentence
-    assert not any(
-        n == "where_x_binding" for n, _ in _residues("Erestor of the Council")
+def test_a_binding_sentence_reads_the_verb_its_x_belongs_to():
+    """Phase parks only "where X is …" and drops the verb X sizes. The recovery
+    reads that verb from the binding's sentence, for every allowlisted verb:
+    burn (Zenith Flare), a reanimation (Custodi Soulcaller), life loss
+    (Insatiable Hemophage)."""
+    assert "damage" in _recovered("Zenith Flare")
+    assert "direct_damage|you|" in _idents("Zenith Flare")
+    assert "reanimate" in _recovered("Custodi Soulcaller")
+    assert "reanimator|you|" in _idents("Custodi Soulcaller")
+    assert "lose_life" in _recovered("Insatiable Hemophage")
+    assert "lifeloss_makers|opponents|" in _idents("Insatiable Hemophage")
+
+
+def test_a_binding_sentence_reads_no_verb_x_does_not_size():
+    """The X of "Destroy all artifacts you don't control, then exile the top X
+    cards of your library, where X is …" (Anzrag's Rampage) sizes the exile:
+    the sentence's first verb is not the binding's, and stays unread."""
+    from mtg_utils._card_ir.recovery import _x_instruction
+
+    anzrag = (
+        "Destroy all artifacts you don't control, then exile the top X cards of "
+        "your library, where X is the number of artifacts that were put into "
+        "graveyards from the battlefield this turn."
     )
-    assert "scry" in _recovered("Erestor of the Council")
+    assert _x_instruction(anzrag, ALLOWLIST) == "exile the top X cards of your library"
+    assert "destroy" not in _recovered("Anzrag's Rampage")
+    # A sentence whose first instruction names X is read whole (its trigger and
+    # its binding with it), and one that names no X is not read at all.
+    mask = (
+        "Whenever equipped creature deals combat damage to a player, it connives "
+        "X, where X is the amount of damage it dealt to that player."
+    )
+    assert _x_instruction(mask, ALLOWLIST) == mask
+    assert _x_instruction("Draw a card, where X is the number of Elves", ALLOWLIST) is (
+        None
+    )
+
+
+def test_a_binding_parked_twice_recovers_its_verb_once():
+    """Starfleet Communicator grants "Whenever ~ attacks, draw X cards, then …
+    put up to X land cards … onto the battlefield, where X is …", and phase
+    parks the binding once per X. The quote has no unit of its own: its
+    sentence is its granter's, and the draw is read once."""
+    from mtg_utils._card_ir.crosswalk import iter_nested_granted_effect_concepts
+
+    granted = [
+        c
+        for t in _trees("Starfleet Communicator")
+        for unit in t.units
+        for c in iter_nested_granted_effect_concepts(unit.node)
+    ]
+    assert [c.recovered_by for c in granted if c.recovered_by] == ["draw"]
+    assert sum(tag_of(c.node) == "Unimplemented" for c in granted) == 2
 
 
 def test_foul_renewal_binding_recovers_as_a_debuff():
     """Foul Renewal's "Target creature gets -X/-X until end of turn, where X is …"
     — the ``debuff`` row reads its binding's sentence too (CR 613.4c)."""
-    assert ALLOWLIST["debuff"].from_binding_sentence
     assert "debuff" in _recovered("Foul Renewal")
+
+
+def test_a_parked_scry_x_reads_its_own_clause():
+    """Erestor of the Council's "scry X, where X is …" was a ``where_x_binding``
+    residue through phase v0.104.0; v0.118.0 parks the whole clause as its own
+    residue, which the scry row reads like any parked verb."""
+    sentence = "You scry X, where X is the number of opponents"
+    assert (parse_clause(sentence) or scan_clause(sentence)) == "scry"
+    assert not any(
+        n == "where_x_binding" for n, _ in _residues("Erestor of the Council")
+    )
+    assert "scry" in _recovered("Erestor of the Council")
 
 
 def test_commence_the_endgame_amass_stays_on_the_keyword_fallback():

@@ -143794,6 +143794,180 @@
     "type_line": "Creature — Human Peasant // Creature — Spirit"
    }
   },
+  "Benalish Cavalry": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Knight"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flanking"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1013ca9c-1d29-42f6-8665-92f98d076ff8",
+       "a0fd40fa-4144-41b4-b441-a71d09a11305"
+      ]
+     },
+     "name": "Benalish Cavalry",
+     "non_ability_text": null,
+     "oracle_text": "Flanking (Whenever a creature without flanking blocks this creature, the blocking creature gets -1/-1 until end of turn.)",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "TSP",
+      "TSR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "0bf619f9-4b19-404c-995f-f23a4b859dd4",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.25a: Flanking — whenever this creature becomes blocked by a creature without flanking, the blocking creature gets -1/-1 until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": "CR 702.25a: Flanking — blocking creatures without flanking get -1/-1 until end of turn",
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Fixed",
+          "value": -1
+         },
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": -1
+         },
+         "type": "Pump"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "BecomesBlocked",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "WithoutKeyword",
+          "value": "Flanking"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Flanking"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Benalish Cavalry",
+    "oracle_id": "0bf619f9-4b19-404c-995f-f23a4b859dd4",
+    "oracle_text": "Flanking (Whenever a creature without flanking blocks this creature, the blocking creature gets -1/-1 until end of turn.)",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Human Knight"
+   }
+  },
   "Benalish Faithbonder": {
    "phase_records": [
     {
@@ -204544,6 +204718,178 @@
     "power": "6",
     "toughness": "6",
     "type_line": "Legendary Creature — Nightmare Beast Elemental"
+   }
+  },
+  "Bronze Cudgels": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{2}: Until end of turn, equipped creature gets +X/+0, where X is the number of times this ability has resolved this turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "description": "where X is the number of times this ability has resolved this turn",
+        "name": "where_x_binding",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {1}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "45fa226c-cc31-4c22-a167-40985706557b"
+      ]
+     },
+     "name": "Bronze Cudgels",
+     "non_ability_text": null,
+     "oracle_text": "{2}: Until end of turn, equipped creature gets +X/+0, where X is the number of times this ability has resolved this turn.\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
+     "power": null,
+     "printings": [
+      "NEO"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-02-18",
+       "text": "A resolution of the ability counts even if Bronze Cudgels was attached to a different creature or no creature at the time. A copy of the ability (created by Lithoform Engine, for example) will also count toward the total. An ability from another Equipment with the same name doesn't count towards the total, nor does an ability that's been countered."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "As the first activated ability resolves, it counts the number of times that same ability from that same Bronze Cudgels has resolved that turn, including that activation. For example, the first time the ability resolves in a turn, it will grant +1/+0 until end of turn, the second time +2/+0 until end of turn, and so on."
+      }
+     ],
+     "scryfall_oracle_id": "82ebd4fa-9db1-4723-8305-8b8a9ce958e2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}",
+    "name": "Bronze Cudgels",
+    "oracle_id": "82ebd4fa-9db1-4723-8305-8b8a9ce958e2",
+    "oracle_text": "{2}: Until end of turn, equipped creature gets +X/+0, where X is the number of times this ability has resolved this turn.\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
+    "type_line": "Artifact — Equipment"
    }
   },
   "Bronzehide Lion": {
@@ -392283,6 +392629,219 @@
     "type_line": "Creature — Vampire Soldier"
    }
   },
+  "Dusk Urchins": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Ouphe"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "adce41c5-3a43-4fe0-b84e-8baaad1a0777",
+       "fce69f5c-c4c4-4c8b-aa29-8cc8a84587d1"
+      ]
+     },
+     "name": "Dusk Urchins",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks or blocks, put a -1/-1 counter on it.\nWhen this creature dies, draw a card for each -1/-1 counter on it.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "ECC",
+      "SHM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2008-05-01",
+       "text": "If Dusk Urchins has just 1 toughness when it blocks, it will get a -1/-1 counter and be put into the graveyard. The creature that it blocked remains blocked, however."
+      },
+      {
+       "date": "2008-05-01",
+       "text": "The -1/-1 counter is put on Dusk Urchins during the declare attackers or declare blockers step, whichever is appropriate, so it will be smaller by the time combat damage is dealt. (Note that this is different from how the _Shadowmoor_ card Wicker Warcrawler works.)"
+      }
+     ],
+     "scryfall_oracle_id": "1c2cc166-dc59-44ce-86d5-ed6013b0bf67",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks or blocks, put a -1/-1 counter on it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "M1M1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "AttacksOrBlocks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ dies, draw a card for each -1/-1 counter on it.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "counter_type": "M1M1",
+           "scope": {
+            "type": "Source"
+           },
+           "type": "CountersOn"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Dusk Urchins",
+    "oracle_id": "1c2cc166-dc59-44ce-86d5-ed6013b0bf67",
+    "oracle_text": "Whenever this creature attacks or blocks, put a -1/-1 counter on it.\nWhen this creature dies, draw a card for each -1/-1 counter on it.",
+    "power": "4",
+    "toughness": "3",
+    "type_line": "Creature — Ouphe"
+   }
+  },
   "Duskana, the Rage Mother": {
    "phase_records": [
     {
@@ -459433,6 +459992,217 @@
     "type_line": "Legendary Creature — Homunculus"
    }
   },
+  "Fear of Falling": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment",
+       "Creature"
+      ],
+      "subtypes": [
+       "Nightmare"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0e814e48-cd9d-428f-90e2-74d97cb9c8f1"
+      ]
+     },
+     "name": "Fear of Falling",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nWhenever this creature attacks, target creature defending player controls gets -2/-0 and loses flying until your next turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "DSK"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-09-20",
+       "text": "A creature that loses flying due to the effect of Fear of Falling's last ability can still gain flying from the effect of another spell or ability, such as Jump Scare."
+      }
+     ],
+     "scryfall_oracle_id": "00ba96e0-42a7-432a-a500-5e607d75a358",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, target creature defending player controls gets -2/-0 and loses flying until your next turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": {
+         "UntilNextTurnOf": {
+          "player": {
+           "type": "Controller"
+          }
+         }
+        },
+        "effect": {
+         "duration": {
+          "UntilNextTurnOf": {
+           "player": {
+            "type": "Controller"
+           }
+          }
+         },
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "get -2/-0 and loses flying",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "type": "AddPower",
+             "value": -2
+            },
+            {
+             "type": "AddToughness",
+             "value": 0
+            },
+            {
+             "keyword": "Flying",
+             "type": "RemoveKeyword"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "controller": "DefendingPlayer",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}{U}",
+    "name": "Fear of Falling",
+    "oracle_id": "00ba96e0-42a7-432a-a500-5e607d75a358",
+    "oracle_text": "Flying\nWhenever this creature attacks, target creature defending player controls gets -2/-0 and loses flying until your next turn.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Enchantment Creature — Nightmare"
+   }
+  },
   "Fear of Isolation": {
    "phase_records": [
     {
@@ -492767,6 +493537,157 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Freelance Muscle": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Rhino",
+       "Warrior"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "570f7c90-109b-4d6d-8205-d158753719e8"
+      ]
+     },
+     "name": "Freelance Muscle",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks or blocks, it gets +X/+X until end of turn, where X is the greatest power and/or toughness among other creatures you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "SNC"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "8a749efc-e333-448e-8652-2dc4e6633e6b",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks or blocks, it gets +X/+X until end of turn, where X is the greatest power and/or toughness among other creatures you control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "description": "where X is the greatest power and/or toughness among other creatures you control",
+         "name": "where_x_binding",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "AttacksOrBlocks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G}",
+    "name": "Freelance Muscle",
+    "oracle_id": "8a749efc-e333-448e-8652-2dc4e6633e6b",
+    "oracle_text": "Whenever this creature attacks or blocks, it gets +X/+X until end of turn, where X is the greatest power and/or toughness among other creatures you control.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Rhino Warrior"
+   }
+  },
   "Freeze in Place": {
    "phase_records": [
     {
@@ -513558,6 +514479,262 @@
     "type_line": "Legendary Creature — Elf Warrior"
    }
   },
+  "General Tazri": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 0,
+         "shards": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{W}{U}{B}{R}{G}: Ally creatures you control get +X/+X until end of turn, where X is the number of colors among those creatures.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "description": "where X is the number of colors among those creatures",
+        "name": "where_x_binding",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Ally"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "34e9aa86-1a31-4c0f-928d-923f066286b6"
+      ]
+     },
+     "name": "General Tazri",
+     "non_ability_text": null,
+     "oracle_text": "When General Tazri enters, you may search your library for an Ally creature card, reveal it, put it into your hand, then shuffle.\n{W}{U}{B}{R}{G}: Ally creatures you control get +X/+X until end of turn, where X is the number of colors among those creatures.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "OGW",
+      "POGW"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-01-22",
+       "text": "Once the last ability resolves, the bonus given doesn’t change, even if the number of colors among your Allies does."
+      },
+      {
+       "date": "2016-01-22",
+       "text": "The last ability checks only Ally creatures you control as the ability resolves. The value of X will be between 0 and 5. Colorless is not a color."
+      }
+     ],
+     "scryfall_oracle_id": "b0f19cba-1339-4518-8320-d7b1dcaf2eb0",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you may search your library for an Ally creature card, reveal it, put it into your hand, then shuffle.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature",
+           {
+            "Subtype": "Ally"
+           }
+          ]
+         },
+         "reveal": true,
+         "type": "SearchLibrary"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Hand",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Library",
+          "owner_library": false,
+          "target": {
+           "type": "Any"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{W}",
+    "name": "General Tazri",
+    "oracle_id": "b0f19cba-1339-4518-8320-d7b1dcaf2eb0",
+    "oracle_text": "When General Tazri enters, you may search your library for an Ally creature card, reveal it, put it into your hand, then shuffle.\n{W}{U}{B}{R}{G}: Ally creatures you control get +X/+X until end of turn, where X is the number of colors among those creatures.",
+    "power": "3",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human Ally"
+   }
+  },
   "General's Enforcer": {
    "phase_records": [
     {
@@ -523981,6 +525158,352 @@
     "name": "Gideon, Ally of Zendikar",
     "oracle_id": "51eae7ff-fed9-4afe-8053-7690379449dd",
     "oracle_text": "[+1]: Until end of turn, Gideon becomes a 5/5 Human Soldier Ally creature with indestructible that's still a planeswalker. Prevent all damage that would be dealt to him this turn.\n[0]: Create a 2/2 white Knight Ally creature token.\n[−4]: You get an emblem with \"Creatures you control get +1/+1.\"",
+    "type_line": "Legendary Planeswalker — Gideon"
+   }
+  },
+  "Gideon, Martial Paragon": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 2,
+        "type": "Loyalty"
+       },
+       "description": "[+2]: Untap all creatures you control. Those creatures get +1/+1 until end of turn.",
+       "duration": null,
+       "effect": {
+        "scope": {
+         "type": "All"
+        },
+        "state": {
+         "type": "Untap"
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "SetTapState"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "description": "Those creatures get +1/+1 until end of turn",
+         "name": "plural_rider_after_mass_tap_population",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 0,
+        "type": "Loyalty"
+       },
+       "description": "[0]: Until end of turn, ~ becomes a 5/5 Human Soldier creature with indestructible that's still a planeswalker. Prevent all damage that would be dealt to him this turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "become a 5/5 Human Soldier creature with indestructible that's still a planeswalker",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "SetPower",
+            "value": 5
+           },
+           {
+            "type": "SetToughness",
+            "value": 5
+           },
+           {
+            "keyword": "Indestructible",
+            "type": "AddKeyword"
+           },
+           {
+            "core_type": "Creature",
+            "type": "AddType"
+           },
+           {
+            "set": "Creature",
+            "type": "RemoveAllSubtypes"
+           },
+           {
+            "subtype": "Human",
+            "type": "AddSubtype"
+           },
+           {
+            "subtype": "Soldier",
+            "type": "AddSubtype"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "amount": "All",
+         "recipient_scope": {
+          "type": "Single"
+         },
+         "scope": "AllDamage",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PreventDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -10,
+        "type": "Loyalty"
+       },
+       "description": "[−10]: Creatures you control get +2/+2 until end of turn. Tap all creatures your opponents control.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "All"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Gideon"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": "5",
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2c057ca8-9811-4dc3-9b0e-f9f69f752d1d"
+      ]
+     },
+     "name": "Gideon, Martial Paragon",
+     "non_ability_text": null,
+     "oracle_text": "[+2]: Untap all creatures you control. Those creatures get +1/+1 until end of turn.\n[0]: Until end of turn, Gideon becomes a 5/5 Human Soldier creature with indestructible that's still a planeswalker. Prevent all damage that would be dealt to him this turn.\n[−10]: Creatures you control get +2/+2 until end of turn. Tap all creatures your opponents control.",
+     "power": null,
+     "printings": [
+      "AKH"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-04-18",
+       "text": "All creatures you control get +1/+1 from Gideon's first ability, not just the ones that it untapped."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Gideon's second ability causes him to become a creature with the creature types Human and Soldier. He remains a planeswalker with the planeswalker type Gideon. (He also retains any other card types or subtypes he may have had.) Each subtype is correlated to the proper card type: planeswalker is only a type (not a creature type), and Human and Soldier are just creature types (not planeswalker types)."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Gideon's second ability doesn't count as a creature entering the battlefield. Gideon was already on the battlefield; he only changed his types."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If Gideon becomes a creature the same turn he enters the battlefield, you can't attack with him or use any of his {T} abilities (if he gains any)."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If damage that can't be prevented is dealt to Gideon after his second ability has resolved, that damage will have all applicable results: specifically, the damage is marked on Gideon (since he's a creature) and that damage causes that many loyalty counters to be removed from him (since he's a planeswalker). Even though he has indestructible, if Gideon has no loyalty counters on him, he's put into his owner's graveyard."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "The set of creatures affected by Gideon's first and third abilities is determined as the abilities resolve. Creatures you begin to control later in the turn and permanents you control that become creatures later in the turn won't get +1/+1 or +2/+2."
+      }
+     ],
+     "scryfall_oracle_id": "4cbce730-7b70-41bd-b463-bfec46afe3b0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "loyalty": "5",
+    "mana_cost": "{4}{W}",
+    "name": "Gideon, Martial Paragon",
+    "oracle_id": "4cbce730-7b70-41bd-b463-bfec46afe3b0",
+    "oracle_text": "[+2]: Untap all creatures you control. Those creatures get +1/+1 until end of turn.\n[0]: Until end of turn, Gideon becomes a 5/5 Human Soldier creature with indestructible that's still a planeswalker. Prevent all damage that would be dealt to him this turn.\n[−10]: Creatures you control get +2/+2 until end of turn. Tap all creatures your opponents control.",
     "type_line": "Legendary Planeswalker — Gideon"
    }
   },
@@ -573020,6 +574543,186 @@
     "power": "2",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Wizard"
+   }
+  },
+  "Hamlet Captain": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Warrior"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "06e5d76a-0cec-40e0-b694-2b5c8484f6c0",
+       "1203ae4f-4d69-490f-8a7c-dadbefa6d697",
+       "43435939-20cf-49c9-8e37-63681740399b",
+       "a2fa1aba-3fbc-41cf-b7b6-5264f7b5e3d4",
+       "a313e62d-a341-4c34-8e68-f7577527b846",
+       "fd8f9cd1-1c43-4778-b8e9-ce51b81984d3"
+      ]
+     },
+     "name": "Hamlet Captain",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks or blocks, other Humans you control get +1/+1 until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "EMN",
+      "INR",
+      "ISD",
+      "PLST",
+      "SIR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "1a60dc0f-e387-4d28-8ff0-c3f1883d0c5d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks or blocks, other Humans you control get +1/+1 until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Human"
+           }
+          ]
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "PumpAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "AttacksOrBlocks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Hamlet Captain",
+    "oracle_id": "1a60dc0f-e387-4d28-8ff0-c3f1883d0c5d",
+    "oracle_text": "Whenever this creature attacks or blocks, other Humans you control get +1/+1 until end of turn.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Human Warrior"
    }
   },
   "Hamlet Vanguard": {
@@ -687664,6 +689367,219 @@
     "power": "5",
     "toughness": "5",
     "type_line": "Legendary Creature — Dragon Spirit"
+   }
+  },
+  "Keldon Battlewagon": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "filter": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "requirement": {
+         "count": 1,
+         "requirement": "count"
+        },
+        "type": "TapCreatures"
+       },
+       "description": "Tap an untapped creature you control: ~ gets +X/+0 until end of turn, where X is the power of the creature tapped this way.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "description": "where X is the power of the creature tapped this way",
+        "name": "where_x_binding",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Juggernaut"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Trample"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5c810aa1-e367-4102-a5bd-6dc02d3023e8"
+      ]
+     },
+     "name": "Keldon Battlewagon",
+     "non_ability_text": null,
+     "oracle_text": "Trample\nThis creature can't block.\nWhen this creature attacks, sacrifice it at end of combat.\nTap an untapped creature you control: This creature gets +X/+0 until end of turn, where X is the power of the creature tapped this way.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "PCY"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4a2df44b-5d36-4c4e-b982-836d9d7e0505",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "~ can't block.",
+       "effect_zone": null,
+       "mode": "CantBlock",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ attacks, sacrifice it at end of combat.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "condition": {
+          "phase": "EndCombat",
+          "type": "AtNextPhase"
+         },
+         "effect": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "SelfRef"
+           },
+           "type": "Sacrifice"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "CreateDelayedTrigger",
+         "uses_tracked_set": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}",
+    "name": "Keldon Battlewagon",
+    "oracle_id": "4a2df44b-5d36-4c4e-b982-836d9d7e0505",
+    "oracle_text": "Trample\nThis creature can't block.\nWhen this creature attacks, sacrifice it at end of combat.\nTap an untapped creature you control: This creature gets +X/+0 until end of turn, where X is the power of the creature tapped this way.",
+    "power": "0",
+    "toughness": "3",
+    "type_line": "Artifact Creature — Juggernaut"
    }
   },
   "Keldon Firebombers": {
@@ -891967,6 +893883,144 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Pack Attack": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Attacking creatures get +X/+0 until end of turn, where X is the number of players being attacked.\nDraw a card.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "description": "where X is the number of players being attacked",
+        "name": "where_x_binding",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "e2ef30c5-a6a6-4cd9-805f-dc6f66f28997"
+      ]
+     },
+     "name": "Pack Attack",
+     "non_ability_text": null,
+     "oracle_text": "Attacking creatures get +X/+0 until end of turn, where X is the number of players being attacked.\nDraw a card.",
+     "power": null,
+     "printings": [
+      "CLB"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "84b385cd-9dfd-4513-af3c-20fc1cc8fea0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Pack Attack",
+    "oracle_id": "84b385cd-9dfd-4513-af3c-20fc1cc8fea0",
+    "oracle_text": "Attacking creatures get +X/+0 until end of turn, where X is the number of players being attacked.\nDraw a card.",
+    "type_line": "Instant"
+   }
+  },
   "Pack Rat": {
    "phase_records": [
     {
@@ -965653,6 +967707,282 @@
     "oracle_id": "f2649e48-4252-43f3-bd1e-c4c6fcb0aa3a",
     "oracle_text": "Equipped creature has \"{T}, Unattach Razor Boomerang: It deals 1 damage to any target. Return Razor Boomerang to its owner's hand.\"\nEquip {2}",
     "type_line": "Artifact — Equipment"
+   }
+  },
+  "Razorfield Ripper": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Reconfigure—Pay {2} or {E}{E}{E}.",
+       "duration": null,
+       "effect": {
+        "description": "Reconfigure—Pay {2} or {E}{E}{E}.",
+        "name": "unknown",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Equipment",
+       "Rhino"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2dc5aa4f-90c0-4a14-8a26-33780c7366c8",
+       "9f9ee2dd-dfc1-4d1b-a26a-68f9bc749149"
+      ]
+     },
+     "name": "Razorfield Ripper",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature or equipped creature attacks, you get {E} (an energy counter), then it gets +X/+X until end of turn, where X is the amount of {E} you have.\nReconfigure—Pay {2} or {E}{E}{E}. (Pay {2} or {E}{E}{E}: Attach to target creature you control; or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "M3C"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-06-07",
+       "text": "Although it causes an Equipment to become attached to a creature, reconfigure is not an \"equip ability\" for the purpose of cards like Fighter Class and Leonin Shikari."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "An Equipment creature can never become attached to itself. If an effect tries to do this, nothing happens."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "An Equipment creature with reconfigure can be attached to creatures by effects other than its reconfigure ability, such as the activated ability of Brass Squire."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "An Equipment doesn't become tapped when the permanent it's attached to becomes tapped. For example, if you attack with a creature that is equipped with Razorfield Ripper, then use reconfigure to unattach Razorfield Ripper after combat, Razorfield Ripper will be untapped and could be used to block during your opponent's turn."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "As soon as an Equipment creature with reconfigure stops being a creature, any Equipment and Auras with enchant creature abilities become unattached. Auras that can enchant an Equipment that isn't a creature remain attached to it."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Attaching an Equipment with reconfigure to a creature causes that Equipment to stop being a creature until it becomes unattached. It also loses any creature subtypes it had."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Energy counters are a kind of counter that a player may have. They're not associated with any specific permanents."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Energy counters aren't mana. They don't go away as steps, phases, and turns end, and effects that add mana \"of any type\" can't give you energy counters."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If a permanent with reconfigure is somehow still a creature after it becomes attached (perhaps due to an effect like that of March of the Machines), it immediately becomes unattached from the equipped creature."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If a spell or ability with one or more targets states that you \"may pay\" some amount of {E}, and each permanent that it targets has become an illegal target, the spell or ability won't resolve. You can't pay any {E} even if you want to."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If an Equipment with reconfigure somehow loses its abilities while it is attached, the effect causing it to not be a creature continues to apply until it becomes unattached."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If an effect says you get one or more {E}, you get that many energy counters. To pay one or more {E}, you lose that many energy counters. You can't pay more energy counters than you have. Any effects that interact with counters a player gets, has, or loses can interact with energy counters."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Keep track of how many energy counters each player has. Potential ways to track this include writing theme down on paper or using dice, but any method that is clear and mutually agreeable is fine. (At higher levels of tournament play, dice may not be allowed for tracking counters that players have.)"
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Reconfigure represents two activated abilities. Reconfigure [cost] means \"[Cost]: Attach this permanent to another target creature you control. Activate only as a sorcery,\" and \"[Cost]: Unattach this permanent. Activate only if this permanent is attached to a creature and only as a sorcery.\""
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Similarly, if an Equipment is tapped, its reconfigure abilities may still be activated and it may still become attached to creatures. Becoming attached doesn't untap it. In most cases, an attached Equipment being tapped won't affect gameplay, but it will be relevant if it becomes unattached again before it untaps."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Some spells and abilities that give you {E} may require targets. If each target chosen is an illegal target as that spell or ability tries to resolve, it won't resolve. You won't get any {E}."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Some triggered abilities state that you \"may pay\" a certain amount of {E}. You can't pay that amount multiple times to multiply the effect. You simply choose whether or not to pay that amount of {E} as the ability resolves."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Some triggered abilities that state that you \"may pay\" a certain amount of {E} describe an effect that happens \"If you do.\" In that case, no player may take actions to try to stop the ability's effect after you make your choice. If the payment is followed by the phrase \"When you do,\" then you'll choose any targets for that reflexive triggered ability and put it on the stack before players can take actions."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "The value of X is calculated only once, as Razorfield Ripper's triggered ability resolves."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "{E} is the energy symbol. It represents one energy counter."
+      }
+     ],
+     "scryfall_oracle_id": "ef842299-8a31-4793-9142-2bcd7a8b2fab",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ or equipped creature attacks, you get {E} , then it gets +X/+X until end of turn, where X is the amount of {E} you have.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "GainEnergy"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "description": "where X is the amount of {E} you have",
+          "name": "where_x_binding",
+          "type": "Unimplemented"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "type": "SelfRef"
+         },
+         {
+          "type": "AttachedTo"
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Reconfigure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Razorfield Ripper",
+    "oracle_id": "ef842299-8a31-4793-9142-2bcd7a8b2fab",
+    "oracle_text": "Whenever this creature or equipped creature attacks, you get {E} (an energy counter), then it gets +X/+X until end of turn, where X is the amount of {E} you have.\nReconfigure—Pay {2} or {E}{E}{E}. (Pay {2} or {E}{E}{E}: Attach to target creature you control; or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature.)",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Artifact Creature — Equipment Rhino"
    }
   },
   "Razorkin Needlehead": {
@@ -1113902,6 +1116232,295 @@
     "oracle_id": "922d603e-6623-4455-b91f-fad76f94045a",
     "oracle_text": "At the beginning of your upkeep, you may return target enchantment card from your graveyard to the battlefield.\nAs long as you control five or more enchantments, each other non-Aura enchantment you control is a creature in addition to its other types and has base power and base toughness each equal to its mana value.",
     "type_line": "Enchantment"
+   }
+  },
+  "Starfleet Communicator": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {1}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Communicator",
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "38c84c78-542c-53b5-a41c-5c793a9b26d9"
+      ],
+      "source_printing_ids": [
+       "14d54778-344c-43c4-99a9-85a2361f8982",
+       "ac87fcef-019e-45d4-bc8a-0ccb3adaa3b5"
+      ]
+     },
+     "name": "Starfleet Communicator",
+     "non_ability_text": null,
+     "oracle_text": "When you cast this spell, copy it. (The copy becomes a token.)\nEquipped creature has \"Whenever this creature attacks, draw X cards, then you may put up to X land cards from your hand onto the battlefield tapped, where X is the number of other creatures you control with a Communicator attached to them.\"\nEquip {1}",
+     "power": null,
+     "printings": [
+      "TRC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-10-07",
+       "text": "The value of X in the granted ability is calculated only once, as the ability resolves."
+      }
+     ],
+     "scryfall_oracle_id": "d5560aaa-7459-498f-b3c5-e096d8c75b51",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature has \"Whenever ~ attacks, draw X cards, then you may put up to X land cards from your hand onto the battlefield tapped, where X is the number of other creatures you control with a Communicator attached to them.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": "Whenever ~ attacks, draw X cards, then you may put up to X land cards from your hand onto the battlefield tapped, where X is the number of other creatures you control with a Communicator attached to them.",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "description": "where X is the number of other creatures you control with a Communicator attached to them",
+            "name": "where_x_binding",
+            "type": "Unimplemented"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "description": "where X is the number of other creatures you control with a Communicator attached to them",
+             "name": "where_x_binding",
+             "type": "Unimplemented"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "multi_target": {
+             "max": {
+              "qty": {
+               "name": "X",
+               "type": "Variable"
+              },
+              "type": "Ref"
+             },
+             "min": 0
+            },
+            "optional": true,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "target_choice_timing": "Resolution",
+            "target_prompt": null
+           },
+           "target_prompt": null
+          },
+          "mode": "Attacks",
+          "optional": false,
+          "origin": null,
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Battlefield"
+          ],
+          "valid_card": {
+           "type": "SelfRef"
+          },
+          "valid_source": null,
+          "valid_target": null
+         },
+         "type": "GrantTrigger"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When you cast this spell, copy it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "retarget": {
+          "type": "KeepOriginalTargets"
+         },
+         "starting_loyalty_from_casualty_sacrifice": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "CopySpell"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Stack"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
+      "name": "Copy",
+      "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+      "type_line": "Token"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Starfleet Communicator",
+    "oracle_id": "d5560aaa-7459-498f-b3c5-e096d8c75b51",
+    "oracle_text": "When you cast this spell, copy it. (The copy becomes a token.)\nEquipped creature has \"Whenever this creature attacks, draw X cards, then you may put up to X land cards from your hand onto the battlefield tapped, where X is the number of other creatures you control with a Communicator attached to them.\"\nEquip {1}",
+    "type_line": "Artifact — Communicator Equipment"
    }
   },
   "Stargaze": {

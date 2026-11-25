@@ -443,3 +443,184 @@ def test_diverts_from_graveyard_reads_the_ability(name, diverts):
     test_card_ir(name)  # seeds the card's trees from the snapshot
     units = [u for t in trees_for(test_card(name)) for u in t.units]
     assert any(diverts_from_graveyard(u) for u in units) is diverts
+
+
+# ── A pump phase parks ──────────────────────────────────────────────────────────
+
+
+def _at(rec: dict, path: tuple) -> dict:
+    node: object = rec
+    for step in path:
+        node = node[step]  # type: ignore[index]
+    assert isinstance(node, dict)
+    return node
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "path", "tag", "target"),
+    [
+        # (card, where the residue sits, the typed pump's tag, its target)
+        ("Freelance Muscle", ("triggers", 0, "execute"), "Pump", {"type": "SelfRef"}),
+        (
+            "Bronze Cudgels",
+            ("abilities", 0),
+            "PumpAll",
+            {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": None,
+                "properties": [{"type": "EquippedBy"}],
+            },
+        ),
+        (
+            "General Tazri",
+            ("abilities", 0),
+            "PumpAll",
+            {
+                "type": "Typed",
+                "type_filters": ["Creature", {"Subtype": "Ally"}],
+                "controller": "You",
+                "properties": [],
+            },
+        ),
+        (
+            "Huntmaster Liger",
+            ("triggers", 0, "execute"),
+            "PumpAll",
+            {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": "You",
+                "properties": [{"type": "Another"}],
+            },
+        ),
+        ("Keldon Battlewagon", ("abilities", 0), "Pump", {"type": "SelfRef"}),
+        (
+            "Pack Attack",
+            ("abilities", 0),
+            "PumpAll",
+            {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": None,
+                "properties": [{"type": "Attacking"}],
+            },
+        ),
+        (
+            "Razorfield Ripper",
+            ("triggers", 0, "execute", "sub_ability"),
+            "Pump",
+            {"type": "TriggeringSource"},
+        ),
+        (
+            "Velukan Dragon",
+            ("triggers", 0, "execute", "sub_ability"),
+            "Pump",
+            {"type": "SelfRef"},
+        ),
+        # a clause parked whole that is the pump itself, after "Untap all
+        # creatures you control"
+        (
+            "Gideon, Martial Paragon",
+            ("abilities", 0, "sub_ability"),
+            "PumpAll",
+            {"type": "TrackedSet", "id": 0},
+        ),
+    ],
+    ids=lambda case: case if isinstance(case, str) else "",
+)
+def test_parked_pump_canary(name, path, tag, target):
+    """A pump phase parks: by an X it can't bind, only the binding is left
+    ("it gets +X/+X until end of turn, where X is …"); after a mass effect, the
+    whole clause ("Those creatures get +1/+1 until end of turn"). The stage
+    writes the pump back as the node phase types for those words elsewhere, and
+    the face still loads."""
+    (rec,) = test_phase_records(name)
+    parked = _at(rec, path)["effect"]
+    assert parked.get("type") == "Unimplemented", (
+        f"misparsed_shapes parked pump: RETIRE-READY — phase types {name}'s "
+        "pump. Once no residue reads as a pump, delete the row, "
+        "clause_grammar.parked_pump and this canary."
+    )
+    body = _at(correct_misparsed_shapes(rec), path)
+    assert body["effect"]["type"] == tag
+    assert body["effect"]["target"] == target
+    x_sized = parked.get("name") == "where_x_binding"
+    assert body["effect"]["power"] == (
+        {"type": "Variable", "value": "X"} if x_sized else {"type": "Fixed", "value": 1}
+    )
+    assert body["duration"] == "UntilEndOfTurn"
+    assert test_signals(name), f"{name} builds no tree after the rewrite"
+
+
+def test_a_where_x_pump_reads_as_the_pump_it_is():
+    """The rewritten pumps reach the lanes a typed pump reaches, with no lane
+    taught the residue: a team pump, a self pump, a combat buff."""
+
+    def idents(name):
+        return {(s.key, s.scope, s.subject) for s in test_signals(name)}
+
+    assert ("pump_makers", "you", "") in idents("General Tazri")
+    assert ("pump_makers", "you", "") in idents("Huntmaster Liger")
+    assert ("team_buff", "you", "pump") in idents("Huntmaster Liger")
+    assert ("self_pump", "you", "") in idents("Keldon Battlewagon")
+    assert ("voltron_makers", "you", "pump") in idents("Bronze Cudgels")
+    assert ("combat_buff_engine", "you", "") in idents("Razorfield Ripper")
+
+
+_MUSCLE = (
+    "Whenever ~ attacks or blocks, it gets +X/+X until end of turn, where X is the "
+    "greatest power and/or toughness among other creatures you control."
+)
+_CUDGELS = (
+    "{2}: Until end of turn, equipped creature gets +X/+0, where X is the number "
+    "of times this ability has resolved this turn."
+)
+_VELUKAN = (
+    "Whenever ~ attacks or blocks, roll a six-sided die. ~ gets +X/+0 until end of "
+    "turn, where X is the result minus 1."
+)
+_RIPPER = (
+    "Whenever ~ or equipped creature attacks, you get {E} , then it gets +X/+X "
+    "until end of turn, where X is the amount of {E} you have."
+)
+
+
+@pytest.mark.parametrize(
+    ("line", "recipient", "amounts"),
+    [
+        (_MUSCLE, "it", ("+X", "+X")),
+        (_CUDGELS, "attached", ("+X", "+0")),
+        (_VELUKAN, "self", ("+X", "+0")),
+        (_RIPPER, "it", ("+X", "+X")),
+        ("Those creatures get +1/+1 until end of turn", "those", ("+1", "+1")),
+    ],
+)
+def test_parked_pump_grammar(line, recipient, amounts):
+    from mtg_utils._card_ir.clause_grammar import parked_pump
+
+    pump = parked_pump(line)
+    assert pump is not None
+    assert pump.subject.recipient == recipient
+    assert (pump.power, pump.toughness) == amounts
+    assert pump.until_end_of_turn
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        # a pump that also grants: more than a pump
+        "it gets +2/+0 and gains haste until end of turn",
+        # a subject the grammar doesn't read
+        "Target creature gets -X/-X until end of turn, where X is its toughness",
+        # a condition on the pump: the condition is what phase parked
+        "if your team controls another Warrior, ~ gets +1/+1 until end of turn",
+        # no pump at all
+        "Whenever ~ attacks, it connives X, where X is the amount of damage",
+    ],
+)
+def test_parked_pump_grammar_reads_a_bare_pump_only(line):
+    from mtg_utils._card_ir.clause_grammar import parked_pump
+
+    assert parked_pump(line) is None

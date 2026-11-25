@@ -99,11 +99,6 @@ class TokenRule:
     # created token's own types ("create a tapped Powerstone token") — the
     # artifact-token subtypes (Treasure, Map, Junk …) among them.
     token_types: bool = False
-    # Also recover a ``where_x_binding`` residue — phase parks only the binding
-    # ("where X is …") and drops the verb it binds — from the sentence of its
-    # unit's ``description`` that holds the residue verbatim
-    # (:func:`_binding_sentence`).
-    from_binding_sentence: bool = False
 
 
 # ADR-0038 token allowlist — grows per-key with corpus measurement + pinned
@@ -599,7 +594,6 @@ ALLOWLIST.update(
             concept="debuff",
             category="debuff",
             reads_clause=True,
-            from_binding_sentence=True,
         ),
     }
 )
@@ -626,15 +620,9 @@ ALLOWLIST.update(
         # the verb of a ``where_x_binding`` residue: Mask of the Schemer's "it
         # connives X", Fall of Cair Andros's "amass Orcs X", Officious
         # Interrogation's "Investigate X times".
-        "connive": TokenRule(
-            concept="connive", category="connive", from_binding_sentence=True
-        ),
-        "amass": TokenRule(
-            concept="amass", category="amass", from_binding_sentence=True
-        ),
-        "investigate": TokenRule(
-            concept="investigate", category="make_token", from_binding_sentence=True
-        ),
+        "connive": TokenRule(concept="connive", category="connive"),
+        "amass": TokenRule(concept="amass", category="amass"),
+        "investigate": TokenRule(concept="investigate", category="make_token"),
         # CR 702.82a devour: Thromok the Insatiable's "Devour X, where X is …".
         "devour": TokenRule(concept="devour", category="devour"),
         # CR 107.14 energy: "you get X {E}" / "an amount of {E} equal to …"
@@ -677,16 +665,72 @@ def _binding_sentence(c: ConceptNode, unit: AbilityUnit | None) -> str | None:
     return desc[start : end + len(c.raw)]
 
 
-def _recover_binding_sentence(
-    c: ConceptNode, table: dict[str, TokenRule], unit: AbilityUnit | None
-) -> ConceptNode | None:
-    """``c`` recovered from its binding's sentence (:func:`_binding_sentence`),
-    when that sentence's token is a :attr:`TokenRule.from_binding_sentence` row."""
-    sentence = _binding_sentence(c, unit)
-    out = _recover(c, table, unit, sentence) if sentence is not None else None
-    if out is None or not table[out.recovered_by].from_binding_sentence:
+# Where a binding's sentence stops being instructions ("…, where X is …"), and
+# an X an instruction names ("connives X", "+X/+X", "{X} less", "top X cards").
+_WHERE_X_RX = re.compile(r",?\s*\bwhere X is\b", re.IGNORECASE)
+_X_RX = re.compile(r"(?<![A-Za-z])X(?![A-Za-z])")
+_THEN_RX = re.compile(r",?\s+then\s+", re.IGNORECASE)
+
+
+def _x_instruction(sentence: str, table: dict[str, TokenRule]) -> str | None:
+    """The part of a binding's sentence to read for the verb X belongs to: the
+    whole sentence when its first instruction names X ("Whenever … deals combat
+    damage to a player, it connives X, where X is …"), else the later
+    instruction that does ("Destroy all artifacts you don't control, then exile
+    the top X cards of your library" — Anzrag's Rampage: the exile, never the
+    destroy). ``None`` when no instruction names X. An instruction starts at a
+    sentence break, at "then", or where :func:`_later_clauses` reads a verb."""
+    binding = _WHERE_X_RX.search(sentence)
+    head = sentence[: binding.start()] if binding else sentence
+    named = _X_RX.search(head)
+    if named is None:
         return None
-    return out
+    starts = sorted(
+        {
+            *(m.end() for m in _SENTENCE_BREAK_RX.finditer(head)),
+            *(m.end() for m in _THEN_RX.finditer(head)),
+            *(start for start, _part in _later_clauses(head, table)),
+        }
+    )
+    before = [start for start in starts if start <= named.start()]
+    if not before:
+        return sentence
+    after = [start for start in starts if start > named.start()]
+    return head[before[-1] : after[0] if after else len(head)].rstrip(" ,.")
+
+
+def _recover_binding_sentence(
+    c: ConceptNode,
+    table: dict[str, TokenRule],
+    unit: AbilityUnit | None,
+    described_by: AbilityUnit | None,
+    siblings: tuple[ConceptNode, ...],
+) -> ConceptNode | None:
+    """``c``, a ``where_x_binding`` residue, recovered as the verb its X belongs
+    to (:func:`_x_instruction`, over the sentence :func:`_binding_sentence`
+    finds in ``described_by``'s description). Phase parks only the binding and
+    drops that verb, unless it typed the verb beside the residue: an ability
+    already holding a typed effect of the recovered concept keeps its own, and
+    the residue stays a residue."""
+    sentence = _binding_sentence(c, described_by)
+    text = _x_instruction(sentence, table) if sentence is not None else None
+    out = _recover(c, table, unit, text) if text is not None else None
+    if out is None:
+        return None
+    # One sentence, one verb: a second residue cut from the same binding
+    # ("draw X cards, then … put up to X land cards …" — Starfleet
+    # Communicator parks the binding twice) would read that verb again.
+    earlier = siblings[: next(i for i, s in enumerate(siblings) if s is c)]
+    if any(
+        other.raw == c.raw and residue_is(other.node, "where_x_binding")
+        for other in earlier
+    ):
+        return None
+    typed_beside = any(
+        other.concept == out.concept and tag_of(other.node) != "Unimplemented"
+        for other in siblings
+    )
+    return None if typed_beside else out
 
 
 _NON_DRAW_SENSE = re.compile(r"\bgame is a draw\b|\bdraw step\b", re.IGNORECASE)
@@ -1487,6 +1531,8 @@ def recover_concepts(
     unit: AbilityUnit | None = None,
     table: dict[str, TokenRule] | None = None,
     self_name: str = "",
+    *,
+    described_by: AbilityUnit | None = None,
 ) -> tuple[ConceptNode, ...]:
     """``concepts`` with each recoverable residue re-decorated, followed by one
     recovered node per later instruction of its clause (:func:`_later_clauses`),
@@ -1495,8 +1541,11 @@ def recover_concepts(
     first's. ``self_name`` (the card's name) is read as "~": a granted ability's
     quote names its granter ("Return Razor Boomerang to its owner's hand"). A
     ``where_x_binding`` residue whose own text names no verb reads its binding's
-    sentence (:func:`_recover_binding_sentence`). Returns ``concepts`` itself when
-    nothing recovers."""
+    sentence (:func:`_recover_binding_sentence`), found in the description of
+    ``described_by`` (``unit`` by default; a granted body has no unit of its
+    own, and its sentence is in its granter's — Starfleet Communicator's
+    "Equipped creature has 'Whenever ~ attacks, draw X cards, …'"). Returns
+    ``concepts`` itself when nothing recovers."""
     if not any(_is_candidate(c) for c in concepts):
         return concepts
     table = ALLOWLIST if table is None else table
@@ -1510,7 +1559,7 @@ def recover_concepts(
             continue
         text = c.raw.replace(self_name, "~") if self_name and c.raw else c.raw
         first = _recover(c, table, unit, text) or _recover_binding_sentence(
-            c, table, unit
+            c, table, unit, described_by or unit, concepts
         )
         out.append(first or c)
         changed |= first is not None
@@ -1673,7 +1722,9 @@ def apply_unimplemented_recovery(
         # granted walk (``crosswalk.iter_nested_granted_effect_concepts``).
         for _kind, body in iter_nested_granted_bodies(unit.node):
             granted = tuple(walk_effect_chain(body))
-            recovered = recover_concepts(granted, None, table, tree.name)
+            recovered = recover_concepts(
+                granted, None, table, tree.name, described_by=unit
+            )
             if recovered is not granted:
                 object.__setattr__(body, GRANTED_RECOVERY_ATTR, recovered)
         new_effects = _with_body_keywords(

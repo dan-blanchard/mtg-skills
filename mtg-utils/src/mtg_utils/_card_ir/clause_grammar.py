@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import itertools
 import re
+from dataclasses import dataclass
 from typing import Literal
 
 from mtg_utils._card_ir import _combinators as comb
@@ -1329,3 +1330,135 @@ def attached_attackers_kind(text: str) -> str | None:
     if r is None or r[1].strip(" ,."):
         return None
     return "Equipment" if r[0][2][0] == "equipped" else "Aura"
+
+
+# ── A pump phase parks ─────────────────────────────────────────────────────────
+# "<who> gets +X/+0 until end of turn, where X is …": phase parks the binding and
+# drops the pump it binds (a ``where_x_binding`` residue). ``misparsed_shapes``
+# writes the pump back as the ``Pump`` / ``PumpAll`` phase types for the same
+# words with an X it can resolve. Read word by word: who gets it, by how much.
+PumpRecipient = Literal["self", "it", "those", "attached", "group"]
+
+
+@dataclass(frozen=True)
+class PumpSubject:
+    """Who a parked pump lands on: the card itself ("~ gets"), a pronoun ("it
+    gets", "those creatures get" — the caller knows what its clause's "it" and
+    "those" are), the creature an Equipment or Aura is attached to
+    (``attachment``: ``"EquippedBy"`` / ``"EnchantedBy"``), or a group of
+    creatures (``subtype``, ``yours``, ``other``, ``attacking`` narrow it)."""
+
+    recipient: PumpRecipient
+    attachment: str | None = None
+    subtype: str | None = None
+    yours: bool = False
+    other: bool = False
+    attacking: bool = False
+
+
+@dataclass(frozen=True)
+class ParkedPump:
+    """A pump a parked clause states: who gets it and by how much, the signed
+    amounts as written ("+X", "+0", "-1")."""
+
+    subject: PumpSubject
+    power: str
+    toughness: str
+    until_end_of_turn: bool
+
+
+_PT_WORD_RX = re.compile(r"([+-](?:\d+|X))/([+-](?:\d+|X))[.,]?", re.IGNORECASE)
+_WHERE_X_BINDING_RX = re.compile(r",?\s*\bwhere X is\b", re.IGNORECASE)
+_UNTIL_END_OF_TURN = comb.phrase({"until"}, {"end"}, {"of"}, {"turn"})
+_ATTACHED_CREATURE = comb.seq2(
+    comb.keyword({"equipped", "enchanted"}), comb.keyword({"creature"})
+).map(lambda r: "EquippedBy" if r[0] == "equipped" else "EnchantedBy")
+# "creatures you control", "other creatures you control", "attacking creatures",
+# "Ally creatures you control", "each other creature you control".
+_PUMPED_GROUP = comb.seq(
+    comb.opt(comb.keyword({"each", "all"})),
+    comb.opt(comb.keyword({"other"})),
+    comb.opt(comb.keyword({"attacking"})),
+    comb.opt(_SUBTYPE),
+    comb.keyword({"creature", "creatures"}),
+    comb.opt(comb.phrase({"you"}, {"control"})),
+)
+
+
+def _pump_subject(subject: str) -> PumpSubject | None:
+    """The :class:`PumpSubject` a pump's subject words name, or ``None`` for a
+    subject this grammar doesn't read."""
+    words = [comb.norm_word(w) or w for w in subject.split()]
+    if words in (["~"], ["it"]):
+        return PumpSubject("self" if words == ["~"] else "it")
+    if words in (["those", "creatures"], ["they"]):
+        return PumpSubject("those")
+    attached = _ATTACHED_CREATURE.run(subject)
+    if attached is not None and not attached[1].strip():
+        return PumpSubject("attached", attachment=attached[0])
+    group = _PUMPED_GROUP.run(subject)
+    if group is None or group[1].strip():
+        return None
+    _each, other, attacking, subtype, _creatures, yours = group[0]
+    return PumpSubject(
+        "group",
+        subtype=subtype,
+        yours=yours is not None,
+        other=other is not None,
+        attacking=attacking is not None,
+    )
+
+
+def parked_pump(text: str) -> ParkedPump | None:
+    """The pump a sentence's last instruction states, and nothing more: "Whenever
+    ~ attacks or blocks, it gets +X/+X until end of turn, where X is …" (Freelance
+    Muscle), "{2}: Until end of turn, equipped creature gets +X/+0, where X is …"
+    (Bronze Cudgels), "Attacking creatures get +X/+0 until end of turn, where X
+    is …" (Pack Attack), "Those creatures get +1/+1 until end of turn" (Gideon,
+    Martial Paragon). ``None`` for a sentence with no pump, a pump that also
+    grants ("… and gains haste") or is conditioned ("if …, ~ gets +1/+1"), or a
+    subject this grammar doesn't read (CR 613.4c: an effect that modifies power
+    and/or toughness)."""
+    binding = _WHERE_X_BINDING_RX.search(text)
+    words = (text[: binding.start()] if binding else text).split()
+    verbs = [
+        i
+        for i, word in enumerate(words[:-1])
+        if comb.norm_word(word) in ("get", "gets")
+        and _PT_WORD_RX.fullmatch(words[i + 1])
+    ]
+    if not verbs:
+        return None
+    verb = verbs[-1]
+    amounts = _PT_WORD_RX.fullmatch(words[verb + 1])
+    assert amounts is not None
+    # The subject runs back to the start of its instruction: a clause break, or
+    # "then".
+    start = verb
+    while start > 0 and not (
+        words[start - 1][-1] in ",.:;" or comb.norm_word(words[start - 1]) == "then"
+    ):
+        start -= 1
+    subject = _pump_subject(" ".join(words[start:verb]))
+    if subject is None:
+        return None
+    # A condition on the pump ("if your team controls another Warrior, ~ gets
+    # +1/+1 …") is more than a pump: its sentence up to the subject may hold a
+    # trigger or a cost, never an "if".
+    sentence = start
+    while sentence > 0 and words[sentence - 1][-1] not in ".:":
+        sentence -= 1
+    if any(comb.norm_word(w) in ("if", "unless") for w in words[sentence:start]):
+        return None
+    tail = " ".join(words[verb + 2 :])
+    after = _UNTIL_END_OF_TURN.run(tail) if tail else None
+    if tail and (after is None or after[1].strip(" .")):
+        return None
+    lead = " ".join(words[max(0, start - 4) : start])
+    before = _UNTIL_END_OF_TURN.run(lead) if start >= 4 else None
+    return ParkedPump(
+        subject,
+        power=amounts.group(1),
+        toughness=amounts.group(2),
+        until_end_of_turn=after is not None or before is not None,
+    )

@@ -77,12 +77,6 @@ are already known to it (each draft says where).
   Thought Dissector's `cheat_into_play|Artifact` waits on phase (upstream draft
   34): its reveal parks as `compound_reveal_until`, and the `dig_until` recovery
   token reads only "your library".
-- **`combat_buff_engine` fires on a shrink** (found 2026-11-25). Neither its
-  effect arm (`c.concept == "pump"`) nor its static arm reads the sign, so a
-  combat trigger whose only pump lowers a creature is a "combat buff": about 52
-  cards (the flanking cards, Fear of Falling, Plague Wight, Silumgar, the
-  Drifting Death, Old Man Willow). `reads.pt_mod_signs` gates the static arm
-  and the pump's own sign the effect arm; a signal change, so it wants a diff.
 - **A spell's `SelfRef` bound to the object it acted on stays guarded
   read-side** (`protection._filter_recipient`, `attack_deterrent`,
   `has_structural_self_counter_grow`, each with its canary). One
@@ -93,6 +87,51 @@ are already known to it (each draft says where).
   different rebinds (`ParentTarget` — Blizzard Brawl; `TrackedSet` — Promise of
   Loyalty; the token just made), which the structure alone doesn't tell apart.
   Upstream draft 28 reports the shape.
+
+**From the where-X promotion (2026-11-25)**
+
+- **Parked pumps the rewrite leaves** (`misparsed_shapes`' parked-pump row
+  takes a pump until end of turn and nothing more; census 2026-11-25, 69 parked
+  clauses holding a pump on 65 legal cards, 11 rewritten):
+  - *Perpetual pumps*, 35 `perpetual_modify_pt` clauses and 7 `unbound_subject`
+    ones ("It perpetually gets +1/+1", a subject phase itself couldn't bind) on
+    Alchemy cards, in about twenty subject shapes ("creature cards in your
+    graveyard", "the topmost creature card in your library", "~ and that Dragon
+    card each", "all cards you own named …"). Phase's typed form is
+    `ApplyPerpetual{target, modification}`, and NO lane reads it today: about
+    fifty already-typed perpetual pumps (Accident-Prone Apprentice's "~
+    perpetually gets +1/+1") carry no pump signal. Dan's call (2026-11-25):
+    rewrite them into that form, and count one as a pump only on a creature on
+    the battlefield. The lane read of the typed form comes first; it moves
+    those fifty cards before any parked clause is rewritten.
+  - *A pump behind a parked condition*: Sickle Dancer, Alex Wilder, Trail of
+    Mystery (`unparsed_condition` / `unparsed_verb_arguments`; each on a ledger
+    row). The condition is what phase parked: typing the pump without it would
+    make it unconditional.
+  - *A static line*: Archangel of Strife's two ("Creatures controlled by
+    players who chose war get +3/+0": no phase filter for the choice),
+    Tyrannical Pitlord's "The chosen creature gets +3/+3 and has flying", The
+    Muckslinger Gang's (cards outside the battlefield). A static pump is a
+    static's modifications, not this row's one-shot effect.
+  - *A pump as a clause's second verb* (Dan's call: split them): Heartseeker's
+    "Equipped creature gets +2/+1 and has '…'", Spry and Mighty's "draw X cards
+    and the chosen creatures get +X/+X and gain trample", and three perpetual
+    ones (Benalish Partisan, Managorger Phoenix, Hurkyl's Prodigy). Four
+    shapes for five cards.
+- **Where-X clauses the recovery reads as the wrong thing** (each to settle
+  per card; none moves a signal today unless said): Commander Liara Portyr's
+  "spells you cast from exile this turn cost {X} less" recovers as
+  `cast_from_zone`, a cost reduction read as a cast permission; Bound //
+  Determined's "Return up to X cards from your graveyard to your hand" gains
+  `creature_recursion|you|hand` off the binding's "colors that creature was";
+  Magus of the Mind's "exile the top X cards" recovers as a plain exile, where
+  the card lets you play them. The recovery reads a clause's details over its
+  whole sentence, the "where X is …" text included (Dan's call, 2026-11-25:
+  leave it, fix per card).
+- **Not recovered**: the six `where_x_binding` residues left: a verb the
+  allowlist doesn't hold (Florian's and Surveyor's Scope's look / search,
+  Anzrag's Rampage's exile-top), and Niv-Mizzet, Guildpact's two and Concert
+  Kaboomist's face-up twin (the "combat damage" / "turned face up" veto).
 
 **From comparing Arena game logs with phase (2026-11-09)**
 
@@ -192,12 +231,12 @@ are already known to it (each draft says where).
   all `serve_idents` now, each with its remainder classified). Phase gaps,
   each bridged 2026-10-19 by the supplemental parser with a `retirement_canary`
   or a self-retiring ledger row (tests/mtg-utils/test_phase_gaps_*.py; report
-  upstream all the same, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §7, §8, §9, §15, §19, §22, App. A): where-X keyword heads (Mask of the
+  upstream all the same, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §7, §8, §9, §15, §19, §22, App. A): where-X bindings (Mask of the
   Schemer's connive X, Thromok's devour X, Fall of Cair Andros's amass X,
-  Officious Interrogation's investigate X — the `_where_x_head` recovery,
-  scoped to connive / amass / investigate; opening it to every allowlisted verb
-  would recover ~40 more where-X clauses across many lanes, a separate
-  measured promotion); energy residues (`gain_energy` / `energy_payment`
+  Officious Interrogation's investigate X — since 2026-11-25 the recovery reads
+  a `where_x_binding` residue's sentence for whatever allowlisted verb its X
+  belongs to (25 of the 41 such residues on legal cards), and `misparsed_shapes`
+  rewrites the ten pumps among them); energy residues (`gain_energy` / `energy_payment`
   tokens: Overclocked Electromancer, Robobrain War Mind, The Motherlode,
   Reiterating Bolt, Salvation Colossus, Izzet Generatorium's condition);
   foretell residues (Ethereal Valkyrie, Karfell Harbinger, Ranar); Osteomancer
