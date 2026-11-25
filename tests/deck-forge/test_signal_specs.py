@@ -2960,7 +2960,7 @@ def test_power_growth_lanes_serve_fling_payoffs():
     single-target fling regex."""
     ignition = _card("Chandra's Ignition")
     fling = _card("Fling")
-    for key in ("power_matters", "self_pump", "variable_pt", "power_double"):
+    for key in ("power_matters", "self_boost", "variable_pt", "power_double"):
         assert _lane_covers(ignition, _sig(key)), f"ignition/{key}"
         assert _lane_covers(fling, _sig(key)), f"fling/{key}"
 

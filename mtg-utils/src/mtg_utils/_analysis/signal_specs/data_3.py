@@ -16,6 +16,7 @@ from mtg_utils.card_classify import is_creature_or_planeswalker
 
 from ._shared import (
     _AMASS_SERVE_IDENTS,
+    _BOOSTS_OTHERS_EXTRA,
     _CLONE_DIES_VALUE_EXTRA,
     _COMBAT_SUPPORT_EXTRA,
     _COPY_EXTRA,
@@ -24,9 +25,12 @@ from ._shared import (
     _DISCARD_PUNISH_EXTRA,
     _ETB_DOUBLER_EXTRA,
     _ETB_PAYOFF_EXTRA,
+    _FIREBREATHER_EXTRA,
     _FLICKER_EXTRA,
     _HELLBENT_PUNISH_EXTRA,
     _PLUS_ONE_PLACERS,
+    _SELF_BOOST_EXTRA,
+    _SELF_BOOST_TRAMPLE_EXTRA,
     _SELF_BOUNCE_EXTRA,
     _SELF_BOUNCE_RECAST_EXTRA,
     _TOKEN_DOUBLER_EXTRA,
@@ -314,6 +318,8 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         # Lightning Greaves' haste and shroud.
         None,
         serve_idents=frozenset({"aura_equip_kw_grant|you|*"}),
+        # The trample or evasion goes on a creature that grows itself (ADR-0065).
+        extras=(_SELF_BOOST_EXTRA,),
     ),
     ("counter_grants_kw", "you"): _spec(
         *SWEEP_LABELS["counter_grants_kw"],
@@ -652,6 +658,8 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     # power_min).
     ("fight_makers", "you"): _sweep_spec_with_extras(
         "fight_makers",
+        # A fight wants the bigger creature (ADR-0065).
+        (_BOOSTS_OTHERS_EXTRA, _SELF_BOOST_EXTRA),
         serve_power_min=4,
         # Serve idents (2026-10-18): the regex missed mass and granted fights (Grothama,
         # All-Devouring).
@@ -1005,6 +1013,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         # the subset anthems.
         None,
         serve_idents=frozenset({"team_boost_or_grant|you|*"}),
+        # A team's trample goes on the creatures that grow themselves too
+        # (ADR-0065; offered under the trample subject only).
+        extras=(_SELF_BOOST_TRAMPLE_EXTRA,),
     ),
     # lf_ramp (2026-07-13): land-fetch-to-battlefield is RAMP, not tutor —
     # the serve side must not surface Rampant Growth / Cultivate / Nature's
@@ -1034,6 +1045,8 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         # Serve idents: every untap shape the lane reads.
         None,
         serve_idents=frozenset({"untap_engine|you|*"}),
+        # A firebreather's tap ability is untapped again (ADR-0065).
+        extras=(_FIREBREATHER_EXTRA,),
     ),
     # own_target_spell (iteration-4): served by the cards that pay off a spell
     # targeting your own permanents — heroic and valiant bodies, and the engines

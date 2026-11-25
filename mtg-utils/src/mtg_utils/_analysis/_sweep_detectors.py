@@ -95,15 +95,14 @@ COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX = (
 # deleted but the EXACT mined regex survives here as a shared constant. The lane (a
 # POSITIVE single-target combat-trick buff: "target creature gets +N/+N") now has a
 # STRUCTURAL arm — a FIXED positive `pump_target` over a real target-Creature subject
-# (the pump-MAGNITUDE field, SIDECAR v42), disjoint from the self_pump firebreather
-# (subject None/SelfRef) and the aura/equipment voltron lane (a positive `pump` on an
+# (the pump-MAGNITUDE field, SIDECAR v42), disjoint from a creature's pump of itself
+# (``self_boost``, subject None/SelfRef — ADR-0065) and the aura/equipment voltron lane (a positive `pump` on an
 # EnchantedBy/EquippedBy subject is NOT a `pump_target`). But two classes stay
 # un-structurable and ride the RETAINED tail-mirror of this regex: the X-VARIABLE
 # "gets +X/+X" (phase drops the dynamic magnitude → amount==None) and the "+N/+N and
 # gains <kw>" trick (phase folds it into a subject-None `pump` — indistinguishable
 # from a firebreather without phase's per-ability `duration`, a fast-follow). The
-# regex (the mirror, the voltron PLAN mirror, and the _PUMP_EXTRA SubAvenue in
-# signal_specs all reuse it) is the tail discriminator; add() dedups
+# regex (the mirror and the voltron PLAN mirror reuse it) is the tail discriminator; add() dedups
 # its overlap with the structural arm. SWEEP_LABELS keeps the label. CR 122.1b/613.4c.
 PUMP_MATTERS_REGEX = "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x]/\\+[0-9x]|target [A-Z][a-z]+ you control gets \\+|target creature(?: you control)? gets \\+[\\dxX]"
 
@@ -487,6 +486,16 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "boast_makers": ("Boast", "boast creatures and ways to attack safely"),
     "boast_matters": ("Boast payoffs", "boast triggers and amplifiers"),
     "cant_block_grant": ("Can't-block", "force blockers off to clear a path to attack"),
+    # card_boost (2026-11-25): a perpetual power/toughness boost to your cards
+    # outside the battlefield, its subject the zone it lands in
+    # (``graveyard_lifeloss._card_boost``).
+    "card_boost": (
+        "Boosts your cards outside the battlefield",
+        (
+            "perpetual boosts to the creature cards in your hand, graveyard and "
+            "library, which arrive bigger when you cast or return them"
+        ),
+    ),
     # ADR-0027 A4: cast_as_named_card label deleted with its SWEEP_DETECTORS row.
     "has_changeling": (
         "Changeling / all types",
@@ -769,7 +778,6 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Self +1/+1 growth",
         "counter doublers and ways to grow the commander",
     ),
-    "self_pump": ("Firebreathing", "mana sinks to pump and close games"),
     "has_soulbond": ("Soulbond", "creatures to pair via soulbond"),
     "spell_keyword_grant": (
         "Grant spells keywords",

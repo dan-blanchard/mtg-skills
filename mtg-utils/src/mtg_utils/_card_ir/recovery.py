@@ -35,8 +35,13 @@ from mtg_utils._card_ir.clause_grammar import (
     _VERB_PRESENT,
     SENTENCE_BREAK_RX,
     WHERE_X_BINDING_RX,
+    CardAnaphor,
+    CardGroup,
+    PumpSubject,
     binding_sentence,
     keyword_grants,
+    parked_move_zone,
+    parked_perpetual_change,
     parse_clause,
     replacement_sentences,
     replacement_token,
@@ -65,6 +70,7 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.crosswalk.core import GRANTED_RECOVERY_ATTR
 from mtg_utils._card_ir.crosswalk.protection import TO_SELF
+from mtg_utils._card_ir.perpetual_rules import EARLIER, EVERYWHERE, PERPETUAL_RESIDUES
 from mtg_utils._card_ir.text_idioms import _DICE_TRIG
 
 
@@ -987,8 +993,11 @@ _SELF_NAMED_RX = re.compile(
 )
 _TO_SELF_RX = re.compile(r"\bdealt to\s+" + _SELF_WORDS, re.IGNORECASE)
 # Counters the card itself gets (``ON_SELF``), each form its own read:
+# A counted amount may sit between the counters and the card ("put a number of
+# +1/+1 counters equal to that artifact's mana value on ~" — Joven and Chandler).
 _COUNTERS_PUT_ON_SELF_RX = re.compile(
-    r"\bput\b[^.]*?\bcounters? on\s+" + _SELF_WORDS, re.IGNORECASE
+    r"\bput\b[^.]*?\bcounters?(?:\s+equal to\b[^.]*?)?\s+on\s+" + _SELF_WORDS,
+    re.IGNORECASE,
 )
 # "~ enters with X +1/+1 counters on it" (Apocalypse Hydra), "~ escapes with …"
 # (CR 702.138c): a counter the named card enters with, a clause phase parks as
@@ -1700,6 +1709,61 @@ def _with_body_keywords(
     return tuple(out) if changed else concepts
 
 
+def _perpetual_cards(c: ConceptNode, description: str) -> tuple[str, ...]:
+    """What a parked perpetual raise lands on outside the battlefield (the
+    ``perpetual_cards`` decoration): each card group's zones
+    (``perpetual_rules.EVERYWHERE`` for every card you own), and
+    ``perpetual_rules.EARLIER`` for an "it", "that card" or
+    "the duplicate" (``clause_grammar.parked_perpetual_change``). A subject on
+    the battlefield is the pump rows' (``misparsed_shapes``); a shrink is none."""
+    if getattr(c.node, "name", None) not in PERPETUAL_RESIDUES:
+        return ()
+    change = parked_perpetual_change(
+        str(getattr(c.node, "description", None) or ""), description
+    )
+    if change is None or not change.raises:
+        return ()
+    out: list[str] = []
+    for subject in change.subjects:
+        if isinstance(subject, CardGroup):
+            out.extend(subject.zones if not subject.owned else (EVERYWHERE,))
+        elif isinstance(subject, CardAnaphor) or (
+            isinstance(subject, PumpSubject) and subject.recipient == "it"
+        ):
+            out.append(EARLIER)
+    return tuple(dict.fromkeys(out))
+
+
+def mark_perpetual_cards(
+    effects: tuple[ConceptNode, ...], unit: AbilityUnit
+) -> tuple[ConceptNode, ...]:
+    """``effects`` with each parked perpetual raise on cards outside the
+    battlefield decorated with what it lands on (``ConceptNode.
+    perpetual_cards``, :func:`_perpetual_cards`), and each parked zone move of
+    the chain's cards with its zone (``ConceptNode.moves_to``:
+    ``clause_grammar.parked_move_zone`` — "conjure X duplicates of it into
+    exile", "shuffle those duplicates into your library"). The ``card_boost``
+    read (``crosswalk.perpetual.card_boost_zones``) takes these beside phase's
+    typed changes; the residue keeps its concept, so no other read moves.
+    "Perpetually" is a digital-only mechanic (the repo's digital supplement, DD1.1:
+    "A perpetual effect modifies a specific card permanently for the rest of
+    the game, regardless of zone changes")."""
+    description = str(getattr(unit.node, "description", None) or "")
+    out: list[ConceptNode] = []
+    changed = False
+    for c in effects:
+        if tag_of(c.node) == "Unimplemented":
+            cards = _perpetual_cards(c, description)
+            moved = parked_move_zone(str(getattr(c.node, "description", None) or ""))
+            if cards or moved:
+                c = replace(  # noqa: PLW2901
+                    c, perpetual_cards=cards, moves_to=moved or ""
+                )
+                changed = True
+        out.append(c)
+    return tuple(out) if changed else effects
+
+
 def apply_unimplemented_recovery(
     tree: ConceptTree, allowlist: dict[str, TokenRule] | None = None
 ) -> ConceptTree:
@@ -1736,8 +1800,13 @@ def apply_unimplemented_recovery(
             )
             if recovered is not granted:
                 object.__setattr__(body, GRANTED_RECOVERY_ATTR, recovered)
-        new_effects = _with_body_keywords(
-            recover_concepts(unit.effects, unit, table, tree.name), tree.name, unit
+        new_effects = mark_perpetual_cards(
+            _with_body_keywords(
+                recover_concepts(unit.effects, unit, table, tree.name),
+                tree.name,
+                unit,
+            ),
+            unit,
         )
         if new_effects is not unit.effects:
             changed = True

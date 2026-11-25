@@ -22,8 +22,11 @@ from mtg_utils._analysis._sweep_detectors import (
 
 from ._shared import (
     _CHOSEN_TYPE_IDENTS,
+    _CREATURE_CARDS_EXTRA,
+    _CREATURE_RECURSION_EXTRA,
     _ETB_PAYOFF_EXTRA,
     _GOWIDE_ANTHEM_EXTRA,
+    _REANIMATION_EXTRA,
     _TOKEN_ARISTOCRAT_EXTRA,
     _TOKEN_DOUBLER_EXTRA,
     Serve,
@@ -300,12 +303,45 @@ def _land_type_subject_spec(subj: str) -> SignalSpec:
     )
 
 
-# Subject keys whose subject is a CARD or LAND TYPE, each built by its own
-# per-subject spec (cached): key -> builder(subject).
+#: The pairings a ``card_boost`` subject opens beside the card boosts themselves
+#: (Dan's ruling, 2026-11-25), each the other side of a pairing the paired
+#: theme offers: a deck growing the cards in its graveyard wants them back, by
+#: reanimation or recursion (the reanimator and creature-recursion pages offer
+#: ``_CARD_BOOST_GRAVEYARD_EXTRA``); one growing the creature cards in its hand
+#: or the creature spells it casts wants creature density (the Go-wide page
+#: offers ``_CARD_BOOST_HAND_EXTRA``). The library and everywhere boosts open no
+#: avenue at all (``signal_keys.SubjectRole.PAGE_ONLY``).
+_CARD_BOOST_PAIRINGS: dict[str, tuple[SubAvenue, ...]] = {
+    "graveyard": (_REANIMATION_EXTRA, _CREATURE_RECURSION_EXTRA),
+    "hand": (_CREATURE_CARDS_EXTRA,),
+    "stack": (_CREATURE_CARDS_EXTRA,),
+}
+
+
+@functools.cache
+def _card_boost_subject_spec(subj: str) -> SignalSpec:
+    """The ``card_boost|you|<subj>`` spec, ``subj`` the zone the boost lands in
+    (signal_keys.CARD_BOOST). Every subject shares the one label, so the
+    per-zone specs read as one avenue downstream (focus dedupes by label), and
+    its page is every card boost of yours, whatever its zone: the library and
+    everywhere boosts are on it only. The pairings are the subject's own
+    (:data:`_CARD_BOOST_PAIRINGS`). Cached: a pure function of the subject."""
+    label, avenue = SWEEP_LABELS[signal_keys.CARD_BOOST]
+    return SignalSpec(
+        label=label,
+        avenue=avenue,
+        serve=Serve(signal_idents=frozenset({f"{signal_keys.CARD_BOOST}|you|*"})),
+        extras=_CARD_BOOST_PAIRINGS.get(subj, ()),
+    )
+
+
+# Subject keys whose subject is a CARD or LAND TYPE, or a zone, each built by
+# its own per-subject spec (cached): key -> builder(subject).
 _TYPED_SUBJECT_SPECS = {
     signal_keys.CHEAT_INTO_PLAY: _cheat_subject_spec,
     signal_keys.ANIMATE_MAKERS: _animate_subject_spec,
     signal_keys.LAND_TYPE_MATTERS: _land_type_subject_spec,
+    signal_keys.CARD_BOOST: _card_boost_subject_spec,
 }
 # The cards a keyword lane counts beyond its bodies, grants and payoffs, keyed by
 # the keyword: what the keyword turns into something else. A creature dealt

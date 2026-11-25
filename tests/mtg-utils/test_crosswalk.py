@@ -7895,9 +7895,10 @@ def test_count_anthem_team_subject_gate(name, should_fire):
     ],
 )
 def test_self_pump_activated_self_anchor(name, should_fire):
-    """self_pump fires the activated SELF pump / self +1/+1 placement (the
-    mana-sink shape, CR 122.1); statics and target-pumps stay out."""
-    assert (("self_pump", "you", "") in _idents(name)) is should_fire
+    """``self_boost|you|activated`` fires the activated SELF pump / self +1/+1
+    placement (the mana-sink shape, CR 122.1a; it replaced self_pump, ADR-0065);
+    statics and target-pumps stay out."""
+    assert (("self_boost", "you", "activated") in _idents(name)) is should_fire
 
 
 @pytest.mark.parametrize(
@@ -11617,7 +11618,7 @@ def test_topdeck_stack_nested_grant_descent():
     replacement draw ("look at the top two ... other back on top") whose
     ``PutAtLibraryPosition`` lives inside ``GrantAbility.definition.
     sub_ability`` — the SAME ``.definition`` descent precedent
-    :func:`_self_pump`'s sibling scan establishes for a granted mod site
+    :func:`_pump_scaling_lanes`' grant scan establishes for a granted mod site
     (CR 401.4)."""
     assert ("topdeck_stack", "you", "") in _idents("Scion of Halaster")
 
@@ -15878,12 +15879,14 @@ def test_target_redirect_opponent_source_branch():
 def test_targeting_matters_structural_any_and_residue_mirror():
     """CR 702.21a (the load-bearing becomes-target family rule): EVERY
     becomes_target trigger fires the broad scope-'any' lane (Willbreaker —
-    opponent-subject counts too); the byte-identical residue mirror covers
-    the heroic ability word (Akroan Crusader) and the granted/quoted forms
-    phase emits no native trigger for (Kira, Great Glass-Spinner); a
-    targeted SPELL is not a targeting payoff (Murder)."""
+    opponent-subject counts too); a typed cast trigger on a spell that targets
+    the card (heroic — Akroan Crusader) is its ``spell`` subject (ADR-0065:
+    only a spell fires it); the byte-identical residue mirror covers the
+    granted/quoted forms phase emits no native trigger for (Kira, Great
+    Glass-Spinner); a targeted SPELL is not a targeting payoff (Murder)."""
     assert ("targeting_matters", "any", "") in _idents("Willbreaker")
-    assert ("targeting_matters", "any", "") in _idents("Akroan Crusader")
+    assert ("targeting_matters", "any", "spell") in _idents("Akroan Crusader")
+    assert ("targeting_matters", "any", "") not in _idents("Akroan Crusader")
     assert ("targeting_matters", "any", "") in _idents("Kira, Great Glass-Spinner")
     assert "targeting_matters" not in _keys("Murder")
 
@@ -17735,8 +17738,8 @@ def test_damage_redirect_skips_a_life_floor():
         # direct_damage: the player-reaching damage arm on a newly parsed
         # trigger chain (CR 115.4).
         ("Captain America, First Avenger", "direct_damage"),
-        # combat_trigger_boost: attack-trigger team buff now parsed (CR 508).
-        ("Lara Croft, Tomb Raider", "combat_trigger_boost"),
+        # (Lara Croft, Tomb Raider's attack trigger puts a discovery counter on
+        # the card it exiles: no buff, so no combat_trigger_boost since ADR-0065.)
         # enchantments_matter: type-restricted top-N dig ("reveal ... put an
         # enchantment card into your hand") — the tutor/dig arm (CR 701.23).
         ("Benefaction of Rhonas", "enchantments_matter"),

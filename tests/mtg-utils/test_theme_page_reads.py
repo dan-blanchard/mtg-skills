@@ -210,9 +210,9 @@ def test_bodies_tokens_and_symmetry(name, ident, has):
 
 
 @_cases(
-    # a pump on one chosen creature (CR 115.1a), never a team pump
-    ("Brute Force", "effect_boost|you|target", True),
-    ("Charge", "effect_boost|you|target", False),
+    # a spell's pump on one chosen creature (CR 115.1a), never a team pump
+    ("Brute Force", "boosts_others|you|target_spell", True),
+    ("Charge", "boosts_others|you|target_spell", False),
     # a quoted ability one target gains
     ("Retraction Helix", "keyword_grant_target|you|ability", True),
     ("Giant Growth", "keyword_grant_target|you|ability", False),

@@ -47,6 +47,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_condition_sites,
     iter_static_defs,
     iter_typed_nodes,
+    iter_unit_trigger_defs,
     library_search_restriction_side,
     modify_cost_mode,
     names_attached_object,
@@ -59,6 +60,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_field,
     static_mode_tag,
     tag_of,
+    targeting_trigger_source,
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
@@ -1342,26 +1344,47 @@ def _arm_legend_rule_off(tree: ConceptTree) -> ConceptNode | None:
 
 
 def has_structural_targeting_matters(tree: ConceptTree) -> bool:
-    """CR 702.21a: ANY native ``becomes_target`` trigger unit."""
-    return tree.has_trigger("becomes_target")
+    """A native ``becomes_target`` trigger unit, or a typed cast trigger on a
+    spell that targets ("Whenever you cast a spell that targets ~" — heroic's
+    cards; heroic is an ability word, with no rules of its own, CR 207.2c:
+    ``crosswalk.targeting_trigger_source``)."""
+    return tree.has_trigger("becomes_target") or any(
+        getattr(trig, "mode", None) == "SpellCast"
+        and targeting_trigger_source(trig) is not None
+        for unit in tree.units
+        for trig in iter_unit_trigger_defs(unit)
+    )
+
+
+def combine_targeting_sources(kinds: set[str]) -> str | None:
+    """One ``targeting_matters`` subject for the targeting payoffs a card has:
+    ``"spell"`` or ``"ability"`` when every one watches only that, else ``""``
+    (either fires one); ``None`` for none."""
+    if not kinds:
+        return None
+    if "" in kinds or {"spell", "ability"} <= kinds:
+        return ""
+    return next(iter(kinds))
 
 
 def _arm_targeting_matters(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``targeting_matters`` node for the granted/quoted/
-    player-targeted forms phase emits no native trigger for (Kira / Opaline
-    Sliver / Dormant Gomazoa / heroic) — the deleted ``_TARGETING_RESIDUE_RX``
-    mirror relocated verbatim, gap-gated against
-    :func:`has_structural_targeting_matters`."""
+    """Synthesize a ``targeting_matters`` node for the quoted/player-targeted
+    forms phase emits no typed trigger for (Dormant Gomazoa's ``Unknown`` mode)
+    — the deleted ``_TARGETING_RESIDUE_RX`` mirror relocated, gap-gated against
+    :func:`has_structural_targeting_matters`. It names no source: the
+    targeting lane reads one off a typed trigger only, so a residue is either
+    (``""``)."""
     if has_structural_targeting_matters(tree):
         return None
-    if not _TARGETING_RESIDUE_SYNTH_RX.search(_REMINDER.sub(" ", tree.oracle or "")):
+    text = _REMINDER.sub(" ", tree.oracle or "")
+    if not _TARGETING_RESIDUE_SYNTH_RX.search(text):
         return None
     return _synthetic_concept(
         arm_id="targeting_matters",
         concept="synth_targeting_matters",
         scope="any",
         subject=(),
-        desc="bucket-B granted/quoted/heroic becomes-target residue (CR 702.21a)",
+        desc="bucket-B granted/quoted/heroic becomes-target residue",
     )
 
 

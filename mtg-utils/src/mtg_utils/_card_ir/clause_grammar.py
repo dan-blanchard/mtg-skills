@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import itertools
 import re
-from dataclasses import dataclass
+from collections.abc import Iterator
+from dataclasses import dataclass, replace
 from typing import Literal
 
 from mtg_utils._card_ir import _combinators as comb
@@ -1353,7 +1354,9 @@ class PumpSubject:
     the trigger names ("that creature", "That Elf": ``"that"``), a targeted one
     ("target creature an opponent controls", "up to one target Soldier":
     ``"target"``, with ``opponents`` and ``up_to``), and "the chosen creatures"
-    (``"chosen"``)."""
+    (``"chosen"``). :func:`perpetual_change` reads a group of one creature type
+    by its plural ("other Dinosaurs you control") and one of the type chosen as
+    the card entered ("of the chosen type": ``chosen_type``)."""
 
     recipient: PumpRecipient
     attachment: str | None = None
@@ -1363,6 +1366,7 @@ class PumpSubject:
     attacking: bool = False
     opponents: bool = False
     up_to: bool = False
+    chosen_type: bool = False
 
 
 @dataclass(frozen=True)
@@ -1397,6 +1401,50 @@ def binding_sentence(residue: str, description: str) -> str | None:
         (m.end() for m in SENTENCE_BREAK_RX.finditer(description, 0, at)), default=0
     )
     return description[start : at + len(residue)]
+
+
+def instruction_words(text: str) -> list[str]:
+    """``text``'s words up to its "…, where X is …" binding, if any: the
+    instructions, never the words that bind their X."""
+    binding = WHERE_X_BINDING_RX.search(text)
+    return (text[: binding.start()] if binding else text).split()
+
+
+def _outside_quotes(words: list[str]) -> Iterator[int]:
+    """The index of each word outside a quoted ability (a granted ability's own
+    words are never the clause's)."""
+    quoted = False
+    for i, word in enumerate(words):
+        if not quoted:
+            yield i
+        quoted ^= word.count('"') % 2 == 1
+
+
+def _pump_verbs(words: list[str]) -> Iterator[int]:
+    """The index of each "get(s) ±N/±M" outside a quoted ability, in order."""
+    for i in _outside_quotes(words):
+        if (
+            i + 1 < len(words)
+            and comb.norm_word(words[i]) in ("get", "gets")
+            and _PT_WORD_RX.fullmatch(words[i + 1])
+        ):
+            yield i
+
+
+def _conditioned(words: list[str]) -> bool:
+    """Whether a clause carries a condition ("if …", "unless …")."""
+    return any(comb.norm_word(w) in ("if", "unless") for w in words)
+
+
+def _split_and(words: list[str]) -> list[list[str]]:
+    """``words`` split at each "and" (the "and" dropped)."""
+    parts: list[list[str]] = [[]]
+    for word in words:
+        if comb.norm_word(word) == "and":
+            parts.append([])
+        else:
+            parts[-1].append(word)
+    return parts
 
 
 _UNTIL_END_OF_TURN = comb.phrase({"until"}, {"end"}, {"of"}, {"turn"})
@@ -1449,14 +1497,8 @@ def parked_pump(text: str) -> ParkedPump | None:
     grants ("… and gains haste") or is conditioned ("if …, ~ gets +1/+1"), or a
     subject this grammar doesn't read (CR 613.4c: an effect that modifies power
     and/or toughness)."""
-    binding = WHERE_X_BINDING_RX.search(text)
-    words = (text[: binding.start()] if binding else text).split()
-    verbs = [
-        i
-        for i, word in enumerate(words[:-1])
-        if comb.norm_word(word) in ("get", "gets")
-        and _PT_WORD_RX.fullmatch(words[i + 1])
-    ]
+    words = instruction_words(text)
+    verbs = list(_pump_verbs(words))
     if not verbs:
         return None
     verb = verbs[-1]
@@ -1602,19 +1644,8 @@ def split_pump(text: str) -> SplitPump | None:
     as …" — Mace of Disruption), a subject this grammar doesn't read, or words
     after the pump other than a keyword grant, a quoted ability or a duration
     (CR 613.4c: an effect that modifies power and/or toughness)."""
-    binding = WHERE_X_BINDING_RX.search(text)
-    words = (text[: binding.start()] if binding else text).split()
-    quoted = False
-    verb = None
-    for i, word in enumerate(words[:-1]):
-        if (
-            not quoted
-            and comb.norm_word(word) in ("get", "gets")
-            and _PT_WORD_RX.fullmatch(words[i + 1])
-        ):
-            verb = i
-            break
-        quoted ^= word.count('"') % 2 == 1
+    words = instruction_words(text)
+    verb = next(_pump_verbs(words), None)
     if verb is None:
         return None
     amounts = _PT_WORD_RX.fullmatch(words[verb + 1])
@@ -1630,14 +1661,9 @@ def split_pump(text: str) -> SplitPump | None:
         words[start - 1][-1] in ",.:;" or comb.norm_word(words[start - 1]) == "then"
     ):
         start -= 1
-    if any(comb.norm_word(w) in ("if", "unless") for w in words):
+    if _conditioned(words):
         return None
-    parts: list[list[str]] = [[]]
-    for word in words[start:end]:
-        if comb.norm_word(word) == "and":
-            parts.append([])
-        else:
-            parts[-1].append(word)
+    parts = _split_and(words[start:end])
     lead = ""
     subjects = _conjuncts(parts)
     if subjects is None:
@@ -1742,3 +1768,409 @@ def lead_object(lead: str) -> LeadObject | None:
     if words[:1] == ["~"] and not _ZONE_MOVING_VERBS & set(words):
         return LeadObject("self", "unmoved")
     return None
+
+
+# ── A perpetual change to cards, or to a group on the battlefield ────────────────
+# "creature cards in your graveyard perpetually get +1/+1" (Feed the Bog), "a
+# random creature card in your hand perpetually gets +X/+X, where X is …" (Golden
+# Sidekick), "the topmost creature card in your library …" (Dalkovan Outrider),
+# "all cards you own named Unbreakable Remnant …", "creatures you control
+# perpetually get +1/+1" (Legion of Clay), "other creatures you control and
+# creature cards in your hand …" (Lae'zel, Primal Warrior), "It perpetually gains
+# trample and gets +X/+X" (Dina, Flesh Sower). "Perpetually" is an Arena-only
+# (Alchemy) mechanic outside the Comprehensive Rules; the repo's digital
+# supplement, DD1.1: "A perpetual effect modifies a specific card permanently for
+# the rest of the game, regardless of zone changes". Read word by word, like
+# :func:`split_pump`.
+
+#: The zones a card group can name, in phase's spelling.
+_CARD_ZONES = {"hand": "Hand", "graveyard": "Graveyard", "library": "Library"}
+
+CardPick = Literal["all", "random", "topmost"]
+
+
+@dataclass(frozen=True)
+class CardGroup:
+    """Cards outside the battlefield a perpetual change names: those in one or
+    more of your zones (``zones``: "creature cards in your hand and graveyard"),
+    every card you own, in any zone (``owned``: "all cards you own named …"),
+    and whether all of them, one at random ("a random creature card in your
+    hand") or the topmost ("the topmost creature card in your library").
+
+    The cards' own filter is read too, which matters for the cards you own
+    (whose change reaches your permanents of them on the battlefield as well):
+    the card types and subtype before "card(s)" (``card_types``, ``subtype``: "artifact
+    creature cards", "Spacecraft cards"), "with mana value N or less"
+    (``mana_value_max``), "named …" (``named``). ``filter_read`` is whether
+    every word of it was read."""
+
+    zones: tuple[str, ...] = ()
+    owned: bool = False
+    pick: CardPick = "all"
+    card_types: tuple[str, ...] = ()
+    subtype: str | None = None
+    mana_value_max: int | None = None
+    named: str | None = None
+    filter_read: bool = True
+
+
+@dataclass(frozen=True)
+class CardAnaphor:
+    """A card an earlier instruction named, which the caller locates: "that
+    Dragon card" after a seek (``"that"``), "the duplicate" / "those
+    duplicates" after a conjure (``"duplicate"``)."""
+
+    word: Literal["that", "duplicate"]
+
+
+PerpetualSubject = PumpSubject | CardGroup | CardAnaphor
+
+
+@dataclass(frozen=True)
+class PerpetualChange:
+    """A perpetual power/toughness change a parked clause states: who gets it,
+    one entry per conjunct (a :class:`PumpSubject` on the battlefield — or the
+    caller's "it" —, a :class:`CardGroup`, a :class:`CardAnaphor`), and by how
+    much, signed as written ("+X", "+0", "-2")."""
+
+    subjects: tuple[PerpetualSubject, ...]
+    power: str
+    toughness: str
+
+    @property
+    def raises(self) -> bool:
+        """Whether it raises power or toughness: an amount signed "+" that isn't
+        "+0" ("+1/-1" does; "-2/-0" and "+0/-1" don't) — the written form of
+        ``crosswalk.pump_raises``'s rule for a typed amount."""
+        return any(
+            a.startswith("+") and a != "+0" for a in (self.power, self.toughness)
+        )
+
+
+def _zone_list(words: list[str]) -> tuple[str, ...] | None:
+    """The zones "hand, library, and graveyard" names (norm words), or ``None``
+    for words that are not a zone list."""
+    zones = [_CARD_ZONES.get(w) for w in words if w != "and"]
+    if not zones or None in zones:
+        return None
+    return tuple(z for z in zones if z is not None)
+
+
+#: The card types a card group's filter can name.
+_GROUP_CARD_TYPES = frozenset(
+    {"artifact", "battle", "creature", "enchantment", "land", "planeswalker"}
+)
+#: The words before a card group's filter that pick its cards, not filter them.
+_GROUP_DETERMINERS = frozenset({"a", "all", "each", "random", "the", "topmost"})
+
+
+def _group_filter(head: list[str], tail: list[str], raw_tail: list[str]) -> dict:
+    """A card group's own filter (:class:`CardGroup`'s ``card_types`` …
+    ``filter_read``), from the words before "card(s)" and after it (norm
+    words; ``raw_tail`` as written, for a name)."""
+    read: dict = {"card_types": (), "subtype": None, "filter_read": True}
+    types: list[str] = []
+    for w in head:
+        if w in _GROUP_DETERMINERS:
+            continue
+        if w in _GROUP_CARD_TYPES:
+            types.append(w.capitalize())
+        elif (sub := _subtype(w)) is not None and read["subtype"] is None:
+            read["subtype"] = sub[0]
+        else:
+            read["filter_read"] = False
+    read["card_types"] = tuple(types)
+    for i, w in enumerate(tail):
+        if (
+            tail[i : i + 3] == ["with", "mana", "value"]
+            and tail[i + 4 : i + 6] == ["or", "less"]
+            and tail[i + 3 : i + 4]
+            and tail[i + 3].isdigit()
+        ):
+            read["mana_value_max"] = int(tail[i + 3])
+        elif w == "named" and raw_tail[i + 1 :]:
+            read["named"] = " ".join(raw_tail[i + 1 :]).rstrip(".,")
+    return read
+
+
+def _card_group(
+    words: list[str], raw: list[str] | None = None
+) -> CardGroup | CardAnaphor | None:
+    """The cards a conjunct names (norm words; ``raw`` as written), or ``None``
+    for words naming no cards this grammar reads. The words between the
+    determiner and "card(s)" are the cards' filter (types, a subtype), and after
+    it "of that type", "of the chosen type", "with mana value N or less",
+    "named …" narrow it further: none changes where the cards are, and the
+    filter is read for the cards you own (:func:`_group_filter`)."""
+    raw = raw if raw is not None else words
+    if words in (["the", "duplicate"], ["those", "duplicates"]):
+        return CardAnaphor("duplicate")
+    if "card" not in words and "cards" not in words:
+        return None
+    noun = max(i for i, w in enumerate(words) if w in ("card", "cards"))
+    head, tail = words[:noun], words[noun + 1 :]
+    pick: CardPick = "all"
+    if head[:2] == ["a", "random"]:
+        pick = "random"
+    elif head[:2] == ["the", "topmost"]:
+        pick = "topmost"
+    elif head[:1] == ["that"]:
+        return CardAnaphor("that") if not tail else None
+    zones: tuple[str, ...] = ()
+    owned = False
+    for i, w in enumerate(tail):
+        if tail[i : i + 2] == ["you", "own"]:
+            owned = True
+        elif w == "in" and tail[i + 1 : i + 2] == ["your"]:
+            found = _zone_list(tail[i + 2 :])
+            if found is None:
+                return None
+            zones = found
+            break
+    if pick != "all" and len(zones) != 1:
+        return None
+    return CardGroup(
+        zones=zones,
+        owned=owned,
+        pick=pick,
+        **_group_filter(head, tail, raw[noun + 1 :]),
+    )
+
+
+def _team_group(words: list[str]) -> PumpSubject | None:
+    """A group of your creatures on the battlefield (norm words): "creatures you
+    control", "other creatures you control", "other creatures you control of
+    the chosen type", "other Dinosaurs you control". ``None`` for any other
+    words."""
+    rest = list(words)
+    if rest[:1] in (["each"], ["all"]):
+        rest = rest[1:]
+    other = rest[:1] == ["other"]
+    rest = rest[1:] if other else rest
+    subtype = None
+    if rest and rest[0] not in ("creature", "creatures"):
+        read = _subtype(rest[0])
+        if read is None:
+            return None
+        subtype = read[0]
+        rest = rest[1:]
+        if rest[:1] in (["creature"], ["creatures"]):
+            rest = rest[1:]
+    elif rest[:1] in (["creature"], ["creatures"]):
+        rest = rest[1:]
+    else:
+        return None
+    if rest[:2] != ["you", "control"]:
+        return None
+    rest = rest[2:]
+    chosen = rest == ["of", "the", "chosen", "type"]
+    if rest and not chosen:
+        return None
+    return PumpSubject(
+        "group", subtype=subtype, yours=True, other=other, chosen_type=chosen
+    )
+
+
+def _perpetual_conjuncts(words: list[str]) -> tuple[PerpetualSubject, ...] | None:
+    """Each conjunct of a perpetual change's subject (raw words): split at
+    "and", a part that opens with a zone ("… in your hand and library") joined
+    back to the one before it, and a card group that names no zone taking the
+    next one's ("all artifact creature cards and Spacecraft cards you own")."""
+    joined: list[list[str]] = []
+    for part in _split_and(words):
+        if joined and part and comb.norm_word(part[0]) in _CARD_ZONES:
+            joined[-1] = [*joined[-1], "and", *part]
+        else:
+            joined.append(part)
+    reads: list[PerpetualSubject] = []
+    for part in joined:
+        norm = [comb.norm_word(w) or w for w in part]
+        if not norm:
+            return None
+        read = (
+            _card_group(norm, part)
+            or _team_group(norm)
+            or _split_subject(" ".join(part))
+        )
+        if read is None:
+            return None
+        reads.append(read)
+    for i in range(len(reads) - 2, -1, -1):
+        here, after = reads[i], reads[i + 1]
+        if (
+            isinstance(here, CardGroup)
+            and not here.zones
+            and not here.owned
+            and isinstance(after, CardGroup)
+        ):
+            reads[i] = replace(here, zones=after.zones, owned=after.owned)
+    if any(isinstance(r, CardGroup) and not (r.zones or r.owned) for r in reads):
+        return None
+    return tuple(reads)
+
+
+#: The lead-ins a parked clause's sentence may open with before its subject: a
+#: chapter, an ability word, a cost, a trigger, a duration.
+_CLAUSE_LEAD = comb.many(
+    comb.preceded(
+        comb.ws(),
+        comb.alt(
+            _CHAPTER_PREFIX,
+            _ABILITY_WORD_PREFIX,
+            _COST_PREFIX,
+            _LOYALTY_PREFIX,
+            _TRIGGER_PREFIX,
+            _DURATION_PREFIX,
+        ),
+    )
+)
+
+
+def residue_clause(residue: str, description: str) -> str:
+    """The clause a residue was cut from, from its subject: in the description
+    that holds it, the sentence through the residue's end (as
+    :func:`binding_sentence` finds it) with the trigger, cost or duration it
+    opens with peeled — phase cut "At the beginning of your end step, creatures
+    you control and creature cards in your hand, library, and graveyard
+    perpetually get +1/+1" (Arming Gala) to "library, and graveyard perpetually
+    get +1/+1". The residue itself when the description doesn't hold it."""
+    sentence = binding_sentence(residue, description)
+    if sentence is None:
+        return residue
+    peeled = _CLAUSE_LEAD.run(sentence)
+    return peeled[1].strip() if peeled is not None else sentence
+
+
+def perpetual_change(text: str) -> PerpetualChange | None:
+    """The perpetual power/toughness change a parked clause states, its subject
+    opening the clause (:class:`PerpetualChange`): "Creature cards in your
+    graveyard perpetually get +1/+1", "~ and that Dragon card each perpetually
+    get +1/+1", "It perpetually gets +1/+1 and perpetually gains \"…\"",
+    "that card perpetually incorporates {1}{G} and gets +4/+4". ``None`` for a
+    clause with no perpetual change outside a quoted ability, a condition ("…
+    if it has the same name as …" — Mace of Disruption), or a subject this
+    grammar doesn't read."""
+    words = instruction_words(text)
+    if _conditioned(words):
+        return None
+    perpetually = next(
+        (
+            i
+            for i in _outside_quotes(words)
+            if comb.norm_word(words[i]) == "perpetually"
+        ),
+        None,
+    )
+    verb = (
+        next((i for i in _pump_verbs(words) if i > perpetually), None)
+        if perpetually is not None
+        else None
+    )
+    if perpetually is None or verb is None:
+        return None
+    amounts = _PT_WORD_RX.fullmatch(words[verb + 1])
+    assert amounts is not None
+    subject = words[:perpetually]
+    if subject and comb.norm_word(subject[-1]) == "each":
+        subject = subject[:-1]
+    subjects = _perpetual_conjuncts(subject) if subject else None
+    if subjects is None:
+        return None
+    return PerpetualChange(subjects, amounts.group(1), amounts.group(2))
+
+
+def parked_perpetual_change(residue: str, description: str) -> PerpetualChange | None:
+    """The :func:`perpetual_change` a residue states, read from its own text
+    when that opens with the subject, else from the clause the description holds
+    it in (:func:`residue_clause`: Arming Gala's "library, and graveyard
+    perpetually get +1/+1")."""
+    return perpetual_change(residue) or perpetual_change(
+        residue_clause(residue, description)
+    )
+
+
+#: Where a parked instruction moves the cards it names: a conjure "into exile",
+#: "onto the top of your library", "into your hand"; a shuffle "into your
+#: library".
+_MOVE_ZONES = (
+    (("into", "exile"), "Exile"),
+    (("into", "your", "hand"), "Hand"),
+    (("of", "your", "library"), "Library"),
+    (("into", "your", "library"), "Library"),
+)
+#: The words a parked shuffle names the cards an earlier instruction made by.
+_MOVED_ANAPHORS = frozenset({"it", "them", "those", "that", "the"})
+
+
+def parked_move_zone(text: str) -> str | None:
+    """The zone a parked instruction moves its cards into: the cards a conjure
+    makes ("conjure X duplicates of it into exile" — Gyox, Brutal Carnivora;
+    "Conjure a duplicate of … onto the top of your library" — Pampered
+    Loamfrill), or the ones an earlier instruction named, shuffled into a
+    library ("shuffle those duplicates into your library" — Gyox). ``None`` for
+    any other clause, or one naming no zone this grammar reads."""
+    words = [comb.norm_word(w) for w in text.split()]
+    if not words or words[0] not in ("conjure", "shuffle"):
+        return None
+    if words[0] == "shuffle" and words[1:2] and words[1] not in _MOVED_ANAPHORS:
+        return None
+    found = {
+        zone
+        for i in range(len(words))
+        for phrase, zone in _MOVE_ZONES
+        if tuple(words[i : i + len(phrase)]) == phrase
+    }
+    return found.pop() if len(found) == 1 else None
+
+
+@dataclass(frozen=True)
+class VerbListPump:
+    """A pump that is one item of a verb list phase parked without the list's
+    subject (:func:`verb_list_pump`): who gets it and by how much, signed as
+    written."""
+
+    subject: PumpSubject
+    power: str
+    toughness: str
+
+
+def verb_list_pump(residue: str, description: str) -> VerbListPump | None:
+    """The pump among a list of instructions one subject performs, where phase
+    parked the verbs ("become black, gets +1/-1, and gains \"{B}: Regenerate
+    ~.\"") and left the subject only in the description ("Until end of turn,
+    target creature becomes black, gets +1/-1, and gains …" — Defiling Tears).
+    The pump is a list item ("gets +1/-1" after a comma, outside any quote); the
+    subject is the description's words before the list's first verb, once its
+    lead (a duration, a trigger, a cost) is peeled, and the rest of the
+    description's clause must be the residue's words. ``None`` for anything
+    else."""
+    words = residue.split()
+    verb = next(
+        (
+            i
+            for i in _pump_verbs(words)
+            if i > 0
+            and (words[i - 1].endswith(",") or comb.norm_word(words[i - 1]) == "and")
+        ),
+        None,
+    )
+    if verb is None:
+        return None
+    amounts = _PT_WORD_RX.fullmatch(words[verb + 1])
+    assert amounts is not None
+    peeled = _CLAUSE_LEAD.run(description)
+    clause = (peeled[1] if peeled is not None else description).split()
+    first = comb.norm_word(words[0])
+    forms = {first, f"{first}s", first.removesuffix("s")}
+    at = next(
+        (j for j, w in enumerate(clause) if j > 0 and comb.norm_word(w) in forms),
+        None,
+    )
+    if at is None or [comb.norm_word(w) for w in clause[at + 1 :]] != [
+        comb.norm_word(w) for w in words[1:]
+    ]:
+        return None
+    subject = _split_subject(" ".join(clause[:at]))
+    if subject is None:
+        return None
+    return VerbListPump(subject, amounts.group(1), amounts.group(2))

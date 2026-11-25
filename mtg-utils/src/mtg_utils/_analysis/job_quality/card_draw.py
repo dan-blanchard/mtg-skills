@@ -819,7 +819,8 @@ _PUMP_KEYS = _COUNTER_PLACER_KEYS | frozenset(
         "combat_trigger_boost",
         "voltron_makers",
         "self_counter_grow",
-        "self_pump",
+        "self_boost",
+        "boosts_others",
         "count_anthem",
         "scaling_pump",
     }

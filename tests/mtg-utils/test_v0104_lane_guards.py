@@ -197,7 +197,7 @@ def test_token_copy_needs_an_object_in_play(name, fires):
         ("Command the Stage", "self_recurring|you|"),  # return this card
         ("Tom, Bert, and William", "dies_recursion|you|"),  # return them
         ("Dawn Evangel", "creature_recursion|you|hand"),
-        ("Flowstone Sculpture", "self_pump|you|"),  # +1/+1 counter on ~
+        ("Flowstone Sculpture", "self_boost|you|activated"),  # +1/+1 counter on ~
         ("Darigaaz Reincarnated", "named_counter_misc|you|"),  # egg counter
         (
             "Shaile, Dean of Radiance // Embrose, Dean of Shadow",

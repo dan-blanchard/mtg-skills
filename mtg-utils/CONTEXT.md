@@ -104,15 +104,69 @@ purity snapshot already holds it. The `ApplyPerpetual` node stays in the unit's
 typed tree, where the reads of its other parts (a keyword it grants, a
 graveyard return) walk it. Only a creature on the battlefield is pumped — a
 card in a hand, library or graveyard, or a spell, is changed but not pumped:
-the lane's own decision, since "perpetually" is Arena-only and has no
-Comprehensive Rules entry. A "those creatures" view is a `PumpAll` over the
+the lane's own decision, since "perpetually" is Arena-only, outside the
+Comprehensive Rules (the repo's digital supplement, DD1.1, defines it: "A
+perpetual effect modifies a specific card permanently for the rest of the game,
+regardless of zone changes"). A "those creatures" view is a `PumpAll` over the
 earlier effect's filter, so it keeps whose creatures they are; a raise on a
 population only your opponents control is no pump of yours. The rules live in `_card_ir.perpetual_rules`, which the
 parked-change rewrite (`misparsed_shapes`) asks too. The view is marked
 `ConceptNode.perpetual`: the change lasts, so `effect_boost` reads it as timed
 or better on its own node, except a change to the card itself (the card
-growing, no pump maker).
+growing: `self_boost`).
 _Avoid_: "perpetual pump" for a change to a card off the battlefield.
+
+**Boost recipient** (`_card_ir.crosswalk.boosts`, ADR-0065):
+Who a pump, a +1/+1-counter placement or a counter move lands on, read once for
+every boost lane (`boost_recipient`): the card itself (`"self"`), a creature or
+group of yours or of either side's (`"yours"`), only an opponent's
+(`"opponents"`), or `"unknown"` where the structure names no object. `SelfRef` is
+the card (an activated pump with no target, a perpetual pump of the card the
+ability returned, too). A `TriggeringSource` is the trigger's own object: the
+card when the trigger watches only the card (a death's "exile it", Protean
+Hydra's counters), except the events with a second object — the creature in
+combat with it, which another player controls (CR 509.1a), the Vehicle or Mount
+it crews or saddles; a watched filter's side otherwise, a damage trigger's on
+its `valid_source`, your attackers for "whenever you attack". An "it"
+(`ParentTarget`) is the chain's own target (the thread `iter_threaded_target_statics`
+walks), the n-th chosen object (`ParentTargetSlot`), the token the chain made, the
+last object an earlier effect named, a delayed trigger's watched object, the
+repeated object of "for each …", else the trigger's own object. Where phase binds
+the "it" to the wrong object, `misparsed_shapes` rewrites it first (a paid-for
+"it" in a trigger watching the card; heroic's "on it"; a noncreature Aura's "it
+gets"; a counter on "it" after a move to a hand or exile). A replacement's
+`SelfRef` is the creature an enters-with replacement watches, and the card in any
+other; a damage replacement's damaged creature is the watched one. The defending player can be you (`controller_reach`: Yare). Beside it,
+**boost delivery** (`boost_delivery`): a spell (an instant or sorcery's own spell
+ability, CR 115.1a) or an activated or triggered ability (a delayed triggered
+ability a spell creates included, CR 603.7, 115.1d), and **chosen target**
+(`chosen_target`): whether the boost targets one creature — never the object an
+Aura or Equipment is attached to, nor one chosen as the ability resolves (CR
+115.10a). The creature-boost signals split on these (`effect_boost` another
+creature or a group; `self_boost` the card itself; `boosts_others` by delivery).
+_Avoid_: "self pump" for a pump of another object a trigger watches; "pump
+maker" for the old `pump_makers` key (now `effect_boost`).
+
+**Card boost** (`card_boost`, `crosswalk.perpetual.card_boost_zones`):
+A perpetual power/toughness raise on cards of yours that are not on the
+battlefield (Dan's ruling, 2026-11-25), its signal subject the zone the card
+ends up in within the ability — the last zone move of that object, before or
+after the change (Richlau, Headmaster's card, put into your library after it):
+`hand`, `graveyard`, `library`, `stack` (a creature spell you cast), or
+`everywhere` for every card you own ("all cards you own named …"); a change
+naming several zones emits one signal per zone. Read off phase's typed change
+(the pump view's "off" recipients, and the changes nested in a trigger an
+effect makes, which no unit decorates) and off a parked one the recovery stage
+decorated (`recovery.mark_perpetual_cards`: `ConceptNode.perpetual_cards`, read
+with `clause_grammar.perpetual_change`, and `ConceptNode.moves_to` for a parked
+conjure or shuffle) — the residue stays parked, since phase's typed form for
+cards in a zone covers only a plain population of one zone. A change to the card
+itself (the card growing), a change granted to an object whose owner the
+structure doesn't tell (Tawnos Endures), and a shrink are none. The graveyard
+subject pairs with reanimation and recursion both ways, the hand and stack
+subjects with creature density both ways, and the library and everywhere ones
+are page-only (`signal_keys.SubjectRole.PAGE_ONLY`).
+_Avoid_: "perpetual pump" (a pump lands on the battlefield).
 
 **Clause grammar**:
 The shared pure text→structure clause parser (prefix peeling + verb dispatch)

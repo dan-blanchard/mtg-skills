@@ -10,6 +10,7 @@ from mtg_utils._analysis._sweep_detectors import (
 
 from ._shared import (
     _ARTIFACT_ETB_PAYOFF,
+    _BOOSTS_OTHERS_EXTRA,
     _CAST_FROM_EXILE_EXTRA,
     _COMBAT_SUPPORT_EXTRA,
     _COST_REDUCER_EXTRA,
@@ -18,6 +19,7 @@ from ._shared import (
     _DEATHTOUCH_GEAR_EXTRA,
     _ETB_PAYOFF_EXTRA,
     _EXTRA_COMBAT_EXTRA,
+    _FIREBREATHER_EXTRA,
     _GOWIDE_ANTHEM_EXTRA,
     _LANDS_FROM_GRAVE_EXTRA,
     _LOYALTY_DOUBLER_EXTRA,
@@ -25,7 +27,6 @@ from ._shared import (
     _PARADOX_PAYOFF_EXTRA,
     _PILLOWFORT_EXTRA,
     _PLUS_ONE_SERVE_IDENTS,
-    _PUMP_EXTRA,
     _SYM_MANA_EXTRA,
     _TOKEN_DOUBLER_EXTRA,
     _TOKEN_MAKER_EXTRA,
@@ -124,7 +125,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         # A combat-damage-trigger commander needs to CONNECT and survive: gear to suit
         # up (Ojutai), instant pump to push through / survive blocks (Benton), and extra
         # combats to multiply the trigger (Neheb -> Relentless Assault, Seize the Day).
-        extras=(_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA, _EXTRA_COMBAT_EXTRA),
+        extras=(_COMBAT_SUPPORT_EXTRA, _BOOSTS_OTHERS_EXTRA, _EXTRA_COMBAT_EXTRA),
     ),
     # ADR-0027 β: combat_damage_to_opp migrated to the Card IR; its
     # SWEEP_DETECTORS row is deleted, so the serve is hand-registered.
@@ -132,7 +133,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "combat_damage_to_opp",
         (
             _COMBAT_SUPPORT_EXTRA,
-            _PUMP_EXTRA,
+            _BOOSTS_OTHERS_EXTRA,
             _DAMAGE_AMPLIFIER_EXTRA,
             _EXTRA_COMBAT_EXTRA,
         ),
@@ -770,6 +771,8 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         # (The Rack) is out; activated X sinks (Crypt Rats) are a lane gap.
         None,
         serve_mana_cost=r"\{X\}",
+        # A firebreather is a mana sink too (ADR-0065).
+        extras=(_FIREBREATHER_EXTRA,),
     ),
     # A commander that exiles/takes opponents' library TOPS (Circu, Ragavan, Grenzo)
     # wants to SEE those tops — play-with-top-revealed shows what it will exile/steal.

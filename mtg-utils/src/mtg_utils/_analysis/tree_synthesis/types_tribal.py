@@ -876,6 +876,13 @@ def _creature_grant_targets(tree: ConceptTree) -> Iterator[object]:
                 yield getattr(sdef, "affected", None)
 
 
+def animates_itself(tree: ConceptTree) -> bool:
+    """Whether TREE makes itself a creature (CR 613.1d: an ``AddType{Creature}``
+    on ``SelfRef`` — a manland, Mutavault; a planeswalker or an artifact that
+    becomes a creature)."""
+    return any(tag_of(aff) == "SelfRef" for aff in _creature_grant_targets(tree))
+
+
 def animates_itself_as_land(tree: ConceptTree) -> bool:
     """Whether TREE is a land that makes itself a creature (a manland:
     Mutavault, Celestial Colonnade, the Restless cycle; CR 613.1d)."""

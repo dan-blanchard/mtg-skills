@@ -3,8 +3,10 @@
 Phase types "~ perpetually gets +1/+1" (Accident-Prone Apprentice) and "target
 creature an opponent controls perpetually gets -1/-2" (Davriel's Withering) as
 ``ApplyPerpetual{target, modification: ModifyPowerToughness{power, toughness}}``.
-"Perpetually" is an Arena-only (Alchemy) mechanic with no Comprehensive Rules
-entry: the change follows the card through every zone. Every lane that reads a
+"Perpetually" is an Arena-only (Alchemy) mechanic outside the Comprehensive
+Rules; the repo's digital supplement, DD1.1: "A perpetual effect modifies a
+specific card permanently for the rest of the game, regardless of zone
+changes". Every lane that reads a
 pump reads ``concept == "pump"`` and the ``Pump`` / ``PumpAll`` node's
 ``power`` / ``toughness`` / ``target``, so the change is decorated here, once,
 as that concept carrying a ``Pump`` / ``PumpAll`` view of the same fields — and
@@ -41,6 +43,9 @@ change rewrite (``misparsed_shapes``) asks too. The view is marked
 ``effect_boost`` reads it as a pump with a duration of its own — except one on
 the card itself, which is the card growing (Dan's call, 2026-11-25).
 
+A change that lands on cards of yours off the battlefield is the ``card_boost``
+read's (:func:`card_boost_zones`, at the end of this module), never a pump.
+
 Anything else — an earlier effect phase left a residue, a trigger mode phase
 couldn't type — is left unread. ``ApplyPerpetual`` stays in the typed tree, so
 the reads of its other parts (the keyword grant, the perpetual graveyard
@@ -61,6 +66,7 @@ from mtg_utils._card_ir.crosswalk.core import (
 )
 from mtg_utils._card_ir.crosswalk.reads import (
     ability_zones,
+    filter_controller,
     filter_inzone_zones,
     pump_raises,
     tag_of,
@@ -68,14 +74,19 @@ from mtg_utils._card_ir.crosswalk.reads import (
 from mtg_utils._card_ir.mirror.generated import GENERATED_BY_KEY
 from mtg_utils._card_ir.mirror.runtime import MISSING, MirrorVariant, TypedMirrorNode
 from mtg_utils._card_ir.perpetual_rules import (
+    EARLIER,
     OFF_BATTLEFIELD_TAGS,
     Recipient,
     card_by_zones,
     earlier_object,
+    earlier_zone,
+    later_zone,
     names_another_zone,
+    one_other_zone,
     population_pump_is_yours,
     tracked_population,
     trigger_object,
+    trigger_zone,
 )
 
 #: Fields under which an ability is granted to another object: a ``SelfRef``
@@ -85,12 +96,14 @@ _GRANT_FIELDS = frozenset({"static_abilities", "modifications", "definition"})
 
 class _Body(NamedTuple):
     """An ability body in its chain: the bodies before it, the trigger it runs
-    for (``None`` in an ability), and whether it sits in a granted ability."""
+    for (``None`` in an ability), whether it sits in a granted ability, and the
+    bodies after it."""
 
     body: TypedMirrorNode
     earlier: tuple[TypedMirrorNode, ...]
     trigger: TypedMirrorNode | None
     granted: bool
+    later: tuple[TypedMirrorNode, ...] = ()
 
 
 def _is_trigger_def(node: TypedMirrorNode) -> bool:
@@ -123,16 +136,17 @@ def _bodies(
     if tag_of(node) is None and isinstance(
         getattr(node, "effect", None), TypedMirrorNode
     ):
-        earlier: list[TypedMirrorNode] = []
+        chain: list[TypedMirrorNode] = []
         body: object = node
         while isinstance(body, TypedMirrorNode):
-            yield _Body(body, tuple(earlier), trigger, granted)
+            chain.append(body)
+            body = getattr(body, "sub_ability", None)
+        for i, body in enumerate(chain):
+            yield _Body(body, tuple(chain[:i]), trigger, granted, tuple(chain[i + 1 :]))
             for name, value in _children(body, skip="sub_ability"):
                 yield from _bodies(
                     value, trigger, granted=granted or name in _GRANT_FIELDS
                 )
-            earlier.append(body)
-            body = getattr(body, "sub_ability", None)
         return
     for name, value in _children(node):
         yield from _bodies(value, trigger, granted=granted or name in _GRANT_FIELDS)
@@ -378,3 +392,157 @@ def _pumped(view: TypedMirrorNode, returned: bool) -> ConceptNode:  # noqa: FBT0
     node = decorate_effect(view)
     assert node is not None
     return replace(node, perpetual=True, returned_self=returned)
+
+
+# ── A perpetual boost to your cards outside the battlefield ─────────────────────
+# The ``card_boost`` lane's read (Dan's ruling, 2026-11-25): where a perpetual
+# power/toughness raise lands on cards of yours that are not on the battlefield
+# ("A perpetual effect modifies a specific card permanently for the rest of the
+# game, regardless of zone changes" — the repo's digital supplement, DD1.1). Two
+# sources: phase's typed change (Veteran Charger's "choose a creature card in
+# your hand. It perpetually gets +2/+2"; Rothga, Bonded Engulfer's delayed "When
+# you cast a creature spell, it perpetually gets +X/+X", which no unit
+# decorates), and a parked one the recovery stage decorated with what it lands
+# on (``ConceptNode.perpetual_cards``, ``recovery.mark_perpetual_cards``: Feed
+# the Bog's "Creature cards in your graveyard perpetually get +1/+1"). The
+# residue stays parked: phase's typed form for cards in a zone covers only a
+# plain population of one zone (Fountainport Charmer's ``InZone`` filter), not a
+# random or topmost card, every card you own, or a duplicate a parked conjure
+# made. A card an earlier instruction named is filed where it ENDS UP in the
+# ability — the last zone move of that object, before or after the change
+# (Richlau, Headmaster's "Put it into your library second from the top"). A
+# change to the card itself is the card growing (Tomakul Phoenix), and a shrink
+# no boost.
+
+#: Effects that take a permanent off the battlefield to a zone of its owner's.
+_TAKES_A_PERMANENT = frozenset({"Destroy", "Bounce"})
+
+
+def _trigger_card_zone(trigger: TypedMirrorNode | None) -> str | None:
+    """The zone of the card a trigger watched, outside the battlefield; ``None``
+    for the card itself (a trigger that watches only it — Tomakul Phoenix)."""
+    if trigger is None or tag_of(getattr(trigger, "valid_card", None)) == "SelfRef":
+        return None
+    if _trigger_object(trigger) != "off":
+        return None
+    return trigger_zone(
+        getattr(trigger, "mode", None), getattr(trigger, "destination", None)
+    )
+
+
+def _moved_to(effect: object, decorations: dict) -> str | None:
+    """The zone a parked instruction moves its cards into, as the recovery stage
+    decorated it (``ConceptNode.moves_to``)."""
+    return next(
+        (c.moves_to for c in decorations.get(id(effect), ()) if c.moves_to), None
+    )
+
+
+def _earlier_card_zone(at: _Body, decorations: dict) -> str | None:
+    """The zone outside the battlefield of the card the earlier effect of the
+    chain acted on (``perpetual_rules.earlier_zone``), or of the cards a parked
+    conjure made ("conjure X duplicates of it into exile" — Gyox, Brutal
+    Carnivora); the trigger's card with no earlier effect."""
+    if not at.earlier:
+        return _trigger_card_zone(at.trigger)
+    effect = _earlier_effect(at)
+    if _returns_self(effect, decorations):
+        return None
+    if tag_of(effect) == "Unimplemented":
+        return _moved_to(effect, decorations)
+    target = getattr(effect, "target", None)
+    if (
+        tag_of(effect) in _TAKES_A_PERMANENT
+        and tag_of(target) == "Typed"
+        and filter_controller(target) != "You"
+    ):
+        # a permanent anyone controls, destroyed or returned to its owner's
+        # hand: no card of yours ("Destroy target nonland permanent. If a Dragon
+        # creature was beheld, it perpetually gets +2/+2" — Territorial Strike,
+        # whose "it" is the beheld Dragon phase typed as the destroyed one)
+        return None
+    return earlier_zone(
+        tag_of(effect),
+        destination=getattr(effect, "destination", None),
+        choice_zone=getattr(effect, "zone", None),
+        target_zones=_zones(target),
+    )
+
+
+def _object_zone(at: _Body, decorations: dict) -> str | None:
+    """Where the card an earlier instruction named (:func:`_earlier_card_zone`)
+    ends up in the ability: the last later effect of the chain that moves it
+    (one on ``ParentTarget``, ``perpetual_rules.later_zone``, or a parked move
+    of it — "Then shuffle those duplicates into your library"), else where the
+    earlier one left it."""
+    zone = _earlier_card_zone(at, decorations)
+    if zone is None:
+        return None
+    for body in at.later:
+        effect = getattr(body, "effect", None)
+        if tag_of(effect) == "Unimplemented":
+            zone = _moved_to(effect, decorations) or zone
+        elif tag_of(getattr(effect, "target", None)) == "ParentTarget":
+            zone = later_zone(tag_of(effect), getattr(effect, "destination", None)) or (
+                zone
+            )
+    return zone
+
+
+def _typed_card_zones(at: _Body, decorations: dict) -> tuple[str, ...]:
+    """Where the typed ``ApplyPerpetual`` heading ``at`` lands on a card of yours
+    outside the battlefield (the rules :func:`_recipient` reads it by): a target
+    in another zone, the earlier effect's object where it ends up, the
+    trigger's card, the population an earlier mass effect acted on. A change in
+    a granted ability lands on the object it was granted to, whose owner the
+    structure doesn't tell (Tawnos Endures's "Exile target creature" — anyone's),
+    so it is none."""
+    target = getattr(getattr(at.body, "effect", None), "target", None)
+    tag = tag_of(target)
+    if tag == "Typed":
+        if filter_controller(target) == "Opponent":
+            return ()
+        zone = one_other_zone(_zones(target))
+    elif tag == "ParentTarget":
+        zone = _object_zone(at, decorations)
+    elif tag == "TriggeringSource":
+        zone = _trigger_card_zone(at.trigger)
+    elif tag == "TrackedSet" and _tracked(at) == "off":
+        zone = _object_zone(at, decorations)
+    else:
+        zone = None
+    return (zone,) if zone else ()
+
+
+def _parked_card_zones(at: _Body, decorations: dict) -> tuple[str, ...]:
+    """Where the parked perpetual raise heading ``at`` lands on cards of yours
+    outside the battlefield: the recovery stage's ``perpetual_cards``, a card an
+    earlier instruction named located where it ends up (:func:`_object_zone`)."""
+    effect = getattr(at.body, "effect", None)
+    zones: list[str] = []
+    for c in decorations.get(id(effect), ()):
+        for entry in c.perpetual_cards:
+            zone = _object_zone(at, decorations) if entry == EARLIER else entry
+            if zone:
+                zones.append(zone)
+    return tuple(zones)
+
+
+def card_boost_zones(unit: AbilityUnit) -> frozenset[str]:
+    """The zones outside the battlefield where ``unit``'s perpetual power or
+    toughness raises land on cards of yours (``Hand``, ``Graveyard``,
+    ``Library``, ``Stack``, or ``EVERYWHERE``), typed or parked,
+    in its own chain and in every trigger nested under it."""
+    decorations: dict[int, list[ConceptNode]] = {}
+    for c in unit.effects:
+        decorations.setdefault(id(c.node), []).append(c)
+    zones: set[str] = set()
+    for at in _bodies(unit.node, None, granted=False):
+        effect = getattr(at.body, "effect", None)
+        mod = _pt_change(effect)
+        if mod is not None:
+            if pump_raises(mod) and not at.granted:
+                zones.update(_typed_card_zones(at, decorations))
+        elif tag_of(effect) == "Unimplemented":
+            zones.update(_parked_card_zones(at, decorations))
+    return frozenset(zones)

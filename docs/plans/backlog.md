@@ -114,26 +114,50 @@ are already known to it (each draft says where).
     over the earlier effect's filter, keeping its controller (Chaos Balor's
     `TargetPlayer`, which can be you, Dan's call 2026-11-25); a raise on a
     population only opponents control is no pump of yours (no card has one at
-    v0.131.0). Left parked, 33 of the census, and two it missed: cards outside the battlefield only (18: Advanced Floral
-    Invocations, Begin Anew, Blighted Nightmare, Bramblearmor Brawler, Dalkovan
-    Outrider, Elvish Elegy, Feed the Bog, Goblin Morale Sergeant, Golden
-    Sidekick, Grow Old Together, Gyox, Kithkin Brinefarer, Klement, Mycoid
-    Resurrection, Pampered Loamfrill, Thorna and Twigtooth, Thoughtweft's Call,
-    Valgavoth; and the 6 `unbound_subject` "it"s naming a card in a hand, a
-    graveyard or on the stack: By Elspeth's Command's second mode, Dina, Garruk,
-    Guildpact Greenwalker, Richlau, Undersimplify); a group on the battlefield,
-    for which phase has no perpetual form (its engine changes a population only
-    in a zone other than the battlefield): Legion of Clay, and Arming Gala,
-    Coalition Construct, Stalwart Speartail beside cards; "cards you own" in
-    every zone at once (Naktamun Shines Again, Network Marauder ×2, Unbreakable
-    Remnant); a condition (Mace of Disruption); outside the census, Alora,
-    Cheerful Thief's "a creature of your choice an opponent controls
-    perpetually gets -1/-0" (chosen, not targeted: phase's typed filter is a
-    target) and Lae'zel, Primal Warrior's "other creatures you control and
-    creature cards in your hand" (a group beside cards).
+    v0.131.0). The rest of the census, and two it missed, done 2026-11-25
+    (Dan's rulings): the battlefield groups are written as team pumps with no
+    end date (`misparsed_shapes`' team row: `PumpAll` lasting `Permanent`;
+    Legion of Clay, and Arming Gala, Coalition Construct, Stalwart Speartail,
+    Lae'zel, Primal Warrior beside cards, their residues kept for the cards),
+    and every boost to cards outside the battlefield is the new `card_boost`
+    signal (`crosswalk.perpetual.card_boost_zones` over phase's typed
+    changes and the recovery stage's `perpetual_cards` decoration; one subject
+    per zone, the zone the card ends up in within the ability: Richlau,
+    Headmaster's card is put into the library after its boost, Gyox, Brutal
+    Carnivora's duplicates are shuffled there, both `library`). The three
+    "cards you own" changes (Naktamun Shines Again, Network Marauder,
+    Unbreakable Remnant) also reach your permanents of those cards: that half is
+    written as the same team pump over your owned permanents, the residue kept
+    for `card_boost|you|everywhere`. Left parked, and why:
+    - *Mace of Disruption*: "if it has the same name as …" is the condition
+      phase parked; reading the boost without it would make it unconditional.
+    - *Alora, Cheerful Thief*: "a creature of your choice an opponent controls
+      perpetually gets -1/-0" — chosen, not targeted, and a shrink (no
+      `card_boost` either way).
+    - *Undersimplify*: "it perpetually gets -2/-0", a shrink of a spell on the
+      stack: no boost.
+  - *`card_boost` known gaps* (2026-11-25): Territorial Strike's "If a Dragon
+    creature was beheld, it perpetually gets +2/+2" is typed by phase as a
+    change to the destroyed permanent; the "it" is the beheld Dragon, which can
+    be revealed from your hand, so its `hand` boost is missed (read as none).
+    Scour the Scene's "choose a creature card in your hand or a creature you
+    control. It perpetually gets +1/+0" reads as `hand` only; the battlefield
+    option gets no pump (phase's choice is a `ChooseFromZone` of the hand).
+    Darigaaz's Whelp's draw trigger ("Whenever you draw a Dragon card, it …")
+    stays unread (phase's `Unknown` mode); its seek trigger gives `hand`.
+    Tawnos Endures's granted "if this card is exiled, it perpetually gets
+    +1/+1" is none: the exiled creature can be anyone's. A change to the card
+    itself is the card growing (Tomakul Phoenix). Soul Shredder holds no
+    boost: phase types its "~ perpetually gets +1/+1" on `Any`, and parks its
+    "also triggers if ~ is in your graveyard". Veteran
+    Charger, Coalition Construct and Lae'zel lose the voltron floor's
+    `voltron_matters|you|carrier`: the floor's commander-damage fallback is
+    silenced by any signal that opens an avenue, and a hand boost or a team
+    pump does.
   - *A pump behind a parked condition*: Sickle Dancer, Alex Wilder, Trail of
     Mystery (`unparsed_condition` / `unparsed_verb_arguments`; each on a ledger
-    row). The condition is what phase parked: typing the pump without it would
+    row — Sickle Dancer's self-pump on `self_pump_condition_parked` since
+    ADR-0065). The condition is what phase parked: typing the pump without it would
     make it unconditional.
   - *A static line*: Archangel of Strife's two ("Creatures controlled by
     players who chose war get +3/+0": no phase filter for the choice),
@@ -142,26 +166,57 @@ are already known to it (each draft says where).
     Death's Approach and Disturbing Conversion ("Enchanted creature gets
     -X/-X, where X is …"). (Heartseeker's "Equipped creature gets +2/+1 and
     has \"…\"" is typed now.)
-  - *A pump as a clause's second instruction*: done for five of the six
-    (Spry and Mighty, Heartseeker, Benalish Partisan, Managorger Phoenix,
-    Hurkyl's Prodigy). Left: Defiling Tears ("Until end of turn, target
-    creature becomes black, gets +1/-1, and gains \"…\""): phase dropped the
-    target with the clause, so the subject is only in the description, and a
-    +1/-1 would read as a shrink on what is a buff.
+  - *A pump as a clause's second instruction*: done for all six (Spry and
+    Mighty, Heartseeker, Benalish Partisan, Managorger Phoenix, Hurkyl's
+    Prodigy, and Defiling Tears 2026-11-25: its subject read from the
+    description, `misparsed_shapes`' verb-list row, typed as Lash of Malice's
+    "+2/-2" is and read the same — a pump with a chosen target and a shrink,
+    Dan's ruling). Its colour change and granted ability stay in the residue.
   - *Known limits of the pump view* (`crosswalk.perpetual`, no fix yet): a
     walk over the typed tree doesn't see it — `_etb_pump_unit`
     (`lanes/stax_and_tempo.py`) reads typed `Pump` nodes, so Leaf-Leap Guide
     gets no `entered_attacker|you|etb_pump`, and `walk_effect_chain` rebuilds
     its decorations from the tree, so a lane that walks a unit itself sees the
-    `ApplyPerpetual`, not the pump. And the battlefield groups stay residues,
-    because phase writes no perpetual change over a population on the
-    battlefield: Legion of Clay, Arming Gala, Coalition Construct, Stalwart
-    Speartail, Lae'zel, Primal Warrior.
-- **The combat-buff read misses phase's other combined trigger**
-  (`BlocksOrBecomesBlocked`: Chub Toad, Brushwagg — clear buffs). And its typed
-  counter arm takes any counter but -1/-1 as a buff, where the recovered arm
-  asks for a +1/+1 counter: a combat trigger that places a charge or stun
-  counter reads as a buff. Measure before narrowing.
+    `ApplyPerpetual`, not the pump.
+- **Left open by the boost lines (ADR-0065, 2026-11-25)**:
+  - *"It"s left unread* (`boost_recipient` says `unknown`): Mirkwood Trapper's
+    "that player chooses an attacking creature. It gets +2/+0"; Sigardian
+    Zealot's "choose any number of creatures … Each of them gets +X/+X"; Garruk,
+    Apex Predator's emblem ("Whenever a creature attacks you, it gets +5/+5");
+    Curse of Stalked Prey's "put a +1/+1 counter on that creature" (a damage
+    trigger naming no source); Tusk and Whiskers's sticker trigger (phase's
+    `Unknown` mode, "Whenever you put an ability sticker on a creature").
+  - *Combat counters a static turns into power, not read*: Beorn the Fierce's
+    trample counter (the +2/+2 is its Bear lord's, reached by the type change,
+    not by the counter) and Sephiroth, Fallen Hero's cell counter (a base-P/T
+    setting, CR 613.4b, not a raise) stay out of `combat_trigger_boost` by Dan's
+    counter-to-static ruling (`crosswalk.feeds_own_static`).
+  - Granted firebreathing (Shiv's Embrace, Kusari-Gama) and a granted prowess are
+    read by neither `self_boost` nor `boosts_others`.
+  - *Targeting payoffs the residue arm reads* name no source since the oracle-text
+    read of their clause was removed (2026-11-25), so they read as either (`""`)
+    and are offered both the spell and the ability pages: Agrus Kos, Eternal
+    Soldier and Skophos Maze-Warden (abilities only, phase's `Unknown` mode),
+    Dormant Gomazoa (`Unknown`), Iron Fist, Living Weapon and Ms. Marvel, Kamala
+    Khan ("a spell that targets a creature you control", which
+    `targeting_trigger_source` doesn't read), Brine Comber's back face. Bill
+    Potts's "activate an ability that targets only ~" (`Unknown`) is not read;
+    its typed cast half reads `targeting_matters|any|spell`. The fix is a
+    `clause_grammar` read of the `Unknown` mode (as Akiri's is) with a canary,
+    and `targeting_trigger_source` extended to a cast trigger on your creatures.
+  - Earthbend's "put N +1/+1 counters on it" (a land it animates, which it
+    targets) is `boosts_others|target_ability`.
+  - `self_boost|you|static` is a rider in the commander-need read but not in the
+    tuner's dead-payoff read (`NEUTRAL_KEYS` is key-level).
+  - Speedball, New Warrior's typed "a player casts a spell that targets ~" is
+    `targeting_matters|any|spell`, a payoff subject that silences its voltron
+    carrier floor (it held only the `you` side before).
+  - Meatsqueak, Hoard Lord's "For every seven Foods you control, Squirrels you
+    control get +3/+3" is typed as a static on `SelfRef` with the count dropped,
+    so it reads as `self_boost|you|static` and not as a team pump; an upstream
+    phase misparse (worth a phase issue), not ledgered.
+  - Bloodthirsty Blade keeps `voltron_makers|you|pump` though it attaches only to
+    an opponent's creature (`boosts_others` drops it).
 - **Where-X clauses the recovery reads as the wrong thing** (each to settle
   per card; none moves a signal today unless said): Commander Liara Portyr's
   "spells you cast from exile this turn cost {X} less" recovers as
@@ -195,9 +250,11 @@ are already known to it (each draft says where).
   Arena ability phase writes as two triggers the split rule misses (Apex
   Witchstalker). The chosen X was checked in 6 resolutions (it is rare in play);
   X doubled, halved or offset is not read.
-- **Two `misparsed_shapes` rows still check phase's own ability text with a
-  regex (2026-11-09).** Unwanted Remake's "Its controller manifests dread" and
-  Mirko's "power less than ~'s".
+- **Three `misparsed_shapes` rows still check phase's own ability text
+  (2026-11-09; the third 2026-11-25).** Unwanted Remake's "Its controller
+  manifests dread", Mirko's "power less than ~'s", and the flattened boon's
+  "boon with \"When you cast your next creature spell, it perpetually gets"
+  (Flaming Fist Duskguard, Valiant Farewell; Dark Salvation is the look-alike).
   Each fixes a node phase typed but left a player or filter out of, and the text
   only tells the misread apart from look-alike structures (each row's docstring has
   the census). There is no parked clause for the recovery grammar, so they stay

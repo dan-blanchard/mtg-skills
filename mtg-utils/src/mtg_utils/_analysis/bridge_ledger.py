@@ -56,6 +56,7 @@ from dataclasses import dataclass
 from functools import cache
 from typing import TYPE_CHECKING
 
+from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis._sweep_detectors import NAMED_PERMANENT_REGEX
 from mtg_utils._analysis.signal_base import Signal
@@ -2089,15 +2090,29 @@ def _plains_lifegain_gap(tree: ConceptTree) -> bool:
     return _says(_PLAINS_LIFEGAIN_RX, tree.residues("unparsed_condition"))
 
 
-# A conditional "gets +N/+N until end of turn" → effect_boost (Alex Wilder's "it
-# gets +2/+0 and gains haste until end of turn", Septic Rats, Sickle Dancer).
+# A conditional "gets +N/+N until end of turn" → effect_boost when it lands on a
+# creature other than the card (Alex Wilder's "it gets +2/+0 and gains haste until
+# end of turn": the creature that entered), self_boost when on the card itself
+# (Sickle Dancer's "this creature gets +1/+1" — ADR-0065, Dan's ruling 2026-11-25:
+# a card whose pump lands only on itself boosts no other creature).
 _PUMP_CONDITION_RX = re.compile(
     r"\bgets \+\d+/\+\d+ (?:and gains \w+ )?until end of turn\b", re.IGNORECASE
+)
+_SELF_PUMP_CONDITION_RX = re.compile(
+    rf"{_SELF_REF} gets \+\d+/\+\d+ (?:and gains \w+ )?until end of turn\b",
+    re.IGNORECASE,
 )
 
 
 def _pump_condition_gap(tree: ConceptTree) -> bool:
-    return _says(_PUMP_CONDITION_RX, tree.residues("unparsed_condition"))
+    return any(
+        _PUMP_CONDITION_RX.search(t) and not _SELF_PUMP_CONDITION_RX.search(t)
+        for t in tree.residues("unparsed_condition")
+    )
+
+
+def _self_pump_condition_gap(tree: ConceptTree) -> bool:
+    return _says(_SELF_PUMP_CONDITION_RX, tree.residues("unparsed_condition"))
 
 
 # A conditional CopySpell → spell_copy_makers: "copy that spell (or ability)" /
@@ -2243,17 +2258,6 @@ _PERPETUAL_X_PUMP_RX = re.compile(
 
 def _perpetual_x_pump_gap(tree: ConceptTree) -> bool:
     return _says(_PERPETUAL_X_PUMP_RX, tree.residues("perpetual_modify_pt"))
-
-
-# Network Marauder's "all artifact creature cards and Spacecraft cards you own
-# perpetually get +1/+1" → station_matters.
-_SPACECRAFT_PERPETUAL_RX = re.compile(
-    r"\bspacecraft cards you own perpetually get\b", re.IGNORECASE
-)
-
-
-def _spacecraft_perpetual_gap(tree: ConceptTree) -> bool:
-    return _says(_SPACECRAFT_PERPETUAL_RX, tree.residues("perpetual_modify_pt"))
 
 
 # ── granter_reference_unreached: a granted ability naming its granter ────────
@@ -3839,13 +3843,23 @@ BRIDGES: dict[str, Bridge] = {
             "pump_condition_parked",
             "effect_boost",
             "unparsed_condition",
-            "an intervening-if 'gets +N/+N until end of turn'",
+            "an intervening-if 'gets +N/+N until end of turn' on another creature",
             # Septic Rats graduated at phase v0.131.0 (see
             # conditional_combat_pump_parked).
-            ("Alex Wilder, Runaway", "Sickle Dancer"),
+            ("Alex Wilder, Runaway",),
             _pump_condition_gap,
             _oracle_match(_PUMP_CONDITION_RX),
-            hits=3,
+            hits=1,
+        ),
+        _residue_row(
+            "self_pump_condition_parked",
+            signal_keys.SELF_BOOST,
+            "unparsed_condition",
+            "an intervening-if '~ gets +N/+N until end of turn' on the card itself",
+            ("Sickle Dancer",),
+            _self_pump_condition_gap,
+            _oracle_match(_SELF_PUMP_CONDITION_RX),
+            hits=1,
         ),
         _residue_row(
             "copy_spell_condition_parked",
@@ -3955,16 +3969,6 @@ BRIDGES: dict[str, Bridge] = {
             _perpetual_x_pump_gap,
             _oracle_match(_PERPETUAL_X_PUMP_RX),
             hits=2,
-        ),
-        _residue_row(
-            "perpetual_spacecraft_pump_parked",
-            "station_matters",
-            "perpetual_modify_pt",
-            "a perpetual pump of Spacecraft cards you own",
-            ("Network Marauder",),
-            _spacecraft_perpetual_gap,
-            _oracle_match(_SPACECRAFT_PERPETUAL_RX),
-            hits=1,
         ),
         # granter_reference_unreached
         _residue_row(

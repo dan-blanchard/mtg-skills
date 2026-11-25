@@ -170,12 +170,19 @@ def test_a_trigger_on_an_opponents_side_of_targeting_takes_their_side(name):
     assert "targeting_matters|any|you" not in idents
 
 
-@pytest.mark.parametrize("name", ["Informed Inkwright", "Phantasmal Bear"])
-def test_an_unsided_targeting_payoff_takes_no_side(name):
+@pytest.mark.parametrize(
+    ("name", "watched"),
+    [
+        # a cast trigger: only a spell fires it (ADR-0065)
+        ("Informed Inkwright", "targeting_matters|any|spell"),
+        ("Phantasmal Bear", "targeting_matters|any|"),
+    ],
+)
+def test_an_unsided_targeting_payoff_takes_no_side(name, watched):
     """Repartee watches a spell targeting any creature; Phantasmal Bear's
     drawback fires on anyone's spell or ability."""
     idents = _idents(name)
-    assert "targeting_matters|any|" in idents
+    assert watched in idents
     assert not {"targeting_matters|any|you", "targeting_matters|any|opponents"} & (
         idents
     )

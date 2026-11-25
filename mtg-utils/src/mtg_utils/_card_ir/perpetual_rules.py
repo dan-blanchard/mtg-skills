@@ -1,12 +1,16 @@
 """Where a perpetual power/toughness change lands: the rules both readers share.
 
-"Perpetually" is an Arena-only (Alchemy) mechanic with no Comprehensive Rules
-entry; counting such a change as a pump only on a creature on the battlefield is
+"Perpetually" is an Arena-only (Alchemy) mechanic outside the Comprehensive
+Rules (the repo's digital supplement, DD1.1: "A perpetual effect modifies a
+specific card permanently for the rest of the game, regardless of zone
+changes"); counting such a change as a pump only on a creature on the battlefield is
 the lane's own decision (2026-11-25). Two readers ask where a change lands:
 ``crosswalk.perpetual`` over the typed tree (which ``ApplyPerpetual`` is a pump)
 and ``misparsed_shapes`` over the raw face records (which parked change to
 write as one). Each pulls the tags and zones out of its own representation and
-asks the same questions here, so the two cannot drift. Plain values only:
+asks the same questions here, so the two cannot drift. Where a change lands
+off the battlefield (:func:`earlier_zone`, :func:`trigger_zone`) is the
+``card_boost`` read's (``crosswalk.perpetual.card_boost_zones``). Plain values only:
 nothing here reads the mirror, a tree or a record.
 """
 
@@ -124,6 +128,87 @@ def tracked_population(
     if tag in OFF_BATTLEFIELD_TAGS:
         return "off"
     return "unknown"
+
+
+#: The zone a card is put into by an effect that takes it off the battlefield
+#: or acts on it outside it, where the effect itself doesn't name one: a card
+#: sought, drawn or returned to a hand is in a hand; one destroyed, sacrificed,
+#: discarded or milled is in a graveyard.
+_TAG_ZONES = {
+    "Seek": "Hand",
+    "Draw": "Hand",
+    "DraftFromSpellbook": "Hand",
+    "Bounce": "Hand",
+    "Destroy": "Graveyard",
+    "Sacrifice": "Graveyard",
+    "Discard": "Graveyard",
+    "Mill": "Graveyard",
+}
+
+
+#: What a parked perpetual raise on cards outside the battlefield lands on,
+#: beside a zone (``ConceptNode.perpetual_cards``): every card you own, in any
+#: zone, and a card an earlier instruction named ("it", "that card", "the
+#: duplicate"), which the ``card_boost`` read locates by the chain's structure.
+EVERYWHERE = "Everywhere"
+EARLIER = "Earlier"
+#: The residues a perpetual change is parked as: the clause, and the "it" whose
+#: subject phase couldn't bind.
+PERPETUAL_RESIDUES = frozenset({"perpetual_modify_pt", "unbound_subject"})
+
+
+def one_other_zone(zones: Iterable[str]) -> str | None:
+    """The one zone ``zones`` names, when it is not the battlefield."""
+    found = set(zones)
+    return next(iter(found)) if len(found) == 1 and "Battlefield" not in found else None
+
+
+def earlier_zone(
+    tag: str | None,
+    *,
+    destination: str | None,
+    choice_zone: str | None,
+    target_zones: Iterable[str],
+) -> str | None:
+    """The zone outside the battlefield the object the earlier effect of the
+    chain acted on is in (``ParentTarget``'s antecedent, :func:`earlier_object`
+    "off"): a card chosen from a hand (Veteran Charger), put into one
+    (Giant Regrowth), sought (Hardened Bonds), returned to one (Candela, Aegis
+    of Adagia), conjured into a library (Goblin Morale Sergeant), or a target
+    its filter places in a graveyard (Richlau, Headmaster). ``None`` on the
+    battlefield, or where the structure doesn't tell."""
+    if destination and destination != "Battlefield":
+        return destination
+    if tag == "ChooseFromZone":
+        return choice_zone if choice_zone and choice_zone != "Battlefield" else None
+    if tag in _TAG_ZONES:
+        return _TAG_ZONES[tag]
+    return one_other_zone(target_zones)
+
+
+def trigger_zone(mode: str | None, destination: str | None) -> str | None:
+    """The zone a trigger's object is in outside the battlefield
+    (:func:`trigger_object` "off"): the zone a card was put into (Volatile
+    Rift's "a creature card is put into your hand"), the stack for a spell cast
+    (Rothga, Bonded Engulfer's "When you cast a creature spell, it perpetually
+    gets …")."""
+    if mode in ("ChangesZone", "ChangesZoneAll"):
+        return destination if destination and destination != "Battlefield" else None
+    return "Stack" if mode == "SpellCast" else None
+
+
+#: Effects that put a card into a library without naming a destination.
+_TO_LIBRARY_TAGS = frozenset({"PutAtLibraryPosition", "PutOnTopOrBottom"})
+
+
+def later_zone(tag: str | None, destination: str | None) -> str | None:
+    """The zone a later effect of the chain moves the object it names into
+    (``ParentTarget``), outside the battlefield: Richlau, Headmaster's "Put it
+    into your library second from the top" after the change. ``None`` for an
+    effect that moves nothing."""
+    if tag in ("ChangeZone", "ChangeZoneAll"):
+        return destination if destination and destination != "Battlefield" else None
+    return "Library" if tag in _TO_LIBRARY_TAGS else None
 
 
 def population_pump_is_yours(controller: str | None, *, raises: bool) -> bool:

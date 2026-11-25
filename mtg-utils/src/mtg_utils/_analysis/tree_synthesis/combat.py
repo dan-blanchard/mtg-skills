@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
+from typing import NamedTuple
 
 from mtg_utils._analysis._sweep_detectors import PUMP_MATTERS_REGEX
 from mtg_utils._analysis.signal_base import clauses
@@ -24,6 +25,8 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     attack_trigger_side,
+    boost_recipient,
+    chosen_target,
     condition_tags,
     count_operand_filter,
     effect_filter,
@@ -32,12 +35,13 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_predicates,
     filter_subtypes,
+    generic_effect_boosts,
     iter_mod_sites,
     iter_typed_nodes,
+    memo_on,
     mod_keyword_name,
     node_duration,
     picked_by_caster,
-    pt_mod_signs,
     pump_is_negative,
     quantity_referent,
     tag_of,
@@ -562,8 +566,8 @@ def _arm_power_matters(tree: ConceptTree) -> ConceptNode | None:
 #     top-level ``Pump``/``PumpAll`` effect tag — the SAME mechanic, a
 #     different phase shape. Gated the SAME way: the unit (or a nested
 #     wrapper) must carry a duration, and a static whose ``affected`` is
-#     ``SelfRef`` is the firebreathing/self-buff veto (Clickslither,
-#     Crazed Armodon — self_pump's country, not this lane); a
+#     ``SelfRef`` is the card boosting itself (Clickslither, Crazed
+#     Armodon — ``self_boost``'s, not this lane's); a
 #     ``ParentTarget`` (the ability's own external target — Ajani Steadfast)
 #     or a direct ``Typed`` filter (a "creatures you control" mass buff) both
 #     count. Positive-value gate mirrors (a).
@@ -580,66 +584,63 @@ def _pump_fixed_value(node: object) -> int | None:
     return getattr(node, "value", 0) or 0 if tag_of(node) == "Fixed" else None
 
 
-def _targets_a_friendly_object(target: object) -> bool:
-    """A chosen object of any side but an opponent's ("target creature",
-    "target creature you control")."""
-    return (
-        tag_of(target) in ("Typed", "Or", "And")
-        and filter_controller(target) != "Opponent"
-    )
+class EffectBoostUnit(NamedTuple):
+    """One unit of :func:`effect_boost_units`: whether it holds an effect boost
+    (``boosts``), and the effect nodes of it that pump ONE chosen creature that
+    isn't an opponent's (``targeted``)."""
+
+    unit: AbilityUnit
+    boosts: bool
+    targeted: tuple[object, ...]
 
 
-def has_structural_effect_boost(tree: ConceptTree, *, targeted: bool = False) -> bool:
-    """A duration-scoped ``Pump``/``PumpAll`` effect (or a perpetual one on a
-    creature other than the card itself) with a positive fixed
-    power OR toughness (widened from power-only), a "+"-grounded dynamic
-    amount, OR a nested ``GenericEffect``/``Continuous``-static
-    ``AddPower``/``AddToughness`` grant or its counted form
-    (:func:`pt_mod_signs`; the firebreathing self-buff excluded via
-    the ``SelfRef``-affected veto). With ``targeted`` — asked of a
-    card already a pump maker — whether one of its pumps lands on ONE chosen
-    creature that isn't an opponent's (CR 115.1a: "target creature gets +3/+3"
-    — Brute Force), never a ``PumpAll`` or a grant to a group (Charge's
-    "Creatures you control get +1/+1")."""
+def effect_boost_units(tree: ConceptTree) -> tuple[EffectBoostUnit, ...]:
+    """Each unit holding an effect boost or a pump of one chosen creature
+    (:class:`EffectBoostUnit`; memoized on the tree). A targeted pump is one on
+    a creature the ability targets (``crosswalk.chosen_target``: CR 115.1a,
+    "target creature gets +3/+3" — Brute Force; "Untap target creature. It gets
+    +2/+4" — Spidery Grasp, the "it" read through the chain's own target), never
+    a ``PumpAll``, a grant to a group (Charge's "Creatures you control get
+    +1/+1"), the object an Aura or Equipment is attached to, or a creature
+    chosen as the ability resolves. ``targeted`` is asked of a card already an
+    effect boost (``boosts_others``), so an amount with no sign to read counts
+    there ("+X/+X, where X is …" — Kang Dynasty).
+
+    An effect boost is a spell's, an activated or a triggered ability's raise
+    of ANOTHER creature's power or toughness, or a group's
+    (``crosswalk.boost_recipient``; Dan's ruling, 2026-11-25): a timed
+    ``Pump`` / ``PumpAll`` (or a perpetual one, ``crosswalk.perpetual``) with a
+    positive fixed power OR toughness, a "+"-grounded dynamic amount, or a
+    nested ``GenericEffect`` / ``Continuous``-static ``AddPower`` /
+    ``AddToughness`` grant or its counted form (:func:`pt_mod_signs`). A boost
+    of the card itself is ``self_boost``'s (Shivan Dragon's firebreathing,
+    Glaze Fiend's trigger, Ichor Aberration's perpetual growth), and one that
+    can land only on an opponent's creature is no boost of yours (Flailing
+    Drake's "that creature": the one in combat with it, CR 509.1a)."""
+    return memo_on(tree, "_xw_effect_boost_units", _effect_boost_units)
+
+
+def _effect_boost_units(tree: ConceptTree) -> tuple[EffectBoostUnit, ...]:
+    out: list[EffectBoostUnit] = []
     for unit in tree.units:
+        boosts = False
+        targeted: list[object] = []
         if any(c.concept == "pump" for c in unit.effects):
             dur_unit = any(
                 node_duration(n) is not None for n in iter_typed_nodes(unit.node)
             )
             for c in unit.effect_concepts("pump"):
-                target_tag = tag_of(getattr(c.node, "target", None))
-                if c.perpetual:
-                    # A perpetual change lasts (``crosswalk.perpetual``): timed
-                    # or better, read on its own node. One on the card itself
-                    # is the card growing, no pump maker, whatever else in the
-                    # unit is timed (Ichor Aberration's "you may cast it from
-                    # your graveyard this turn") — Dan's call, 2026-11-25.
-                    if target_tag == "SelfRef":
-                        continue
-                elif not (dur_unit or node_duration(c.node)):
+                # A perpetual change lasts (``crosswalk.perpetual``): timed or
+                # better, read on its own node.
+                if not (c.perpetual or dur_unit or node_duration(c.node)):
                     continue
-                if unit.kind == "Activated" and target_tag in (None, "SelfRef"):
-                    continue  # firebreathing self-pump veto
+                if boost_recipient(unit, c) != "yours":
+                    continue
                 p = getattr(c.node, "power", None)
                 t = getattr(c.node, "toughness", None)
                 pv, tv = _pump_fixed_value(p), _pump_fixed_value(t)
-                if targeted:
-                    # A fixed raise on either side ("+2/-2" — Lash of Malice),
-                    # or an amount with no fixed sign: the caller asks only of
-                    # a pump maker ("+X/+X where X is …" — Kang Dynasty).
-                    if (
-                        tag_of(c.node) == "Pump"
-                        and _targets_a_friendly_object(getattr(c.node, "target", None))
-                        and (
-                            (pv is not None and pv > 0)
-                            or (tv is not None and tv > 0)
-                            or not pump_is_negative(c.node)
-                        )
-                    ):
-                        return True
-                    continue
                 raw = c.raw or getattr(unit.node, "description", None) or ""
-                has_plus = "+" in raw and target_tag != "SelfRef"
+                has_plus = "+" in raw
                 # Power and toughness are gated INDEPENDENTLY (widened from
                 # power-only): a Fixed amount decides on its OWN sign, a
                 # dynamic/absent amount falls back to the shared "+"-grounded
@@ -649,30 +650,47 @@ def has_structural_effect_boost(tree: ConceptTree, *, targeted: bool = False) ->
                 # Hound) fires off toughness alone.
                 power_ok = (pv is not None and pv > 0) or (pv is None and has_plus)
                 tough_ok = (tv is not None and tv > 0) or (tv is None and has_plus)
-                if power_ok or tough_ok:
-                    return True
-        dur_unit = any(
-            node_duration(n) is not None for n in iter_typed_nodes(unit.node)
-        )
-        if not dur_unit:
-            continue
-        for node in iter_typed_nodes(unit.node):
-            if tag_of(node) != "GenericEffect":
-                continue
-            if targeted and not _targets_a_friendly_object(
-                getattr(node, "target", None)
-            ):
-                continue
-            for st in getattr(node, "static_abilities", None) or ():
-                if tag_of(getattr(st, "affected", None)) == "SelfRef":
-                    continue  # firebreathing / self-buff veto
-                if targeted and tag_of(getattr(st, "affected", None)) != "ParentTarget":
+                boosts = boosts or power_ok or tough_ok
+                # Targeted: a fixed raise on either side ("+2/-2" — Lash of
+                # Malice), or an amount with no fixed sign ("+X/+X where X is
+                # …" — Kang Dynasty).
+                if (
+                    tag_of(c.node) == "Pump"
+                    and chosen_target(unit, c.node, getattr(c.node, "target", None))
+                    is not None
+                    and (
+                        (pv is not None and pv > 0)
+                        or (tv is not None and tv > 0)
+                        or not pump_is_negative(c.node)
+                    )
+                ):
+                    targeted.append(c.node)
+        if any(node_duration(n) is not None for n in iter_typed_nodes(unit.node)):
+            # A fixed raise or a counted one ("gets +1/+0 for each card you've
+            # drawn this turn" — Fists of Flame; Berserk's "+X/+0").
+            for recipient, node, st in generic_effect_boosts(unit):
+                if recipient != "yours":
                     continue
-                # A fixed raise or a counted one ("gets +1/+0 for each card
-                # you've drawn this turn" — Fists of Flame; Berserk's "+X/+0").
-                if any(sign > 0 for sign in pt_mod_signs(st)):
-                    return True
-    return False
+                boosts = True
+                if tag_of(getattr(st, "affected", None)) != "ParentTarget":
+                    continue
+                own = getattr(node, "target", None)
+                if own is not None and tag_of(own) != "ParentTarget":
+                    hit = chosen_target(unit, node, own)
+                else:
+                    hit = chosen_target(
+                        unit, st, getattr(st, "affected", None), owner=node
+                    )
+                if hit is not None:
+                    targeted.append(node)
+        if boosts or targeted:
+            out.append(EffectBoostUnit(unit, boosts, tuple(targeted)))
+    return tuple(out)
+
+
+def has_structural_effect_boost(tree: ConceptTree) -> bool:
+    """Whether the card holds an effect boost (:func:`effect_boost_units`)."""
+    return any(u.boosts for u in effect_boost_units(tree))
 
 
 _EFFECT_BOOST_SYNTH_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)

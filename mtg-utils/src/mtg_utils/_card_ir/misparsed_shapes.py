@@ -138,12 +138,13 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   perpetually gets +1/+1" as ``ApplyPerpetual{target, modification:
   ModifyPowerToughness}`` (Accident-Prone Apprentice), which
   ``crosswalk.perpetual`` reads as a pump on a creature on the battlefield (the
-  lane's own decision; "perpetually" is Arena-only, with no Comprehensive Rules
-  entry). A residue the shared clause grammar reads as such a change
-  (``clause_grammar.split_pump``) is written in that form, one change per
-  subject that names a creature on the battlefield, on the target phase writes
-  for the words: ``Any`` for "~" (Wary Zone Guard), ``SelfRef`` for an "it"
-  after an instruction that leaves "~" on the battlefield or returns it there
+  lane's own decision; "perpetually" is Arena-only, outside the Comprehensive
+  Rules — the repo's digital supplement, DD1.1, defines it). A residue the
+  shared clause grammar reads as such a change (``clause_grammar.split_pump``)
+  is written in that form, one change per subject that names a creature on
+  the battlefield, on the target phase writes for the words: ``Any`` for "~"
+  (Wary Zone Guard), ``SelfRef`` for an "it" after an instruction that leaves
+  "~" on the battlefield or returns it there
   (Hex, Kellan's Companion; ``clause_grammar.lead_object``, which also tells a
   lead that takes the card away — "return ~ to its owner's hand and it …" stays
   parked), ``ParentTarget`` for "that Elf" after an untap of it or an "it"
@@ -164,12 +165,40 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   — stays, the change chained after it (before it, where its ``ParentTarget``
   names the effect before the residue). Left parked: a subject naming only
   cards outside the battlefield (most of them: "creature cards in your
-  graveyard", "the topmost creature card in your library"), a group ("creatures
-  you control" — Legion of Clay, Lae'zel, Primal Warrior: phase's perpetual
-  change over a population reaches only cards outside the battlefield, so no
-  form says it), a creature "of your choice" (Alora, Cheerful Thief: chosen, not
-  targeted), an X, a condition (Mace of Disruption).
+  graveyard", "the topmost creature card in your library" — read in place by
+  ``crosswalk.perpetual.card_boost_zones``, the ``card_boost`` lane), a group
+  (the next row's), a creature "of your choice" (Alora, Cheerful Thief: chosen,
+  not targeted), an X, a condition (Mace of Disruption).
   ``test_parked_perpetual_pump_canary`` fails once phase types them.
+
+* **A perpetual boost to your team phase parks.** "Creatures you control
+  perpetually get +1/+1" (Legion of Clay) is a ``perpetual_modify_pt`` residue,
+  and phase has no perpetual form for a population on the battlefield (its
+  engine enumerates one only in another zone). Dan's ruling (2026-11-25): it is
+  written as a team pump with no end date, phase's ``PumpAll`` over the group
+  (the ``Typed`` filter "creatures you control" types, with ``Another`` for
+  "other", the subtype for "other Dinosaurs", ``IsChosenCreatureType`` for "of
+  the chosen type") on a body lasting ``Permanent`` (phase's ``Duration`` for no
+  end date, which GenericEffect bodies carry) — a direct rewrite, not a
+  ``PumpAll`` the pump view marks perpetual: the view keys on
+  ``ApplyPerpetual``, and a perpetual change over a group would have to be a
+  node phase doesn't write before the view could read it. Every team lane then
+  reads it as any other one-shot team pump. A clause naming cards beside the
+  group ("creatures you control and creature cards in your hand, library, and
+  graveyard" — Arming Gala; Coalition Construct, Stalwart Speartail, Lae'zel,
+  Primal Warrior) keeps its residue for the cards, the pump chained after it;
+  phase cut Arming Gala's residue at its zone list's comma, so its clause is
+  read from the description (``clause_grammar.residue_clause``). A change to
+  every card you own reaches your permanents of them too ("All creature cards
+  you own with mana value 2 or less perpetually get +1/+0" — Naktamun Shines
+  Again; Network Marauder, Unbreakable Remnant): that half is the same team
+  pump over your owned permanents of those cards (``Owned``, with the cards'
+  types, subtype, ``Cmc`` bound or ``Named``), the residue kept for the cards
+  in every other zone. The subject is read by
+  ``clause_grammar.perpetual_change``. Eight cards at v0.131.0.
+  ``test_parked_perpetual_team_pump_canary`` and
+  ``test_parked_perpetual_owned_team_pump_canary`` fail once phase types
+  them.
 
 * **A pump as a clause's second instruction.** "Draw X cards and the chosen
   creatures get +X/+X and gain trample" (Spry and Mighty) is one
@@ -185,6 +214,58 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   (Bonesplitter); the residue stays for the granted ability.
   ``test_static_pump_line_canary`` fails once phase types it.
 
+* **A keyword's pump with no duration.** Exalted, battle cry and bushido are
+  triggered abilities whose pump lasts until end of turn (CR 702.83a: "that
+  creature gets +1/+1 until end of turn"; 702.91a: "each other attacking
+  creature gets +1/+0 until end of turn"; 702.45a: "it gets +N/+N until end of
+  turn"). Phase expands each keyword into its trigger (Akrasan Squire, Accorder
+  Paladin, Samurai of the Pale Curtain) but leaves the body's ``duration``
+  ``null``, which it writes ``UntilEndOfTurn`` for the same pump printed out
+  (Glaze Fiend), so no read sees a timed pump: 35 exalted and 14 battle cry
+  cards missed ``effect_boost``. A trigger with the keyword's own shape — its
+  mode, the object it watches, the pump and where it lands — on a face that has
+  the keyword gets the duration. ``test_keyword_pump_duration_canary`` fails
+  once phase writes it.
+
+* **A trigger's "it" phase binds to the wrong object.** Four shapes, each
+  read off the structure alone. (1) "Whenever ~ attacks, you may pay {E}{E}.
+  If you do, put a +1/+1 counter on it" (the Thriving cycle, Riparian Tiger,
+  Voltaic Brawler; 16 cards): the pump, counter or grant after only a
+  ``PayCost`` is written on ``ParentTarget``, which names no earlier object;
+  in a trigger that watches only the card, the "it" is the card, phase's
+  ``SelfRef``. (2) Heroic's "Whenever you cast a spell that targets ~, put a
+  +1/+1 counter on it" (Fabled Hero; 4 cards) writes the counter on
+  ``TriggeringSource``, the spell; a counter goes on a permanent, and the spell
+  targets the card, so it is ``SelfRef``. (3) A noncreature Aura's "it gets
+  +3/+3" (Paroxysm) is written on ``SelfRef``, but a noncreature permanent has
+  no power or toughness (CR 208.3): it is the enchanted creature.
+  (4) A +1/+1 counter on "it" right after a move to a hand or to exile (First
+  Responder, Torrent Sculptor): a counter on a card off the battlefield grows
+  nothing, and the text names the card, so it is ``SelfRef``.
+  ``test_paid_then_it_canary``, ``test_heroic_it_canary``,
+  ``test_aura_self_pump_canary`` and ``test_moved_away_it_canary`` fail once
+  phase binds them.
+* **A pump in a verb list whose subject phase dropped.** "Until end of turn,
+  target creature becomes black, gets +1/-1, and gains \"{B}: Regenerate ~.\""
+  (Defiling Tears) is one ``unparsed_verb_arguments`` residue holding the verbs
+  alone ("become black, gets +1/-1, and gains …"), with the body's
+  ``UntilEndOfTurn`` and no target. The subject is read from the description
+  (``clause_grammar.verb_list_pump``: the words before the list's first verb,
+  the rest of the clause the residue's own), and the pump typed ahead of the
+  residue as phase types "Target creature gets +2/-2 until end of turn" (Lash
+  of Malice): a ``Pump`` on the ``Typed`` target, which phase dropped. The
+  residue stays for the colour change and the granted ability, which no typed
+  form here says faithfully. ``test_verb_list_pump_canary`` fails once phase
+  types it.
+* **A boon flattened into a pump.** "You get a boon with \"When you cast your
+  next creature spell, it perpetually gets +1/+0.\"" (Flaming Fist Duskguard)
+  is a ``Pump`` on the controller; Valiant Farewell's, a ``Pump`` on the "it" of
+  its leaves-the-battlefield delayed trigger. Both are rewritten to phase's own
+  ``CreateBoon`` (Jaheira, Stirring Harper's), so the card reads as boosting a
+  creature spell. A pump on a player or on a creature that just left changes
+  nothing; the boon text tells the two from Dark Salvation's player ``Pump``.
+  ``test_flattened_boon_canary`` fails once phase types them.
+
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
 
@@ -196,18 +277,23 @@ from collections.abc import Iterable, Iterator
 from typing import NamedTuple
 
 from mtg_utils._card_ir.clause_grammar import (
+    CardGroup,
     ParkedPump,
+    PerpetualSubject,
     PumpSubject,
     SplitPump,
     attached_attackers_kind,
     binding_sentence,
     lead_object,
+    parked_perpetual_change,
     parked_pump,
     split_pump,
     subtype_keyword_grant,
+    verb_list_pump,
 )
 from mtg_utils._card_ir.dropped_keywords import PHASE_KEYWORDS, add_keyword, static_def
 from mtg_utils._card_ir.perpetual_rules import (
+    PERPETUAL_RESIDUES,
     card_by_zones,
     earlier_object,
     tracked_population,
@@ -546,18 +632,29 @@ def _pump_target(pump: ParkedPump, trig: dict | None, earlier: _Earlier) -> dict
         return {"type": "TrackedSet", "id": 0} if earlier.any else None
     if who.recipient not in ("attached", "group"):
         return None
+    return _group_filter(who)
+
+
+def _group_filter(who: PumpSubject) -> dict:
+    """The ``Typed`` filter phase writes for a group of creatures or the one an
+    Equipment or Aura is attached to: "equipped creature" (``EquippedBy``),
+    "other creatures you control" (``Another``), "attacking creatures", "Ally
+    creatures you control" (the subtype), "of the chosen type"
+    (``IsChosenCreatureType`` — Coalition Construct)."""
     types: list[object] = ["Creature"]
     if who.subtype is not None:
         types.append({"Subtype": who.subtype})
-    named = (who.attachment, "Another" if who.other else None)
-    properties = [{"type": name} for name in named if name is not None]
-    if who.attacking:
-        properties.append({"type": "Attacking"})
+    named = (
+        who.attachment,
+        "Another" if who.other else None,
+        "Attacking" if who.attacking else None,
+        "IsChosenCreatureType" if who.chosen_type else None,
+    )
     return {
         "type": "Typed",
         "type_filters": types,
         "controller": "You" if who.yours else None,
-        "properties": properties,
+        "properties": [{"type": name} for name in named if name is not None],
     }
 
 
@@ -605,9 +702,6 @@ def _parked_pump(
     }
 
 
-#: The residues a perpetual pump is parked as: the clause, and the "it" whose
-#: subject phase couldn't bind.
-_PERPETUAL_RESIDUES = frozenset({"perpetual_modify_pt", "unbound_subject"})
 #: The residue a pump is parked in as a clause's second instruction ("draw X
 #: cards and the chosen creatures get +X/+X …" — Spry and Mighty).
 _SECOND_VERB_RESIDUE = "unparsed_verb_arguments"
@@ -699,16 +793,22 @@ def _perpetual_target(
         )
         return {"type": "TrackedSet", "id": 0} if found == "battlefield" else None
     if who.recipient == "target":
-        types: list[object] = [
-            {"Subtype": who.subtype} if who.subtype is not None else "Creature"
-        ]
-        return {
-            "type": "Typed",
-            "type_filters": types,
-            "controller": "You" if who.yours else "Opponent" if who.opponents else None,
-            "properties": [],
-        }
+        return _target_filter(who)
     return None
+
+
+def _target_filter(who: PumpSubject) -> dict:
+    """The ``Typed`` filter phase writes for a targeted creature: "target
+    creature", "target creature an opponent controls" (Davriel's Withering), "up
+    to one target Soldier" (the subtype alone)."""
+    return {
+        "type": "Typed",
+        "type_filters": [
+            {"Subtype": who.subtype} if who.subtype is not None else "Creature"
+        ],
+        "controller": "You" if who.yours else "Opponent" if who.opponents else None,
+        "properties": [],
+    }
 
 
 def _sub_body(effect: dict, duration: str | None, *, up_to: bool) -> dict:
@@ -761,7 +861,7 @@ def _perpetual_split(
     names none, or an amount phase's perpetual change can't hold here (an X)."""
     effect = body.get("effect") or {}
     if effect.get("type") != "Unimplemented" or effect.get("name") not in (
-        _PERPETUAL_RESIDUES
+        PERPETUAL_RESIDUES
     ):
         return None
     pump = split_pump(str(effect.get("description") or ""))
@@ -869,6 +969,136 @@ def _second_verb_split(
     )
 
 
+def _owned_filter(cards: CardGroup) -> dict:
+    """The ``Typed`` filter phase writes for your permanents of the cards a
+    perpetual change names "you own" in every zone: the card types and subtype
+    ("artifact creature cards" — Network Marauder; "Spacecraft cards"), the
+    mana value bound (``Cmc`` — Naktamun Shines Again's "with mana value 2 or
+    less") and the name (``Named`` — Unbreakable Remnant), owned by you
+    (``Owned``, CR 108.3)."""
+    types: list[object] = list(cards.card_types)
+    if cards.subtype is not None:
+        types.append({"Subtype": cards.subtype})
+    properties: list[dict] = [{"type": "Owned", "controller": "You"}]
+    if cards.mana_value_max is not None:
+        properties.append(
+            {
+                "type": "Cmc",
+                "comparator": "LE",
+                "value": {"type": "Fixed", "value": cards.mana_value_max},
+            }
+        )
+    if cards.named is not None:
+        properties.append({"type": "Named", "name": cards.named})
+    return {
+        "type": "Typed",
+        "type_filters": types,
+        "controller": None,
+        "properties": properties,
+    }
+
+
+def _team_targets(subject: PerpetualSubject) -> dict | None:
+    """The population on the battlefield a perpetual change's subject names,
+    as phase's filter: a group of your creatures (:func:`_group_filter`), or
+    your permanents of the cards you own (:func:`_owned_filter`)."""
+    if (
+        isinstance(subject, PumpSubject)
+        and subject.recipient == "group"
+        and subject.yours
+    ):
+        return _group_filter(subject)
+    if isinstance(subject, CardGroup) and subject.owned and subject.filter_read:
+        return _owned_filter(subject)
+    return None
+
+
+def _perpetual_team_split(body: dict, description: str) -> _PumpSplit | None:
+    """The team pump with no end date (a ``PumpAll`` lasting ``Permanent``) for
+    each population on the battlefield a parked perpetual change names: a group
+    of your creatures ("creatures you control perpetually get +1/+1" — Legion of
+    Clay), and your permanents of the cards it names "you own" in every zone
+    ("All creature cards you own with mana value 2 or less …" — Naktamun Shines
+    Again). The residue stays beside it for the cards outside the battlefield
+    ("… and creature cards in your hand, library, and graveyard" — Arming Gala;
+    every card you own). Phase writes no perpetual change over a population on
+    the battlefield (its engine enumerates one only in another zone). ``None``
+    for a clause naming no such population, another object on the battlefield
+    (the perpetual row's), or an amount that isn't fixed."""
+    effect = body.get("effect") or {}
+    if effect.get("type") != "Unimplemented" or effect.get("name") != (
+        "perpetual_modify_pt"
+    ):
+        return None
+    change = parked_perpetual_change(str(effect.get("description") or ""), description)
+    if change is None:
+        return None
+    teams = [t for s in change.subjects if (t := _team_targets(s)) is not None]
+    if not teams or any(
+        isinstance(s, PumpSubject) and s.recipient != "group" for s in change.subjects
+    ):
+        return None
+    power, toughness = _fixed(change.power), _fixed(change.toughness)
+    if power is None or toughness is None:
+        return None
+    return _PumpSplit(
+        effects=[
+            (
+                {
+                    "type": "PumpAll",
+                    "power": copy.deepcopy(power),
+                    "toughness": copy.deepcopy(toughness),
+                    "target": target,
+                },
+                False,
+            )
+            for target in teams
+        ],
+        keep=len(teams) < len(change.subjects)
+        or any(isinstance(s, CardGroup) for s in change.subjects),
+        before=False,
+        duration="Permanent",
+    )
+
+
+def _verb_list_split(body: dict, description: str) -> _PumpSplit | None:
+    """The typed pump until end of turn among a verb list phase parked without
+    its subject ("Until end of turn, target creature becomes black, gets
+    +1/-1, and gains \"{B}: Regenerate ~.\"" — Defiling Tears, whose residue is
+    "become black, gets +1/-1, and gains …"): a ``Pump`` on the target the
+    description names (``clause_grammar.verb_list_pump``), as phase types "Target
+    creature gets +2/-2 until end of turn" (Lash of Malice), ahead of the
+    residue, which keeps the colour change and the granted ability."""
+    effect = body.get("effect") or {}
+    if (
+        effect.get("type") != "Unimplemented"
+        or effect.get("name") != _SECOND_VERB_RESIDUE
+        or body.get("duration") != "UntilEndOfTurn"
+    ):
+        return None
+    pump = verb_list_pump(str(effect.get("description") or ""), description)
+    if pump is None or pump.subject.recipient != "target":
+        return None
+    who = pump.subject
+    target = _target_filter(who)
+    return _PumpSplit(
+        effects=[
+            (
+                {
+                    "type": "Pump",
+                    "power": _pump_amount(pump.power),
+                    "toughness": _pump_amount(pump.toughness),
+                    "target": target,
+                },
+                who.up_to,
+            )
+        ],
+        keep=True,
+        before=True,
+        duration="UntilEndOfTurn",
+    )
+
+
 def _static_pump_line(body: dict) -> dict | None:
     """The ``Continuous`` static phase types for "Equipped creature gets +2/+1"
     (Bonesplitter's), for an ability phase parked whole as a static line that
@@ -909,6 +1139,275 @@ def _static_pump_line(body: dict) -> dict | None:
     return static_def(affected, mods, line)
 
 
+#: The pump keywords phase expands into a trigger, in its spelling, with the
+#: trigger each one defines: its mode(s), the object it watches, and where the
+#: pump lands. Exalted: "Whenever a creature you control attacks alone, that
+#: creature gets +1/+1 until end of turn" (CR 702.83a); battle cry: "Whenever
+#: this creature attacks, each other attacking creature gets +1/+0 until end of
+#: turn" (702.91a); bushido N: "Whenever this creature blocks or becomes
+#: blocked, it gets +N/+N until end of turn" (702.45a).
+_KEYWORD_PUMPS: dict[str, tuple[frozenset[str], str, str, str]] = {
+    "Exalted": (frozenset({"Attacks"}), "Typed", "Pump", "TriggeringSource"),
+    "Battlecry": (frozenset({"Attacks"}), "SelfRef", "PumpAll", "Typed"),
+    "Bushido": (frozenset({"Blocks", "BecomesBlocked"}), "SelfRef", "Pump", "SelfRef"),
+}
+
+
+def _raw_keyword(kw: object) -> str:
+    """A raw keyword's name: a bare spelling, or a parameterized one's key
+    (``{"Bushido": 1}``)."""
+    if isinstance(kw, dict) and len(kw) == 1:
+        kw = next(iter(kw))
+    return kw if isinstance(kw, str) else ""
+
+
+def _keyword_pump_bodies(rec: dict) -> list[dict]:
+    """The trigger bodies phase built from a pump keyword the face has
+    (:data:`_KEYWORD_PUMPS`) and left with no ``duration``: the keyword's
+    trigger shape, its pump alone, nothing timed."""
+    shapes = [
+        _KEYWORD_PUMPS[name]
+        for name in {_raw_keyword(k) for k in rec.get("keywords") or ()}
+        if name in _KEYWORD_PUMPS
+    ]
+    out: list[dict] = []
+    for trig in rec.get("triggers") or ():
+        body = trig.get("execute") if isinstance(trig, dict) else None
+        if not isinstance(body, dict) or body.get("duration") is not None:
+            continue
+        effect = body.get("effect") or {}
+        watched = (trig.get("valid_card") or {}).get("type")
+        target = (effect.get("target") or {}).get("type")
+        if body.get("sub_ability") is None and any(
+            trig.get("mode") in modes
+            and watched == watch
+            and effect.get("type") == verb
+            and target == lands
+            for modes, watch, verb, lands in shapes
+        ):
+            out.append(body)
+    return out
+
+
+#: The effects whose "it" a trigger's anaphora rows retarget: the ones that
+#: raise or grant something to a creature.
+_ANAPHOR_EFFECTS = frozenset({"Pump", "PutCounter", "GenericEffect"})
+
+
+def _paid_then_it_bodies(rec: dict) -> list[dict]:
+    """The "you may pay X. If you do, it …" bodies of a trigger that watches only
+    the card (``valid_card`` ``SelfRef``): every body before it a ``PayCost``,
+    so its ``ParentTarget`` names no earlier object — the "it" is the card
+    (Riparian Tiger, the Thriving cycle, Voltaic Brawler; 16 cards at v0.131.0,
+    every one "it" the card)."""
+    out: list[dict] = []
+    for trig in rec.get("triggers") or ():
+        if not isinstance(trig, dict) or (trig.get("valid_card") or {}).get("type") != (
+            "SelfRef"
+        ):
+            continue
+        chain = list(_chain(trig.get("execute")))
+        for i, body in enumerate(chain):
+            effect = body.get("effect") or {}
+            if (
+                i
+                and effect.get("type") in _ANAPHOR_EFFECTS
+                and (effect.get("target") or {}).get("type") == "ParentTarget"
+                and all(
+                    (b.get("effect") or {}).get("type") == "PayCost" for b in chain[:i]
+                )
+            ):
+                out.append(effect)
+    return out
+
+
+def _targets_the_card(filt: object) -> bool:
+    """A cast trigger's ``valid_card`` that is "a spell that targets ~"."""
+    return isinstance(filt, dict) and any(
+        isinstance(p, dict)
+        and p.get("type") == "Targets"
+        and (p.get("filter") or {}).get("type") == "SelfRef"
+        for p in filt.get("properties") or ()
+    )
+
+
+def _heroic_it_effects(rec: dict) -> list[dict]:
+    """The effects of "Whenever you cast a spell that targets ~, put a +1/+1
+    counter on it" (Fabled Hero, Lagonna-Band Trailblazer, Bloodcrazed Hoplite,
+    Sage of Hours: the 4 at v0.131.0) that phase writes on ``TriggeringSource``,
+    the spell: a counter goes on a permanent, and the spell targets the card."""
+    out: list[dict] = []
+    for trig in rec.get("triggers") or ():
+        if not isinstance(trig, dict) or trig.get("mode") != "SpellCast":
+            continue
+        if not _targets_the_card(trig.get("valid_card")):
+            continue
+        for body in _chain(trig.get("execute")):
+            effect = body.get("effect") or {}
+            if (
+                effect.get("type") in _ANAPHOR_EFFECTS
+                and (effect.get("target") or {}).get("type") == "TriggeringSource"
+            ):
+                out.append(effect)
+    return out
+
+
+#: The moves that take an object off the battlefield, after which a +1/+1
+#: counter on "it" can't be that object's.
+_MOVES_AWAY = frozenset({"Hand", "Exile"})
+
+
+def _moved_away_its(rec: dict) -> list[dict]:
+    """A +1/+1 counter on ``ParentTarget`` right after an effect that moved its
+    object to a hand or to exile: "return another creature you control to its
+    owner's hand, then put … +1/+1 counters … on this creature" (First
+    Responder), "exile an instant or sorcery card from your graveyard. Put … +1/+1
+    counters on this creature" (Torrent Sculptor). A counter on a card in a hand
+    or in exile makes nothing bigger, and the text names the card; phase binds
+    the "it" to the moved object. The 2 at v0.131.0 (the other 9 counters put on
+    an exiled card are time, hit or discovery counters, and stay)."""
+    out: list[dict] = []
+    for body in _ability_bodies(rec):
+        effect = body.get("effect") or {}
+        moved = effect.get("type") == "Bounce" or (
+            effect.get("type") == "ChangeZone"
+            and effect.get("destination") in _MOVES_AWAY
+        )
+        sub = body.get("sub_ability")
+        counter = (sub.get("effect") or {}) if isinstance(sub, dict) else {}
+        if (
+            moved
+            and counter.get("type") == "PutCounter"
+            and counter.get("counter_type") == "P1P1"
+            and (counter.get("target") or {}).get("type") == "ParentTarget"
+        ):
+            out.append(counter)
+    return out
+
+
+#: The boon a "you get a boon with 'When you cast your next creature spell, it
+#: perpetually gets +N/+M'" grants: phase's own ``CreateBoon`` shape (Jaheira,
+#: Stirring Harper's, keywords dropped), the ``ApplyPerpetual`` filled per card.
+_BOON_TEXT = 'boon with "when you cast your next creature spell, it perpetually gets'
+
+
+def _creature_spell_boon(pump: dict) -> dict:
+    """Phase's ``CreateBoon`` for a next-creature-spell perpetual pump of
+    ``pump``'s size."""
+    return {
+        "type": "CreateBoon",
+        "recipient": {"type": "Controller"},
+        "trigger": {
+            "mode": "SpellCast",
+            "execute": {
+                "kind": "Spell",
+                "effect": {
+                    "type": "ApplyPerpetual",
+                    "target": {"type": "ParentTarget"},
+                    "modification": {
+                        "kind": "ModifyPowerToughness",
+                        "power": copy.deepcopy(pump.get("power")),
+                        "toughness": copy.deepcopy(pump.get("toughness")),
+                    },
+                },
+                "cost": None,
+                "sub_ability": None,
+                "duration": None,
+                "description": None,
+                "target_prompt": None,
+                "condition": None,
+                "optional_targeting": False,
+                "optional": False,
+                "forward_result": False,
+            },
+            "valid_card": {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": None,
+                "properties": [],
+            },
+            "origin": None,
+            "destination": None,
+            "trigger_zones": ["Battlefield"],
+            "phase": None,
+            "optional": False,
+            "damage_kind": "Any",
+            "secondary": False,
+            "valid_target": {"type": "Controller"},
+            "valid_source": None,
+            "description": None,
+            "constraint": None,
+            "condition": None,
+            "batched": False,
+        },
+    }
+
+
+def _flattened_boons(rec: dict) -> list[dict]:
+    """The bodies whose ``effect`` is a next-creature-spell boon phase flattened
+    into a plain ``Pump``: one on the controller (Flaming Fist Duskguard), or on
+    the "it" of a leaves-the-battlefield delayed trigger (Valiant Farewell). A
+    pump on a player, or on a creature that just left the battlefield, changes
+    nothing, so either structure is a flattened grant; the boon text tells them
+    from Dark Salvation's player-targeted ``Pump`` (the one other ``Pump`` on a
+    player at v0.131.0). Phase types every other boon as ``CreateBoon``."""
+    out: list[dict] = []
+    for body, description, _trig, _earlier in _described_bodies(rec):
+        if _BOON_TEXT not in description.lower():
+            continue
+        effect = body.get("effect") or {}
+        if (
+            effect.get("type") == "Pump"
+            and (effect.get("target") or {}).get("type") == "Controller"
+        ):
+            out.append(body)
+        elif effect.get("type") == "CreateDelayedTrigger" and str(
+            (effect.get("condition") or {}).get("type") or ""
+        ).startswith("WhenLeavesPlay"):
+            inner = effect.get("effect")
+            if not isinstance(inner, dict):
+                continue
+            pump = inner.get("effect") or {}
+            if (
+                pump.get("type") == "Pump"
+                and (pump.get("target") or {}).get("type") == "ParentTarget"
+            ):
+                out.append(inner)
+    return out
+
+
+_ENCHANTED_CREATURE = {
+    "type": "Typed",
+    "type_filters": ["Creature"],
+    "controller": None,
+    "properties": [{"type": "EnchantedBy"}],
+}
+
+
+def _aura_self_pumps(rec: dict) -> list[dict]:
+    """The pumps a noncreature Aura's trigger writes on ``SelfRef``: a
+    noncreature permanent has no power or toughness (CR 208.3), so "it gets
+    +3/+3" is the enchanted creature (Paroxysm, the one at v0.131.0). A bestow
+    card is a creature when not attached and stays out."""
+    card_type = rec.get("card_type") or {}
+    if not isinstance(card_type, dict):
+        return []
+    if "Aura" not in (card_type.get("subtypes") or ()) or "Creature" in (
+        card_type.get("core_types") or ()
+    ):
+        return []
+    if any(_raw_keyword(k) == "Bestow" for k in rec.get("keywords") or ()):
+        return []
+    return [
+        effect
+        for trig in rec.get("triggers") or ()
+        if isinstance(trig, dict)
+        for body in _ability_bodies(trig.get("execute"))
+        if (effect := body.get("effect") or {}).get("type") == "Pump"
+        and (effect.get("target") or {}).get("type") == "SelfRef"
+    ]
+
+
 def _chained(bodies: list[dict], tail: object) -> object:
     """``bodies`` chained one after another, then ``tail``; its head."""
     nexts = [*bodies[1:], tail]
@@ -930,6 +1429,8 @@ def _place_split(target: dict, split: _PumpSplit) -> None:
     if split.keep:
         rest.append(dict(target))  # the residue's body as it was
     target["effect"] = first["effect"]
+    if split.duration is not None:
+        target["duration"] = split.duration
     target["sub_ability"] = _chained(rest, tail)
     if "multi_target" in first:
         target["multi_target"] = first["multi_target"]
@@ -977,10 +1478,12 @@ def correct_misparsed_shapes(rec: dict) -> dict:
     ]
     splits = [
         (body, split)
-        for body, _description, trig, earlier in _described_bodies(rec)
+        for body, description, trig, earlier in _described_bodies(rec)
         if (
             split := _perpetual_split(body, rec, trig, earlier)
             or _second_verb_split(body, trig, earlier)
+            or _perpetual_team_split(body, description)
+            or _verb_list_split(body, description)
         )
         is not None
     ]
@@ -989,6 +1492,12 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for body in rec.get("abilities") or ()
         if isinstance(body, dict) and (static := _static_pump_line(body))
     ]
+    keyword_pumps = _keyword_pump_bodies(rec)
+    paid_its = _paid_then_it_bodies(rec)
+    heroic_its = _heroic_it_effects(rec)
+    aura_pumps = _aura_self_pumps(rec)
+    moved_its = _moved_away_its(rec)
+    boons = _flattened_boons(rec)
     found = (
         sweeps,
         split_flips,
@@ -1001,6 +1510,12 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         pumps,
         splits,
         static_lines,
+        keyword_pumps,
+        paid_its,
+        heroic_its,
+        aura_pumps,
+        moved_its,
+        boons,
     )
     if not any(found):
         return rec
@@ -1068,10 +1583,26 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         assert isinstance(target, dict)
         target["effect"] = typed
         target["duration"] = "UntilEndOfTurn"
+    for body in keyword_pumps:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        target["duration"] = "UntilEndOfTurn"
+    for effect in (*paid_its, *heroic_its, *moved_its):
+        target = memo[id(effect)]
+        assert isinstance(target, dict)
+        target["target"] = {"type": "SelfRef"}
+    for effect in aura_pumps:
+        target = memo[id(effect)]
+        assert isinstance(target, dict)
+        target["target"] = copy.deepcopy(_ENCHANTED_CREATURE)
     for body, split in splits:
         target = memo[id(body)]
         assert isinstance(target, dict)
         _place_split(target, split)
+    for body in boons:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        target["effect"] = _creature_spell_boon(target["effect"])
     if static_lines:
         out["static_abilities"] = [
             *(out.get("static_abilities") or ()),

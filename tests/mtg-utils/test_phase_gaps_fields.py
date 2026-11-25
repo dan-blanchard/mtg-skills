@@ -158,7 +158,7 @@ def test_a_delayed_triggers_it_is_the_watched_creature():
     (pump,) = _effects("Jace, Architect of Thought", "Pump")
     assert ANAPHORIC not in pump.subject
     idents = _idents("Jace, Architect of Thought")
-    assert "self_pump|you|" not in idents
+    assert not any(i.startswith("self_boost|") for i in idents)
     assert "debuff_makers|any|" in idents
 
 
@@ -172,7 +172,7 @@ def test_a_spells_it_is_the_chosen_creature(name):
 
 def test_a_creature_pumping_itself_stays_a_self_pump():
     assert not any(ANAPHORIC in c.subject for c in _effects("Shivan Dragon", "Pump"))
-    assert "self_pump|you|" in _idents("Shivan Dragon")
+    assert "self_boost|you|activated" in _idents("Shivan Dragon")
 
 
 # ── tap_other_player: "that player controls" stamped controller: You ──────────

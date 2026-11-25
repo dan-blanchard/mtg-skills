@@ -2182,37 +2182,34 @@ def _clue_matters_lane(tree: ConceptTree) -> list[Signal]:
 
 
 def _effect_boost_lane(tree: ConceptTree) -> list[Signal]:
-    """effect_boost (§11) — CR 611.2c: the duration-scoped combat-trick BUFF.
-    Tier-1 (ADR-0036/0037 fold — the ``_EFFECT_BOOST_RX`` kept-mirror is
-    RETIRED):
+    """effect_boost (§11) — an EFFECT (a spell, an activated or a triggered
+    ability) that boosts ANOTHER creature or a group, until end of turn or
+    perpetually (ADR-0065; Dan's ruling, 2026-11-25):
 
-    * **Structural:** :func:`has_structural_effect_boost` — a duration-scoped
-      ``Pump``/``PumpAll`` effect with a positive fixed power OR toughness
-      (widened from power-only — Affa Guard Hound's "+0/+3"), a "+"-grounded
-      dynamic amount, or a nested ``GenericEffect``/``Continuous``-static
-      ``AddPower``/``AddToughness`` grant (Adamant Will, Cavalier of Flame's
-      team pump) — the firebreathing self-buff excluded via the
-      ``SelfRef``-affected veto (Clickslither, Shivan Dragon — self_pump's
-      country).
+    * **Structural:** :func:`has_structural_effect_boost` — a timed or
+      perpetual ``Pump``/``PumpAll`` raise, or a nested ``GenericEffect`` /
+      ``Continuous``-static ``AddPower``/``AddToughness`` grant (Adamant Will,
+      Cavalier of Flame's team pump), landing on a creature or group that
+      isn't only an opponent's and isn't the card itself
+      (``crosswalk.boost_recipient``: a card that boosts only itself is
+      ``self_boost``'s — Shivan Dragon, Glaze Fiend, bushido).
     * **bucket-B synth:** the ``tree_synthesis`` stage's
       ``synth_effect_boost`` node — the X-based/dynamic-amount residue
       (Kessig Wolf Run's "+X/+0", Liliana of the Dark Realms's "+X/+X") with
       no raw text to ground a positive/negative dynamic-amount tell.
 
-    Subject ``target`` beside it (backlog (o)): the pump lands on ONE chosen
-    creature that isn't an opponent's (Brute Force, Giant Growth) — the
-    single-target page's heroic enabler, never a team pump (Charge). Scope
-    "you", HIGH.
+    Exalted and battle cry are pumps until end of turn (CR 702.83a, 702.91a),
+    read once phase's keyword-built pump gets its duration back
+    (``misparsed_shapes``). Whether the boost targets one creature, and how,
+    is ``boosts_others``' ``target_spell`` / ``target_ability``. Scope "you",
+    HIGH.
     """
     if not (
         has_structural_effect_boost(tree)
         or any(c.concept == "synth_effect_boost" for c in tree.iter_concepts())
     ):
         return []
-    out = [Signal("effect_boost", "you", "", "", tree.name, "high")]
-    if has_structural_effect_boost(tree, targeted=True):
-        out.append(Signal("effect_boost", "you", "target", "", tree.name, "high"))
-    return out
+    return [Signal("effect_boost", "you", "", "", tree.name, "high")]
 
 
 def _self_counter_grow(tree: ConceptTree) -> list[Signal]:
@@ -2241,18 +2238,31 @@ def _self_counter_grow(tree: ConceptTree) -> list[Signal]:
 
     Scope "you", HIGH.
     """
-    if has_structural_self_counter_grow(tree):
+    if puts_counters_on_itself(tree) or any(
+        c.concept == "synth_self_power_scale" for c in tree.iter_concepts()
+    ):
         return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
+    return []
+
+
+def puts_counters_on_itself(tree: ConceptTree) -> bool:
+    """The ``self_counter_grow`` population that puts +1/+1 counters on the card
+    itself — the structural read, the ``synth_self_counter_grow`` residue and a
+    parked self-counter clause — less the ``synth_self_power_scale`` cross-open
+    (Esper Sentinel's value scales with its power; it puts no counter).
+    ``self_boost|you|counters`` (ADR-0065)."""
+    if has_structural_self_counter_grow(tree):
+        return True
     for c in tree.iter_concepts():
-        if c.concept in ("synth_self_counter_grow", "synth_self_power_scale"):
-            return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
+        if c.concept == "synth_self_counter_grow":
+            return True
         # phase v0.104.0 fails closed on a conditional self-counter clause,
         # parking it as an Unimplemented residue (recovery token
         # ``place_counter``, or ``scry`` when a scry leads the clause —
         # Taeko); the seam marks +1/+1 counters put on the card itself.
         if c.recovered_by and ON_SELF in c.subject and "+1/+1 counter" in c.subject:
-            return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
-    return []
+            return True
+    return False
 
 
 def self_counter_grow_narrow(tree: ConceptTree) -> bool:

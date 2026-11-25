@@ -124,6 +124,11 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "graveyard_makers",
         "graveyard_matters",
         "graveyard_leave_matters",
+        # card_boost (2026-11-25): a perpetual power/toughness boost to your
+        # cards outside the battlefield, its subject the zone it lands in
+        # (hand / graveyard / library / exile / stack / everywhere —
+        # ``graveyard_lifeloss._card_boost``).
+        "card_boost",
         "fight_makers",
         "goad_makers",
         # task B-5 (2026-07-16 study): combat puppeteers — you make
@@ -226,7 +231,6 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "anthem_static",
         "count_anthem",
         "scaling_pump",
-        "self_pump",
         "team_boost_or_grant",
         "cheat_into_play",
         "impulse_top_play",
@@ -411,6 +415,11 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "food_matters",
         "clue_matters",
         "effect_boost",
+        # The creature-boost lines of ADR-0065 (Dan's rulings, 2026-11-25): a
+        # creature growing itself (it replaced self_pump) and the umbrella over
+        # everything that boosts your other creatures (page-only).
+        signal_keys.SELF_BOOST,
+        signal_keys.BOOSTS_OTHERS,
         "self_counter_grow",
         "flash_matters",
         "activated_ability",
@@ -771,7 +780,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # ``topdeck_stack`` PROMOTED (0 genuine members lost vs a live corpus
 # re-measure card-by-card against ``old_ir_for``): a nested-grant
 # descent (``GrantAbility``/``GrantTrigger``/``GrantStaticAbility``
-# ``.definition``, mirroring ``_self_pump``'s sibling scan — Scion of
+# ``.definition``, mirroring ``_pump_scaling_lanes``' grant scan — Scion of
 # Halaster), a ``ParentTarget``/``TrackedSet``/``ExiledBySource``
 # back-reference widening gated by the legacy
 # ``supplement._topdeck_stack_self`` self-anchor scan (reused verbatim

@@ -156,6 +156,36 @@ The import-time assertion in `signal_specs/core.py` that every producible static
 **Folded object**:
 A commander's effective Signal set extends to objects its plan deterministically brings into play — a ventured dungeon, an emblem, a meld result (Acererak + Tomb of Annihilation → lifegain synergy invisible from Acererak's own text). Commander-only; the 99 never fold.
 
+**Creature boost** (ADR-0065, Dan's rulings 2026-11-25):
+What makes a creature bigger, split by who gets it. `effect_boost` — an effect (a
+spell, an activated or a triggered ability) boosts ANOTHER creature or a group,
+until end of turn or perpetually (exalted and battle cry included). `self_boost`
+("Grows itself") — a creature raises its OWN power or toughness: `""` a triggered
+or perpetual effect (prowess, bushido), `activated` firebreathing, `counters` its
+own +1/+1 counters, `static` its own static ability (Kird Ape); a noncreature never
+does (a grant of growth to another creature is `boosts_others`). `boosts_others` ("Boosts your other creatures", a page-only
+umbrella) — by delivery: `effect`, `counters`, `anthem`, `attached`, and
+`target_spell` / `target_ability` for a boost of one chosen creature. A raise of
+one number is a boost; a boost only an opponent's creature can get is never
+yours. The size pages (power matters, combat damage, fight, power-as-damage,
+power doubling) are offered `boosts_others`; fight, fling, power-tap, power
+doubling, power matters and the trample / evasion granters are offered
+`self_boost`, and offer themselves back; big mana and untaps only to `activated`.
+A targeting payoff is offered the boosts its trigger fires on: heroic's
+`targeting_matters|any|spell` the spells (its keyword grants too: an instant's or
+sorcery's own, and a keyword-only Aura's), `|ability` the abilities (their keyword
+grants only), `""` both. Some of these lines are
+Dan's rulings of 2026-11-25, some the coordinator's or the builder's calls: ADR-0065
+says which.
+_Avoid_: "pump makers", "combat tricks" for `effect_boost`; "firebreathing" for
+all of `self_boost`.
+
+**Subject-gated sub-avenue** (`SubAvenue.deck_subjects`):
+A sub-avenue offered only to a deck signal of certain subjects (a firebreather's
+mana sinks under `self_boost|you|activated`). The hub opens it for a later
+signal of that subject even when an earlier subject opened the theme
+(`engine._subject_extras`).
+
 **Detriment-directed targeting**:
 The scoping convention that a bare "target player" on a detrimental effect reads as opponent-directed for signal purposes (`detriment_directed_scope`).
 

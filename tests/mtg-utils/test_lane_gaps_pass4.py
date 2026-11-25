@@ -222,6 +222,7 @@ def test_lock_on_one_player_is_stax_not_symmetric(name):
 
 def test_losing_flip_that_shrinks_the_pumped_target_is_a_drawback():
     """The -0/-2 lands on the creature you chose for +2/+0: no self pump, no
-    debuff — the pump on the target stays."""
-    assert ("effect_boost", "you", "target") in _idents("Orcish Captain")
-    assert not _keyed("Orcish Captain", "self_pump", "debuff_makers")
+    debuff — the pump on the target stays: an activated ability's boost of one
+    chosen creature (ADR-0065)."""
+    assert ("boosts_others", "you", "target_ability") in _idents("Orcish Captain")
+    assert not _keyed("Orcish Captain", "self_boost", "debuff_makers")

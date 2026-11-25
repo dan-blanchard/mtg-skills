@@ -399,6 +399,19 @@ class ConceptNode:
     # battlefield tapped. It perpetually gets +1/+1" — Vladimir and Godfrey):
     # recursion that grows the card, no mana sink of a creature already there.
     returned_self: bool = False
+    # A parked perpetual power/toughness raise on cards of yours outside the
+    # battlefield (written only by the recovery stage, ``recovery.
+    # mark_perpetual_cards``): what it lands on, one entry per subject — a zone
+    # (``Hand`` / ``Graveyard`` / ``Library``), ``Everywhere`` for every card
+    # you own, or ``Earlier`` for a card an earlier instruction named ("it",
+    # "that card", "the duplicate"), which ``crosswalk.perpetual.
+    # card_boost_zones`` locates by the chain's structure.
+    perpetual_cards: tuple[str, ...] = ()
+    # The zone a parked instruction moves its cards into ("conjure X duplicates
+    # of it into exile", "shuffle those duplicates into your library"), written
+    # only by the recovery stage: a zone move of the chain's object that phase
+    # left untyped.
+    moves_to: str = ""
 
     @property
     def reading(self) -> tuple[str, ...]:

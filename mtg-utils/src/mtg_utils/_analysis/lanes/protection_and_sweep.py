@@ -19,6 +19,7 @@ from mtg_utils._analysis.text_reads import (
 )
 from mtg_utils._analysis.tree_synthesis import (
     _ANTHEM_PUMP_MODS,
+    combine_targeting_sources,
     has_structural_cant_block_grant,
     has_structural_firebending_grant,
     has_structural_legend_rule_off,
@@ -59,7 +60,9 @@ from mtg_utils._card_ir.crosswalk import (
     is_flip_coin,
     iter_cost_leaves,
     iter_mod_sites,
+    iter_static_defs,
     iter_typed_nodes,
+    iter_unit_trigger_defs,
     keyword_bodies,
     made_keyword_bodies,
     makes_lands_type,
@@ -79,6 +82,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_player_sides,
     subtype_refs,
     tag_of,
+    targeting_trigger_source,
     trigger_constraint_tag,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -2090,31 +2094,61 @@ def _becomes_target_lanes(tree: ConceptTree) -> list[Signal]:
       (the residue's pop is a strict 1-trigger-per-card census).
     """
     out: list[Signal] = []
-    seen: set[str] = set()
+    seen: set[tuple[str, str]] = set()
 
-    def add(key: str, scope: str) -> None:
-        if key not in seen:
-            seen.add(key)
-            out.append(Signal(key, scope, "", "", tree.name, "high"))
+    def add(key: str, scope: str, subject: str = "") -> None:
+        if (key, subject) not in seen:
+            seen.add((key, subject))
+            out.append(Signal(key, scope, subject, "", tree.name, "high"))
 
     src_opp_residue = any(
         c.concept == "synth_becomes_target_src_opp" for c in tree.iter_concepts()
     )
+    # The targeting payoffs' sources, combined into one subject
+    # (``tree_synthesis.combine_targeting_sources``): a cast trigger on a spell
+    # that targets (heroic's "Whenever you cast a spell that targets ~"), only a
+    # spell; a becomes-target trigger, what it watches target
+    # (:func:`targeting_trigger_source`); the residue arm's clause read.
+    sources: set[str] = set()
+    for unit in tree.units:
+        if unit.trigger_event == "becomes_target":
+            continue
+        for trig in iter_unit_trigger_defs(unit):
+            if (
+                getattr(trig, "mode", None) == "SpellCast"
+                and targeting_trigger_source(trig) == signal_keys.TARGETED_BY_SPELL
+            ):
+                sources.add(signal_keys.TARGETED_BY_SPELL)
     for unit in tree.units:
         if unit.trigger_event != "becomes_target":
             continue
-        add("targeting_matters", "any")
+        sources.add(targeting_trigger_source(unit.node) or "")
         owner = _sweep_watched_owner_scope(unit.node)
         if owner in ("you", "any"):
             if _sweep_source_is_opp(unit.node) or src_opp_residue:
                 add("target_redirect", "you")
             else:
                 add("target_own_payoff", "you")
-    if "targeting_matters" not in seen:
-        for c in tree.iter_concepts():
-            if c.concept == "synth_targeting_matters":
-                add("targeting_matters", "any")
-                break
+    # A becomes-target trigger an Aura, Equipment or lord grants (Livewire Lash's
+    # "Whenever this creature becomes the target of a spell", Kira, Opaline
+    # Sliver): phase types the granted trigger, so its source reads the same way.
+    for unit in tree.units:
+        if unit.origin != "static":
+            continue
+        for sdef in iter_static_defs(unit.node):
+            for mod in getattr(sdef, "modifications", None) or ():
+                trig = getattr(mod, "trigger", None)
+                if tag_of(mod) == "GrantTrigger" and isinstance(trig, TypedMirrorNode):
+                    granted = targeting_trigger_source(trig)
+                    if granted is not None:
+                        sources.add(granted)
+    if not sources and any(
+        c.concept == "synth_targeting_matters" for c in tree.iter_concepts()
+    ):
+        sources.add("")
+    subject = combine_targeting_sources(sources)
+    if subject is not None:
+        add("targeting_matters", "any", subject)
     # The free targeting a target-your-own payoff wants: a {0} activation that
     # targets your own creature (the en-Kor cycle; equip {0} — CR 702.6a:
     # "Attach this permanent to target creature you control" — on Shuko,

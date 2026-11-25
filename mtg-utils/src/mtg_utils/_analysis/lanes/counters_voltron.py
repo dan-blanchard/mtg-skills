@@ -1950,6 +1950,25 @@ def _voltron_gear_pump(tree: ConceptTree) -> list[Signal]:
     ``voltron_makers|you|gear`` (backlog (o)): the card makes Equipment — an
     Equipment token (Iron Hills Blacksmith's Axe, Toggo's Rock) or an artifact
     of yours that becomes one (Dan Lewis, Arterial Alchemy's Blood tokens)."""
+    return _gear_signals(gear_pump_subjects(tree), tree)
+
+
+def _has_attached_arm(filt: object) -> bool:
+    """An ``Or`` with an arm naming the attached object: a bestow creature's
+    "This creature and enchanted creature each get +X/+X" (Nighthowler)."""
+    return tag_of(filt) == "Or" and any(
+        names_attached_object(arm) for arm in getattr(filt, "filters", None) or ()
+    )
+
+
+def gear_pump_subjects(
+    tree: ConceptTree, *, either_arm: bool = False
+) -> dict[str, str]:
+    """The ``voltron_makers`` gear subjects of :func:`_voltron_gear_pump` (``pump``,
+    ``power``, ``gear``), each with its grounding clause: the one read of an
+    Aura's or Equipment's boost of the creature it is attached to, shared with
+    ``boosts_others|you|attached`` (ADR-0065). ``either_arm`` also reads a static
+    over the card and the creature it enchants (a bestow creature's)."""
     found: dict[str, str] = {}
     if makes_equipment(tree, TOKEN_YOURS_SIDES):
         found["gear"] = ""
@@ -1981,12 +2000,16 @@ def _voltron_gear_pump(tree: ConceptTree) -> list[Signal]:
         for n in tree.iter_typed()
     )
     if not (gear or bestow or becomes_aura):
-        return _gear_signals(found, tree)
+        return found
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
             # The creature an Equipment equips (CR 301.5a) or the object an
             # Aura enchants (CR 303.4) — "Equipped creature gets +2/+0".
-            if not names_attached_object(getattr(sdef, "affected", None)):
+            affected = getattr(sdef, "affected", None)
+            if not (
+                names_attached_object(affected)
+                or (either_arm and _has_attached_arm(affected))
+            ):
                 continue
             power, toughness = pt_mod_signs(sdef)
             if max(power, toughness) > 0 and min(power, toughness) >= 0:
@@ -2019,7 +2042,7 @@ def _voltron_gear_pump(tree: ConceptTree) -> list[Signal]:
                     found.setdefault(VOLTRON_GEAR_PUMP, "")
                 elif not negative_pt_field(c.node, "power"):
                     found.setdefault(VOLTRON_GEAR_POWER, "")
-    return _gear_signals(found, tree)
+    return found
 
 
 #: The subject of ``voltron_makers`` on a mixed power-up Aura (+N/-M —

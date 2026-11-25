@@ -60,6 +60,7 @@ def deck_signals(hd: HydratedDeck) -> list[dict]:
                 "sub_avenues": [
                     {"label": e.label, "avenue": e.avenue}
                     for e in (spec.extras if spec else ())
+                    if e.offered_for(sig.subject)
                 ],
                 "actionable": spec is not None,
             }

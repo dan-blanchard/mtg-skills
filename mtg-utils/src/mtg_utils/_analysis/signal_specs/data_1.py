@@ -4,6 +4,7 @@ original ``signal_specs.py``), verbatim, in original order.
 
 from __future__ import annotations
 
+from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._sweep_detectors import (
     SWEEP_LABELS,
 )
@@ -14,6 +15,9 @@ from ._shared import (
     _ARTIFACT_ETB_PAYOFF,
     _BOARD_PROTECTION_EXTRA,
     _BOARD_WIPE_EXTRA,
+    _BOOSTS_OTHERS_EXTRA,
+    _CARD_BOOST_GRAVEYARD_EXTRA,
+    _CARD_BOOST_HAND_EXTRA,
     _CAST_FROM_GY_EXTRA,
     _CHOSEN_TYPE_IDENTS,
     _COMBAT_SUPPORT_EXTRA,
@@ -33,6 +37,7 @@ from ._shared import (
     _ETB_PAYOFF_EXTRA,
     _ETB_VALUE_EXTRA,
     _EXTRA_COMBAT_EXTRA,
+    _FIREBREATHER_MANA_EXTRA,
     _FLICKER_EXTRA,
     _FORCE_ATTACK_EXTRA,
     _FORCE_FEED_EXTRA,
@@ -48,11 +53,16 @@ from ._shared import (
     _PROLIFERATE_EXTRA,
     _REANIMATION_EXTRA,
     _SAC_OUTLET_EXTRA,
+    _SELF_BOOST_CASH_IN_EXTRA,
+    _SELF_BOOST_EXTRA,
     _SELF_BOUNCE_EXTRA,
     _SELF_RECUR_EXTRA,
     _SELF_SAC_CREATURE_EXTRA,
     _SPELLSLINGER_SPEC,
+    _TARGETED_ABILITY_BUFF_EXTRA,
     _TARGETED_BUFF_EXTRA,
+    _TARGETED_SPELL_BUFF_EXTRA,
+    _TARGETED_SPELL_GRANT_EXTRA,
     _TEAM_PROTECT_EXTRA,
     _TOKEN_DOUBLER_EXTRA,
     _TOKEN_MAKER_IDENTS,
@@ -279,6 +289,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
             _ETB_VALUE_EXTRA,
             _ETB_DOUBLER_EXTRA,
             _CREATURE_COST_EXTRA,
+            # a creature deck casts the creature cards a hand boost grows
+            _CARD_BOOST_HAND_EXTRA,
         ),
     ),
     # Creature-recursion engine (Hua Tuo, Adun, Othelm): repeatably return/put a
@@ -294,7 +306,13 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "creatures, ETB-value bodies, and self-recurring fodder",
         None,
         serve_idents=frozenset({"sacrifice_outlets|you|self"}),
-        extras=(_SELF_SAC_CREATURE_EXTRA, _ETB_VALUE_EXTRA, _SELF_RECUR_EXTRA),
+        extras=(
+            _SELF_SAC_CREATURE_EXTRA,
+            _ETB_VALUE_EXTRA,
+            _SELF_RECUR_EXTRA,
+            # what it returns comes back bigger
+            _CARD_BOOST_GRAVEYARD_EXTRA,
+        ),
     ),
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta) or a power-N-or-greater threshold
@@ -311,7 +329,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"power_matters|you|"}),
         serve_power_min=4,
-        extras=(_POWER_FLING_EXTRA,),
+        # The cards that make a creature bigger feed a power payoff: anything that
+        # boosts your other creatures, and the creatures that grow themselves
+        # (ADR-0065).
+        extras=(_POWER_FLING_EXTRA, _BOOSTS_OTHERS_EXTRA, _SELF_BOOST_EXTRA),
         search={"card_type": "Creature", "cmc_min": 5},
     ),
     # Land-creatures theme (e.g. Jyoti, Moag Ancient). Three precise, disjoint
@@ -487,7 +508,7 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         serve_self_recur=REANIMATED_SELF_RETURNS,
         # A reanimator deck wants the high-ETB creatures it reanimates (Mulldrifter,
         # Plaguecrafter), not just the reanimation spells.
-        extras=(_CAST_FROM_GY_EXTRA, _ETB_VALUE_EXTRA),
+        extras=(_CAST_FROM_GY_EXTRA, _ETB_VALUE_EXTRA, _CARD_BOOST_GRAVEYARD_EXTRA),
     ),
     # Lifegain: the payoffs and the self-bleed engines that want them share the
     # "Lifegain" label, so focus reads them as one avenue.
@@ -1342,6 +1363,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # lane's subject) is a targeted grant.
         None,
         serve_idents=frozenset({"keyword_grant_target|you|*"}),
+        # A creature that grows itself is the one worth trample or evasion (ADR-0065).
+        extras=(_SELF_BOOST_EXTRA,),
     ),
     # ADR-0027 Cluster D: protection_grant's SWEEP_DETECTORS row is deleted (detection
     # moved to the Card IR — the structural protective-keyword grant arm; the
@@ -1500,13 +1523,27 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ),
     # Heroic / target-matters: the payoff fires when YOU target your own creature, so
     # surface the single-target pumps/protection that do it (Gods Willing, Brute Force).
+    # The payoff's trigger says which (ADR-0065): a spell-only payoff (heroic's
+    # "Whenever you cast a spell that targets ~") is offered the spells, an ability-only
+    # one the abilities, a "spell or ability" one both.
     ("targeting_matters", "any"): _spec(
         *SWEEP_LABELS["targeting_matters"],
         # Ward's reminder text ("becomes the target of a spell or ability an opponent
         # controls", CR 702.21a) is out: ward is protection, not a heroic payoff.
         None,
-        serve_idents=frozenset({"targeting_matters|any|"}),
-        extras=(_TARGETED_BUFF_EXTRA,),
+        serve_idents=frozenset(
+            {
+                "targeting_matters|any|",
+                f"targeting_matters|any|{signal_keys.TARGETED_BY_SPELL}",
+                f"targeting_matters|any|{signal_keys.TARGETED_BY_ABILITY}",
+            }
+        ),
+        extras=(
+            _TARGETED_BUFF_EXTRA,
+            _TARGETED_SPELL_BUFF_EXTRA,
+            _TARGETED_SPELL_GRANT_EXTRA,
+            _TARGETED_ABILITY_BUFF_EXTRA,
+        ),
     ),
     # Green creature-cast commanders (Gwenna, Runadi, Eshki) ramp into fatties: surface
     # creature cost reducers (Goreclaw) and genuine bombs (Ghalta — power_min=6 keeps it
@@ -1567,22 +1604,24 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # deleted.
     ("power_double", "you"): _sweep_spec_with_extras(
         "power_double",
-        (_POWER_FLING_EXTRA,),
+        (_POWER_FLING_EXTRA, _BOOSTS_OTHERS_EXTRA, _SELF_BOOST_EXTRA),
         serve_power_min=5,
         # Serve rides the lane (2026-10-18): regex missed 'double target creature's
         # power' (Exponential Growth)
         serve_idents=frozenset({"power_double|you|"}),
     ),
-    # Firebreathing / variable-P/T decks pump power, then fling it for damage. ADR-0027:
-    # self_pump migrated to the Card IR (its SWEEP_DETECTORS row is deleted); the serve
-    # is the lane's ident.
-    ("self_pump", "you"): _sweep_spec_with_extras(
-        "self_pump",
-        (_POWER_FLING_EXTRA,),
-        # Gains +N/-N and sacrifice-fed self pumps (Mistwalker). Pumps of a target
-        # creature are noise; granted firebreathing (Shiv's Embrace, Kusari-Gama) is a
-        # lane gap.
-        serve_idents=frozenset({"self_pump|you|"}),
+    # A creature that grows itself (ADR-0065; it replaces the firebreathing page,
+    # self_pump): pump its power, then cash it in — fights and bites, power-as-damage,
+    # power-tap engines, power doublers, power payoffs, and trample or evasion so it
+    # connects. A firebreather (the ``activated`` subject) is also offered big mana and
+    # untap effects. Granted firebreathing (Shiv's Embrace, Kusari-Gama) is a lane gap.
+    (signal_keys.SELF_BOOST, "you"): _spec(
+        "Grows itself",
+        "creatures that make themselves bigger, plus the fights, flings and evasion "
+        "that cash the size in",
+        None,
+        serve_idents=frozenset({f"{signal_keys.SELF_BOOST}|you|*"}),
+        extras=(_SELF_BOOST_CASH_IN_EXTRA, _FIREBREATHER_MANA_EXTRA),
     ),
     # ADR-0027: tapper_engine migrated to the Card IR — its SWEEP_DETECTORS row is
     # deleted (detection moved to a `tap` Effect with a target subject + a "doesn't
@@ -1793,7 +1832,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # ADR-0027 β: damage_equal_power migrated to the Card IR (SWEEP row deleted).
     ("damage_equal_power", "you"): _sweep_spec_with_extras(
         "damage_equal_power",
-        (_DEATHTOUCH_GEAR_EXTRA, _POWER_FLING_EXTRA),
+        (
+            _DEATHTOUCH_GEAR_EXTRA,
+            _POWER_FLING_EXTRA,
+            _BOOSTS_OTHERS_EXTRA,
+            _SELF_BOOST_EXTRA,
+        ),
         serve_power_min=6,
         # Serve rides the lane (2026-10-18): regex missed bite spells phrased 'to each
         # other creature' (Chandra's Ignition)

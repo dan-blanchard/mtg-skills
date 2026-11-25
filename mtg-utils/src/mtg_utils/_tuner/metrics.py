@@ -349,6 +349,8 @@ NO_FEEDER_READ: frozenset[str] = frozenset(
 #: themselves (``swaps.dead_payoff``'s doer test).
 NEUTRAL_KEYS: frozenset[str] = frozenset(
     {
+        # The boost umbrella (ADR-0065): its delivering key decides.
+        signal_keys.BOOSTS_OTHERS,
         "permanent_etb",
         "activated_ability",
         "keyword_bodies",

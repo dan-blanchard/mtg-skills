@@ -114,6 +114,13 @@ COMBAT_CHOICE_MAKERS: Final = "combat_choice_makers"
 # stays spell_copy_makers.
 SPELL_REDIRECT: Final = "spell_redirect"
 
+# A perpetual power/toughness boost to your cards outside the battlefield
+# (``lanes.graveyard_lifeloss._card_boost``, 2026-11-25): the subject is the zone
+# it lands in — ``hand``, ``graveyard``, ``library``, ``stack`` — or
+# ``everywhere`` for every card you own. Each subject builds its own spec
+# (``signal_specs.core._card_boost_subject_spec``), for the pairings it opens.
+CARD_BOOST: Final = "card_boost"
+
 # Wildcard tribal payoffs (task B-1): cards that choose a creature type as
 # they enter (CR 614.12 — the as-enters replacement choice) and PAY OFF the
 # chosen type (Door of Destinies, Herald's Horn). NOT a subject key — the
@@ -136,6 +143,7 @@ SUBJECT_KEYS: Final = frozenset(
         CHEAT_INTO_PLAY,
         ANIMATE_MAKERS,
         LAND_TYPE_MATTERS,
+        CARD_BOOST,
     }
 )
 
@@ -162,16 +170,48 @@ STEP_TRIGGER_KEYS: Final = {
     "extra_end_step": "end_step_triggers",
 }
 
+# The creature-boost signals (ADR-0065; Dan's rulings, 2026-11-25).
+#: A creature raising its OWN power or toughness: subject "" for a triggered or
+#: perpetual effect on itself (prowess, bushido, Glaze Fiend), ``activated`` for
+#: an activated ability (firebreathing — Shivan Dragon), ``counters`` for +1/+1
+#: counters it puts on itself (the ``self_counter_grow`` population), ``static``
+#: for its own static ability.
+SELF_BOOST: Final = "self_boost"
+SELF_BOOST_ACTIVATED: Final = "activated"
+SELF_BOOST_COUNTERS: Final = "counters"
+#: Its own static ability raises its own power or toughness (Kird Ape) — the
+#: coordinator's call from Dan's "a creature grows itself by any means".
+SELF_BOOST_STATIC: Final = "static"
+#: Anything that makes your OTHER creatures bigger, the delivery as subject. A
+#: page-only key: the pages that want a creature boosted read it, and it opens no
+#: avenue of its own.
+BOOSTS_OTHERS: Final = "boosts_others"
+BOOST_EFFECT: Final = "effect"
+BOOST_COUNTERS: Final = "counters"
+BOOST_ANTHEM: Final = "anthem"
+BOOST_ATTACHED: Final = "attached"
+#: The boost targets one creature that isn't an opponent's, as a spell (CR 115.1a)
+#: or as an activated or triggered ability (equip included, CR 702.6a).
+BOOST_TARGET_SPELL: Final = "target_spell"
+BOOST_TARGET_ABILITY: Final = "target_ability"
+#: ``targeting_matters``' subject for a payoff that only a spell fires ("Whenever
+#: you cast a spell that targets ~" — heroic's cards; "becomes the target of a
+#: spell") or only an ability does ("of an activated ability" — Professor Hojo).
+#: A payoff either fires keeps the subject "".
+TARGETED_BY_SPELL: Final = "spell"
+TARGETED_BY_ABILITY: Final = "ability"
+
 # The keys only a theme's page reads, with no spec of their own: ``subtype_ref``
 # (the subtypes a card's filters name — a tribe's pages read it per tribe),
 # ``keyword_bodies`` (the keywords a card puts on bodies of yours — a keyword
 # tribe's page reads it per keyword) and ``land_return_untap`` (a land you control
 # returned to its owner's hand pays for an untap — Quirion Ranger, the
 # land-animation page's untap engines). None opens an avenue
-# (``signal_specs.core.spec_for`` has none to give), and the key-agreement gate
-# leaves them out.
+# (``signal_specs.core.avenue_spec_for`` returns none), and the key-agreement gate
+# leaves them out. ``boosts_others`` (ADR-0065) is offered by the pages that want a
+# creature boosted, as the "Boosts your other creatures" sub-avenue.
 PAGE_ONLY_KEYS: Final = frozenset(
-    {"subtype_ref", "keyword_bodies", "land_return_untap"}
+    {"subtype_ref", "keyword_bodies", "land_return_untap", BOOSTS_OTHERS}
 )
 
 
@@ -270,6 +310,12 @@ SUBJECT_ROLES: Final[Mapping[tuple[str, str], SubjectRole]] = MappingProxyType(
         ("self_drawback", "harm"): SubjectRole.PAGE_ONLY,
         # a land that is or makes itself a creature (Mutavault, Dryad Arbor)
         ("land_creatures_matter", "self"): SubjectRole.PAGE_ONLY,
+        # a perpetual boost to cards of yours in a library or in every zone
+        # (Dalkovan Outrider, Unbreakable Remnant): the card_boost page's,
+        # opening no avenue of its own (Dan's ruling, 2026-11-25: only the hand,
+        # stack and graveyard boosts pair)
+        ("card_boost", "library"): SubjectRole.PAGE_ONLY,
+        ("card_boost", "everywhere"): SubjectRole.PAGE_ONLY,
     }
 )
 

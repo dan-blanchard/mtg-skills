@@ -70,8 +70,8 @@ def _confidence(name: str, key: str, scope: str) -> str | None:
     [
         # ChooseOneOf branches, the controller's choice: phase v0.104.0 moved
         # these "+1/-1 or -1/+1" pumps into branches.
-        ("Endling", "self_pump", "you"),
-        ("Shorecrasher Elemental", "self_pump", "you"),
+        ("Endling", "self_boost", "you"),
+        ("Shorecrasher Elemental", "self_boost", "you"),
         ("Pemmin's Aura", "effect_boost", "you"),
         ("Liliana of the Dark Realms", "scaling_pump", "you"),
         # d20 results rows.

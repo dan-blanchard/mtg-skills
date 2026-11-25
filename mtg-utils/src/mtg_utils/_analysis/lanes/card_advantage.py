@@ -43,6 +43,7 @@ from mtg_utils._card_ir.crosswalk import (
     additional_phase_kind,
     amount_factor,
     amount_is_scaling,
+    boost_recipient,
     change_zone_dirs,
     controller_paid_cost_leaves,
     count_operand_filter,
@@ -55,6 +56,7 @@ from mtg_utils._card_ir.crosswalk import (
     event_source_side,
     exiled_library_side,
     explicit_recipient_scope,
+    feeds_own_static,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
@@ -80,6 +82,7 @@ from mtg_utils._card_ir.crosswalk import (
     permission_tag,
     pt_mod_signs,
     pump_raises,
+    raises_with_counters,
     recipient_tag,
     recursion_card_types,
     requires_condition_inner,
@@ -443,12 +446,25 @@ _TARGET_PLAYER_DRAW_PHRASE_RE = re.compile(
     re.IGNORECASE,
 )
 # Combat-frame trigger events (CR 508 / 509.3a) — the combat_trigger_boost
-# anchor, phase's combined "attacks or blocks" trigger among them (Freelance
-# Muscle, Velukan Dragon). ``deals_damage`` is DELIBERATELY absent so Renown /
-# the separate self_counter_grow shapes don't over-fire (mirrors the live
-# exclusion).
+# anchor, phase's combined triggers among them: "attacks or blocks" (Freelance
+# Muscle, Velukan Dragon), "blocks or becomes blocked" (Chub Toad, Brushwagg),
+# "enters or attacks" (Deathgorge Scavenger's attack half), "attacks and isn't
+# blocked" (Murk Dwellers), and exert ("You may exert this creature as it
+# attacks", an optional cost to attack — CR 701.43d: Hooded Brawler).
+# ``deals_damage`` is DELIBERATELY absent so Renown / the separate
+# self_counter_grow shapes don't over-fire (mirrors the live exclusion); a crew
+# trigger is no combat event (Veteran Motorist crews outside combat too).
 _COMBAT_TRIGGER_BOOST_EVENTS: frozenset[str] = frozenset(
-    {"attacks", "blocks", "attacksorblocks", "becomes_blocked"}
+    {
+        "attacks",
+        "blocks",
+        "attacksorblocks",
+        "becomes_blocked",
+        "blocksorbecomesblocked",
+        "entersorattacks",
+        "attackerunblocked",
+        "exerted",
+    }
 )
 # Land-to-graveyard payoff trigger events (CR 701.21a / 603.6c).
 _LAND_SAC_EVENTS: frozenset[str] = frozenset({"dies", "leaves", "sacrificed"})
@@ -2707,8 +2723,9 @@ def _topdeck_stack(tree: ConceptTree) -> list[Signal]:
     corpus-verified card-by-card against ``old_ir_for`` (never assumed):
 
     * **Nested-grant descent** (mechanism b — the ``_GRANT_ABILITY_MOD_TAGS``
-      ``.definition`` precedent :func:`_self_pump`'s sibling scan already
-      establishes): a ``GrantAbility``/``GrantTrigger``/``GrantStaticAbility``
+      ``.definition`` precedent the grant scan of
+      :func:`mana_and_wipes._pump_scaling_lanes` already establishes): a
+      ``GrantAbility``/``GrantTrigger``/``GrantStaticAbility``
       modification's OWN ``.definition`` sub-tree is scanned for a nested
       ``PutAtLibraryPosition``/``PutOnTopOrBottom`` (Scion of Halaster's
       Background grants Commander creatures a "look at the top two, one to
@@ -2896,15 +2913,16 @@ def _stacked_card_origin(unit: AbilityUnit, tgt: object) -> str:
 
 
 def _buffs_with_counters(c: ConceptNode) -> bool:
-    """A counter placement that can be the combat buff: a typed one of any kind
-    but -1/-1, or — phase v0.104.0 failing closed on a counter clause it can't
-    fully parse (Cait, Cage Brawler's "if you discarded …" tail, Finneas's
-    "that's a token or a Rabbit") and parking it as a residue the
-    ``place_counter`` token recovers — one whose clause names a +1/+1 counter
-    (an experience or rad counter is no buff)."""
+    """A counter placement that can be the combat buff: a typed one that raises
+    power or toughness (``crosswalk.counter_raises`` — a +1/+1 counter, CR
+    122.1a; a -1/-1, stun or charge counter is no buff: Dusk Urchins), or —
+    phase v0.104.0 failing closed on a counter clause it can't fully parse
+    (Cait, Cage Brawler's "if you discarded …" tail, Finneas's "that's a token
+    or a Rabbit") and parking it as a residue the ``place_counter`` token
+    recovers — one whose clause names a +1/+1 counter (an experience or rad
+    counter is no buff)."""
     if not c.recovered_by:
-        # a -1/-1 counter shrinks what it lands on (Dusk Urchins)
-        return counter_kind_any(c.node) != "M1M1"
+        return raises_with_counters(c)
     # Erithizon's "on target creature of defending player's choice": the
     # opponent aims it (its ruling), so it is no buff you can direct.
     return OTHER_CHOOSER not in c.subject and "+1/+1 counter" in c.subject
@@ -2930,7 +2948,11 @@ def _combat_trigger_boost(tree: ConceptTree) -> list[Signal]:
     and a counted one the same way ("it gets +1/+1 for each card type among
     cards in your graveyard" — Ursine Monstrosity's ``AddDynamicPower``).
     ``deals_damage`` is DELIBERATELY excluded so Renown / self_counter_grow
-    shapes (Skirk Commando) never over-fire. Scope "you".
+    shapes (Skirk Commando) never over-fire. A creature that boosts itself in
+    combat counts (bushido, Chub Toad: it carries ``self_boost`` beside this);
+    a buff only an opponent's creature gets doesn't (Flailing Drake's "that
+    creature", the one in combat with it — ``crosswalk.boost_recipient``).
+    Scope "you".
     """
     for unit in tree.units:
         ev = unit.trigger_event
@@ -2941,8 +2963,12 @@ def _combat_trigger_boost(tree: ConceptTree) -> list[Signal]:
             continue
         # A buff raises power or toughness, as an effect or as a static grant.
         effect_buff = any(
-            (c.concept == "pump" and pump_raises(c.node))
-            or (c.concept == "place_counter" and _buffs_with_counters(c))
+            (
+                (c.concept == "pump" and pump_raises(c.node))
+                or (c.concept == "place_counter" and _buffs_with_counters(c))
+                or feeds_own_static(unit, tree, c)
+            )
+            and (c.recovered_by or boost_recipient(unit, c) != "opponents")
             for c in unit.effects
         )
         static_buff = any(c.concept == "pump" for c in unit.statics) and any(

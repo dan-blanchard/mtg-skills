@@ -34,6 +34,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_controller,
     is_spell_card,
     keyword_counter_placements,
+    memo_on,
     tag_of,
 )
 
@@ -351,8 +352,13 @@ def has_structural_self_counter_grow(tree: ConceptTree) -> bool:
 
     An instant or sorcery grows nothing of its own: phase binds Emergent
     Sequence's "Put a +1/+1 counter on it" (the land it fetched) to the spell
-    (``test_spell_self_counter_misbinding_canary``).
+    (``test_spell_self_counter_misbinding_canary``). Memoized on the tree: the
+    lane, its narrow preset form and ``self_boost`` each ask it.
     """
+    return memo_on(tree, "_xw_self_counter_grow", _read_self_counter_grow)
+
+
+def _read_self_counter_grow(tree: ConceptTree) -> bool:
     for unit in () if is_spell_card(tree) else tree.units:
         for c in unit.effect_concepts("place_counter"):
             node = c.node

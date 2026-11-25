@@ -5427,16 +5427,14 @@ def test_targeting_matters_synth_registered():
     assert "targeting_matters" in SYNTHESIS_ARM_IDS
 
 
-def test_targeting_matters_fires_on_akroan_crusader():
-    """Akroan Crusader's Heroic ability word — "whenever you cast a spell
-    that targets this creature" — phase emits no native becomes_target
-    trigger for the ability-word form (CR 207.2c), the granted/quoted/
-    heroic residue."""
+def test_targeting_matters_gap_gated_on_a_typed_heroic_trigger():
+    """Akroan Crusader's heroic — "whenever you cast a spell that targets this
+    creature" — is a typed ``SpellCast`` trigger on a targeting spell, read
+    structurally (``targeting_matters|any|spell``, ADR-0065), so the residue arm
+    stays out."""
     tree = _fixture_tree("Akroan Crusader")
-    node = _arm_targeting_matters(tree)
-    assert node is not None
-    assert node.concept == "synth_targeting_matters"
-    assert node.scope == "any"
+    assert has_structural_targeting_matters(tree)
+    assert _arm_targeting_matters(tree) is None
 
 
 def test_targeting_matters_gap_gated_when_structural_present():

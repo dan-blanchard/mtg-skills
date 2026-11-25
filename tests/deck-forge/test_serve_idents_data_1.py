@@ -573,8 +573,8 @@ def test_targeting_serve_drops_ward_reminders():
     assert not serve.matches(_card("Adrix and Nev, Twincasters"))
 
 
-def test_self_pump_serve_drops_target_pumps():
-    serve = _ident_serve("self_pump", "you", "self_pump|you|")
+def test_self_boost_serve_drops_target_pumps():
+    serve = _ident_serve("self_boost", "you", "self_boost|you|*")
     assert serve.matches(_card("Flowstone Giant"))  # "+2/-2", the regex wanted +N/+N
     # "Put a +1/+1 counter on target artifact creature" pumps another creature.
     assert not serve.matches(_card("Steel Overseer"))

@@ -10,14 +10,20 @@ the rest of the ``signal_specs`` package — only on ``signal_keys``,
 
 from __future__ import annotations
 
+import dataclasses
 import functools
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._sweep_detectors import (
     SWEEP_DETECTORS,
     SWEEP_LABELS,
+)
+from mtg_utils._analysis.card_reads import (
+    grants_keyword_by_ability,
+    grants_keyword_by_spell,
 )
 from mtg_utils._analysis.lanes.card_advantage import (
     FODDER_SELF_RETURNS,
@@ -460,12 +466,23 @@ class SubAvenue:
 
     ``serve`` is the sub-avenue's precise classifier, and its candidate page
     (``signal_specs.theme_page``); ``search`` is the page's override, as on
-    :class:`SignalSpec`."""
+    :class:`SignalSpec`.
+
+    ``deck_subjects`` names the subjects of the deck signal the sub-avenue is
+    offered under, when it isn't offered under every one: a firebreather's
+    mana sinks (``self_boost|you|activated``), a heroic payoff's spells
+    (``targeting_matters|any|spell``) — ADR-0065. ``None`` offers it under
+    every subject."""
 
     label: str
     avenue: str
     serve: Serve
     search: dict = field(default_factory=dict)
+    deck_subjects: frozenset[str] | None = None
+
+    def offered_for(self, subject: str) -> bool:
+        """Whether the sub-avenue is offered to a deck signal of ``subject``."""
+        return self.deck_subjects is None or subject in self.deck_subjects
 
 
 @dataclass(frozen=True)
@@ -1119,6 +1136,42 @@ _REANIMATION_EXTRA = SubAvenue(
         )
     ),
 )
+# Perpetual boosts to your cards outside the battlefield (the card_boost lane,
+# Dan's ruling 2026-11-25): a boost to the creature cards in your graveyard
+# (Feed the Bog, Advanced Floral Invocations) arrives bigger when a reanimation
+# or recursion deck brings them back, and a boost to the creature cards in your
+# hand (Veteran Charger, Golden Sidekick) when a creature deck casts them.
+_CARD_BOOST_GRAVEYARD_EXTRA = SubAvenue(
+    "Grow the cards in your graveyard",
+    "perpetual boosts to the creature cards in your graveyard, so what you "
+    "return comes back bigger (Feed the Bog, Advanced Floral Invocations)",
+    serve=Serve(signal_idents=frozenset({"card_boost|you|graveyard"})),
+)
+_CARD_BOOST_HAND_EXTRA = SubAvenue(
+    "Grow the cards in your hand",
+    "perpetual boosts to the creature cards in your hand and the creature spells "
+    "you cast, so each one arrives bigger (Veteran Charger, Golden Sidekick, "
+    "Rothga, Bonded Engulfer)",
+    serve=Serve(
+        signal_idents=frozenset({"card_boost|you|hand", "card_boost|you|stack"})
+    ),
+)
+# The other way round for a hand or stack boost: the creature cards it grows.
+_CREATURE_CARDS_EXTRA = SubAvenue(
+    "Creature cards",
+    "a creature-dense deck, so the boosts land on creatures you cast",
+    serve=Serve(types=frozenset({"creature"})),
+    search={"card_type": "Creature"},
+)
+# The other way round: a deck growing the cards in its graveyard wants them back
+# — reanimation (_REANIMATION_EXTRA below) and recursion to hand or to the
+# battlefield (the creature_recursion lane).
+_CREATURE_RECURSION_EXTRA = SubAvenue(
+    "Creature recursion",
+    "return creature cards from your graveyard to your hand or the battlefield "
+    "(Gravedigger, Raise Dead, Phyrexian Reclamation)",
+    serve=Serve(signal_idents=frozenset({"creature_recursion|you|*"})),
+)
 # Board protection: GRANT the whole team indestructible (Selfless Spirit, Heroic
 # Intervention, Akroma's Will, Flawless Maneuver, Avacyn, Darksteel Forge) — the
 # board_protection lane's ``indestructible`` team subject. Distinct from an
@@ -1373,29 +1426,143 @@ _PARADOX_PAYOFF_EXTRA = SubAvenue(
     "than your hand",
     serve=Serve(signal_idents=frozenset({"cast_from_exile|you|paradox"})),
 )
-# Heroic / targeting enablers: cheap spells that TARGET one of your creatures to fire
-# the heroic payoff (Gods Willing, Brute Force, Defiant Strike). They must use "target"
-# (CR 115.1a) and BUFF it: the effect_boost lane's ``target`` subject (a pump on one
-# chosen creature) and keyword_grant_target — a keyword, a choice of keywords (Gideon
-# Blackblade) or a quoted ability (Feign Death) given to a target creature. An "each
-# creature" anthem doesn't target (so won't trigger heroic) and targeted REMOVAL
-# ("gets -N/-N", destroy) isn't a self-buff, so both stay out.
+# Heroic / targeting enablers: cheap effects that TARGET one of your creatures to fire
+# a targeting payoff (Gods Willing, Brute Force, Defiant Strike). They must use
+# "target" (CR 115.1a) and BUFF it: a boost of one chosen creature
+# (``boosts_others|you|target_spell`` / ``target_ability``, ADR-0065) and
+# keyword_grant_target — a keyword, a choice of keywords (Gideon Blackblade) or a
+# quoted ability (Feign Death) given to a target creature. An "each creature" anthem
+# doesn't target (so won't trigger heroic) and targeted REMOVAL ("gets -N/-N",
+# destroy) isn't a self-buff, so both stay out. The payoff's trigger decides which
+# boosts it is offered (Dan's ruling, 2026-11-25): "Whenever you cast a spell that
+# targets ~" (heroic) fires on a spell only (``targeting_matters|any|spell``), "of an
+# activated ability" on an ability only (``|ability``), "becomes the target of a
+# spell or ability" on both ("").
 _TARGETED_BUFF_EXTRA = SubAvenue(
     "Single-target pump / protection",
-    "cheap spells that target one of your creatures to trigger heroic (Gods Willing / "
-    "Brute Force / Defiant Strike)",
+    "cheap spells and abilities that target one of your creatures to fire its "
+    "becomes-the-target payoff (Gods Willing / Brute Force / Bonesplitter's equip)",
     serve=Serve(
         signal_idents=frozenset(
-            {"keyword_grant_target|you|*", "effect_boost|you|target"}
+            {
+                "keyword_grant_target|you|*",
+                f"{signal_keys.BOOSTS_OTHERS}|you|{signal_keys.BOOST_TARGET_SPELL}",
+                f"{signal_keys.BOOSTS_OTHERS}|you|{signal_keys.BOOST_TARGET_ABILITY}",
+            }
+        )
+    ),
+    deck_subjects=frozenset({""}),
+)
+_TARGETED_SPELL_BUFF_EXTRA = SubAvenue(
+    "Single-target pump spells",
+    "cheap spells that pump one of your creatures to trigger heroic (Brute Force "
+    "/ Defiant Strike / Dragonscale Boon)",
+    serve=Serve(
+        signal_idents=frozenset(
+            {f"{signal_keys.BOOSTS_OTHERS}|you|{signal_keys.BOOST_TARGET_SPELL}"}
+        )
+    ),
+    deck_subjects=frozenset({signal_keys.TARGETED_BY_SPELL}),
+)
+
+
+# A spell-only payoff's keyword grants are the spells' too (the coordinator's
+# call, 2026-11-25): a targeted keyword grant an instant's or sorcery's own spell
+# makes (Gods Willing; not Dirge of Dread's cycling trigger), and an Aura whose
+# grant is all it gives (Flight): an Aura spell targets as it is cast (CR
+# 303.4a). Equipment attaches by an ability (CR 702.6a), so it is not offered.
+def _spell_keyword_grant(card: dict) -> bool:
+    if grants_keyword_by_spell(card):
+        return True
+    return type_line_has(CardView(card).type_line, "aura") and any(
+        ident.startswith("aura_equip_kw_grant|you|")
+        for ident in _signal_idents_for(card)
+    )
+
+
+_TARGETED_SPELL_GRANT_EXTRA = SubAvenue(
+    "Single-target protection spells",
+    "instants, sorceries and Auras that give one of your creatures a keyword to "
+    "trigger heroic (Gods Willing / Ranger's Guile / Flight)",
+    serve=Serve(
+        all_of=(
+            Serve(
+                signal_idents=frozenset(
+                    {"keyword_grant_target|you|*", "aura_equip_kw_grant|you|*"}
+                )
+            ),
+            Serve(predicate=_spell_keyword_grant, predicate_id="spell_keyword_grant"),
+        )
+    ),
+    deck_subjects=frozenset({signal_keys.TARGETED_BY_SPELL}),
+)
+# An ability-only payoff's keyword grants are the abilities' (the coordinator's
+# call, 2026-11-25): an instant's or sorcery's own targeted grant is a spell's,
+# but its cycling trigger's is an ability's (CR 115.1a's example).
+_BOOST_ABILITY = f"{signal_keys.BOOSTS_OTHERS}|you|{signal_keys.BOOST_TARGET_ABILITY}"
+_TARGETED_ABILITY_BUFF_EXTRA = SubAvenue(
+    "Single-target pump abilities",
+    "activated and triggered abilities that target one of your creatures to fire "
+    "its ability-targeting payoff (equip, a creature's pump ability)",
+    serve=Serve(
+        all_of=(
+            # The cheap gate first: the predicate reads the card's trees.
+            Serve(
+                signal_idents=frozenset({"keyword_grant_target|you|*", _BOOST_ABILITY})
+            ),
+            Serve(
+                signal_idents=frozenset({_BOOST_ABILITY}),
+                predicate=grants_keyword_by_ability,
+                predicate_id="grants_keyword_by_ability",
+            ),
+        )
+    ),
+    deck_subjects=frozenset({signal_keys.TARGETED_BY_ABILITY}),
+)
+# Anything that makes your OTHER creatures bigger (ADR-0065): an effect that pumps
+# them, +1/+1 counters put on them, an anthem that reaches them, an Aura or
+# Equipment that suits one up. The pages of the cards that cash a creature's size in
+# offer it: power-matters payoffs, the combat-damage payoffs, fights and bites,
+# power-as-damage, power doublers.
+_BOOSTS_OTHERS_EXTRA = SubAvenue(
+    "Boosts your other creatures",
+    "pumps, +1/+1 counters, anthems and gear that make your creatures bigger, to "
+    "push combat damage through and cash the size in",
+    serve=Serve(signal_idents=frozenset({f"{signal_keys.BOOSTS_OTHERS}|you|*"})),
+)
+# A creature that grows itself (``self_boost``, ADR-0065): the fight / bite,
+# power-as-damage, power-tap, power-doubling, power-matters and trample / evasion
+# pages are offered it, and its own page offers them back.
+_SELF_BOOST_EXTRA = SubAvenue(
+    "Creatures that grow themselves",
+    "creatures that pump themselves or put +1/+1 counters on themselves — a body "
+    "whose size you cash in (Shivan Dragon, prowess, bushido)",
+    serve=Serve(signal_idents=frozenset({f"{signal_keys.SELF_BOOST}|you|*"})),
+)
+# The same, offered to a team grant only under its trample subject
+# (``team_boost_or_grant|you|trample``): the cash-in's trample, both ways.
+_SELF_BOOST_TRAMPLE_EXTRA = dataclasses.replace(
+    _SELF_BOOST_EXTRA, deck_subjects=frozenset({"trample"})
+)
+# The firebreathers (an activated ability that boosts the creature itself): the
+# big-mana and untap pages pour their mana and untaps into them.
+_FIREBREATHER_EXTRA = SubAvenue(
+    "Firebreathers (mana sinks)",
+    "creatures with an activated ability that pumps themselves, to sink your "
+    "spare mana and untaps into",
+    serve=Serve(
+        signal_idents=frozenset(
+            {f"{signal_keys.SELF_BOOST}|you|{signal_keys.SELF_BOOST_ACTIVATED}"}
         )
     ),
 )
-# Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
-# survive blocks: the effect_boost lane.
-_PUMP_EXTRA = SubAvenue(
-    "Combat tricks / pump",
-    "instant-speed pump to push extra combat damage through and survive blocks",
-    serve=Serve(signal_idents=frozenset({"effect_boost|you|"})),
+# A firebreather's own partners — big mana to pour in and untap effects to reuse a
+# tap ability — offered only to the activated subject.
+_FIREBREATHER_MANA_EXTRA = SubAvenue(
+    "Mana and untaps for firebreathing",
+    "big mana and untap effects to pump the firebreather again and again",
+    serve=Serve(signal_idents=frozenset({"big_mana|you|", "untap_engine|you|*"})),
+    deck_subjects=frozenset({signal_keys.SELF_BOOST_ACTIVATED}),
 )
 # Damage / life-loss AMPLIFIERS — a commander that deals combat damage to opponents
 # wants its damage doubled (Gratuitous Violence, Furnace of Rath, Angrath's Marauders,
@@ -1469,6 +1636,41 @@ _POWER_FLING_EXTRA = SubAvenue(
     serve=Serve(
         signal_idents=frozenset(
             {"damage_equal_power|you|*", "fight_makers|you|", "power_tap_engine|you|"}
+        )
+    ),
+)
+#: The evasion keywords a grown creature wants (CR 702.19a trample; flying,
+#: menace, fear, intimidate, shadow, skulk, horsemanship, landwalk).
+_EVASION_KEYWORDS = (
+    "trample",
+    "flying",
+    "menace",
+    "fear",
+    "intimidate",
+    "shadow",
+    "skulk",
+    "horsemanship",
+    "landwalk",
+)
+# What a creature that grows itself cashes its size in with (ADR-0065), one
+# sub-avenue so the page stays one theme: fights and bites, power-as-damage and
+# power-tap engines (``_POWER_FLING_EXTRA``'s idents), power doublers, power-matters
+# payoffs, and trample or evasion handed to it so it connects.
+_SELF_BOOST_CASH_IN_EXTRA = SubAvenue(
+    "Cash in its size",
+    "fights, flings, power doublers, power payoffs and trample or evasion for a "
+    "creature that grows itself (Fling, Unleash Fury, Rancor)",
+    serve=Serve(
+        signal_idents=_POWER_FLING_EXTRA.serve.signal_idents
+        | frozenset(
+            {
+                "power_double|you|",
+                "power_matters|you|",
+                "team_evasion_grant|you|*",
+                "team_boost_or_grant|you|trample",
+                *(f"keyword_grant_target|you|{kw}" for kw in _EVASION_KEYWORDS),
+                *(f"aura_equip_kw_grant|you|{kw}" for kw in _EVASION_KEYWORDS),
+            }
         )
     ),
 )

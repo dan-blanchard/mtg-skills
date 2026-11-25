@@ -575,7 +575,7 @@ def test_a_where_x_pump_reads_as_the_pump_it_is():
     assert ("effect_boost", "you", "") in idents("General Tazri")
     assert ("effect_boost", "you", "") in idents("Huntmaster Liger")
     assert ("team_boost_or_grant", "you", "pump") in idents("Huntmaster Liger")
-    assert ("self_pump", "you", "") in idents("Keldon Battlewagon")
+    assert ("self_boost", "you", "activated") in idents("Keldon Battlewagon")
     assert ("voltron_makers", "you", "pump") in idents("Bronze Cudgels")
     assert ("combat_trigger_boost", "you", "") in idents("Razorfield Ripper")
 
@@ -891,23 +891,223 @@ def test_static_pump_line_canary():
     }
 
 
+def _team(subtype: str | None = None, properties: list | None = None) -> dict:
+    types: list = ["Creature"]
+    if subtype:
+        types.append({"Subtype": subtype})
+    return {
+        "type": "Typed",
+        "type_filters": types,
+        "controller": "You",
+        "properties": properties or [],
+    }
+
+
+_ANOTHER = {"type": "Another"}
+
+
+def _owned(types: list, *properties: dict) -> dict:
+    return {
+        "type": "Typed",
+        "type_filters": types,
+        "controller": None,
+        "properties": [{"type": "Owned", "controller": "You"}, *properties],
+    }
+
+
+_TRIGGER_1 = ("triggers", 1, "execute")
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "path", "targets", "amounts"),
+    [
+        # "All creature cards you own with mana value 2 or less perpetually get
+        # +1/+0": your permanents of them too
+        (
+            "Naktamun Shines Again",
+            ("triggers", 0, "execute"),
+            [
+                _owned(
+                    ["Creature"],
+                    {
+                        "type": "Cmc",
+                        "comparator": "LE",
+                        "value": {"type": "Fixed", "value": 2},
+                    },
+                )
+            ],
+            (1, 0),
+        ),
+        # "all artifact creature cards and Spacecraft cards you own": one
+        # population per conjunct, in each of its two triggers
+        *(
+            (
+                "Network Marauder",
+                path,
+                [_owned(["Artifact", "Creature"]), _owned([{"Subtype": "Spacecraft"}])],
+                (1, 1),
+            )
+            for path in (("triggers", 0, "execute"), _TRIGGER_1)
+        ),
+        # "all cards you own named Unbreakable Remnant"
+        (
+            "Unbreakable Remnant",
+            ("triggers", 0, "execute"),
+            [_owned([], {"type": "Named", "name": "Unbreakable Remnant"})],
+            (1, 1),
+        ),
+    ],
+)
+def test_parked_perpetual_owned_team_pump_canary(name, path, targets, amounts):
+    """A perpetual boost phase parks over every card you own also reaches your
+    permanents of those cards on the battlefield: that half is written as the
+    team pump with no end date the group row writes (``PumpAll`` lasting
+    ``Permanent``) over your owned permanents of the cards, and the residue stays
+    for the cards in every other zone (``card_boost|you|everywhere``)."""
+    (rec,) = test_phase_records(name)
+    parked = _at(rec, path)["effect"]
+    assert parked == {
+        **parked,
+        "type": "Unimplemented",
+        "name": "perpetual_modify_pt",
+    }, (
+        f"misparsed_shapes perpetual owned-team pump: RETIRE-READY — phase types "
+        f"{name}'s perpetual boost. Once no residue reads as one, delete "
+        "_perpetual_team_split's owned arm and this canary."
+    )
+    after = _at(correct_misparsed_shapes(rec), path)
+    assert after["effect"] == parked
+    body = after["sub_ability"]
+    for target in targets:
+        assert body["effect"] == {
+            "type": "PumpAll",
+            "power": {"type": "Fixed", "value": amounts[0]},
+            "toughness": {"type": "Fixed", "value": amounts[1]},
+            "target": target,
+        }
+        assert body["duration"] == "Permanent"
+        body = body["sub_ability"]
+    idents = {(s.key, s.scope, s.subject) for s in test_signals(name)}
+    assert ("effect_boost", "you", "") in idents
+    assert ("boosts_others", "you", "effect") in idents
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "target", "kept"),
+    [
+        # "creatures you control perpetually get +1/+1": the group alone
+        ("Legion of Clay", _team(), False),
+        # a group beside cards in a hand, a library or a graveyard: the residue
+        # stays for the cards (``card_boost``)
+        ("Arming Gala", _team(), True),
+        ("Lae'zel, Primal Warrior", _team(properties=[_ANOTHER]), True),
+        (
+            "Coalition Construct",
+            _team(properties=[_ANOTHER, {"type": "IsChosenCreatureType"}]),
+            True,
+        ),
+        ("Stalwart Speartail", _team("Dinosaur", [_ANOTHER]), True),
+    ],
+)
+def test_parked_perpetual_team_pump_canary(name, target, kept):
+    """Dan's ruling (2026-11-25): a perpetual boost phase parks over a group of
+    your creatures on the battlefield is written as a team pump with no end date
+    — phase's ``PumpAll`` lasting ``Permanent`` — since phase writes no perpetual
+    change over a population on the battlefield. The face still loads."""
+    (rec,) = test_phase_records(name)
+    path = ("triggers", 0, "execute")
+    parked = _at(rec, path)["effect"]
+    assert parked == {
+        **parked,
+        "type": "Unimplemented",
+        "name": "perpetual_modify_pt",
+    }, (
+        f"misparsed_shapes perpetual team pump: RETIRE-READY — phase types "
+        f"{name}'s perpetual boost. Once no residue reads as one, delete "
+        "_perpetual_team_split and this canary."
+    )
+    after = _at(correct_misparsed_shapes(rec), path)
+    pump = after["sub_ability"] if kept else after
+    assert pump["effect"] == {
+        "type": "PumpAll",
+        "power": {"type": "Fixed", "value": 1},
+        "toughness": {"type": "Fixed", "value": 1},
+        "target": target,
+    }
+    assert pump["duration"] == "Permanent"
+    if kept:
+        assert after["effect"] == parked
+    assert ("effect_boost", "you", "") in {
+        (s.key, s.scope, s.subject) for s in test_signals(name)
+    }
+
+
+@pytest.mark.parametrize(
+    "name", ["Legion of Clay", "Arming Gala", "Lae'zel, Primal Warrior"]
+)
+def test_a_perpetual_boost_to_your_team_reads_as_a_team_boost(name):
+    """A boost of your other creatures (ADR-0065): never the card growing itself
+    from that clause."""
+    idents = {(s.key, s.scope, s.subject) for s in test_signals(name)}
+    assert ("team_boost_or_grant", "you", "pump") in idents
+    assert ("effect_boost", "you", "") in idents
+    assert ("boosts_others", "you", "effect") in idents
+    assert not any(k == "self_boost" for k, _s, _sub in idents)
+
+
+@pytest.mark.retirement_canary
+def test_verb_list_pump_canary():
+    """ "Until end of turn, target creature becomes black, gets +1/-1, and gains
+    \"{B}: Regenerate ~.\"" (Defiling Tears): phase parks the verbs and drops
+    the target. The pump is typed on the target the description names, as phase
+    types Lash of Malice's "+2/-2", ahead of the residue, which keeps the colour
+    change and the granted ability."""
+    (rec,) = test_phase_records("Defiling Tears")
+    parked = rec["abilities"][0]["effect"]
+    assert parked.get("type") == "Unimplemented", (
+        "misparsed_shapes verb-list pump: RETIRE-READY — phase types Defiling "
+        "Tears. Delete _verb_list_split, clause_grammar.verb_list_pump and this "
+        "canary."
+    )
+    body = correct_misparsed_shapes(rec)["abilities"][0]
+    assert body["effect"] == {
+        "type": "Pump",
+        "power": {"type": "Fixed", "value": 1},
+        "toughness": {"type": "Fixed", "value": -1},
+        "target": _typed(["Creature"]),
+    }
+    assert body["duration"] == "UntilEndOfTurn"
+    assert body["sub_ability"]["effect"] == parked
+
+
+def test_a_raise_and_a_shrink_reads_as_both():
+    """Defiling Tears's "+1/-1" reads as Lash of Malice's "+2/-2" does: a pump
+    of one creature a spell targets and a shrink (Dan's ruling, 2026-11-25;
+    ADR-0065's ``boosts_others|you|target_spell``)."""
+    want = {
+        ("effect_boost", "you", ""),
+        ("boosts_others", "you", "effect"),
+        ("boosts_others", "you", "target_spell"),
+        ("debuff_makers", "any", ""),
+    }
+    for name in ("Defiling Tears", "Lash of Malice"):
+        idents = {(s.key, s.scope, s.subject) for s in test_signals(name)}
+        assert want <= idents, name
+
+
 @pytest.mark.parametrize(
     "name",
     [
-        # on the battlefield, but no perpetual form phase writes says it: a
-        # group ("creatures you control" — phase's perpetual change reaches a
-        # population only outside the battlefield), alone or beside cards
-        "Legion of Clay",
-        "Lae'zel, Primal Warrior",
         # "a creature of your choice an opponent controls": chosen, not
         # targeted, and phase's typed filter is a target
         "Alora, Cheerful Thief",
-        # off the battlefield: "Creature cards in your graveyard"
+        # off the battlefield: "Creature cards in your graveyard" — read in place
+        # by ``card_boost`` (``crosswalk.perpetual.card_boost_zones``)
         "Feed the Bog",
         # "… if it has the same name as …": the condition is what phase parked
         "Mace of Disruption",
-        # the subject phase dropped lives only in the description
-        "Defiling Tears",
     ],
 )
 def test_a_pump_with_no_faithful_typed_form_stays_parked(name):
@@ -1060,3 +1260,311 @@ def test_lead_object_grammar_reads_no_other_lead():
     from mtg_utils._card_ir.clause_grammar import lead_object
 
     assert lead_object("draw X cards") is None
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Akrasan Squire",  # exalted (CR 702.83a)
+        "Accorder Paladin",  # battle cry (CR 702.91a)
+        "Samurai of the Pale Curtain",  # bushido 1 (CR 702.45a)
+    ],
+)
+def test_keyword_pump_duration_canary(name):
+    """Phase expands exalted, battle cry and bushido into their trigger but
+    leaves the pump with no ``duration``; each keyword's pump lasts until end of
+    turn, so the trigger's body gets ``UntilEndOfTurn``, as phase writes it for
+    the same pump printed out (Glaze Fiend)."""
+    (rec,) = test_phase_records(name)
+    bodies = [t["execute"] for t in rec["triggers"]]
+    assert any(b["duration"] is None for b in bodies), (
+        "misparsed_shapes keyword pump duration: RETIRE-READY — phase writes "
+        f"{name}'s keyword pump with its duration. Delete the keyword-pump row "
+        "(_KEYWORD_PUMPS, _keyword_pump_bodies) and this canary."
+    )
+    after = correct_misparsed_shapes(rec)
+    assert all(t["execute"]["duration"] == "UntilEndOfTurn" for t in after["triggers"])
+    assert all(t["execute"]["duration"] is None for t in rec["triggers"])
+
+
+def test_keyword_pump_duration_leaves_a_printed_pump_alone():
+    """Glaze Fiend's printed pump already carries its duration, and a face
+    without one of the keywords is never rewritten."""
+    (rec,) = test_phase_records("Glaze Fiend")
+    assert correct_misparsed_shapes(rec) is rec
+
+
+@pytest.mark.retirement_canary
+def test_paid_then_it_canary():
+    """ "Whenever ~ attacks, you may pay {E}{E}. If you do, put a +1/+1 counter on
+    it" (Thriving Rhino): phase writes the counter on ``ParentTarget`` after only
+    a ``PayCost``, which names no object; in a trigger that watches only the
+    card, the "it" is the card."""
+    (rec,) = test_phase_records("Thriving Rhino")
+    attack = next(t for t in rec["triggers"] if t["mode"] == "Attacks")
+    counter = attack["execute"]["sub_ability"]["effect"]
+    assert counter["target"] == {"type": "ParentTarget"}, (
+        "misparsed_shapes paid-then-it: RETIRE-READY — phase binds Thriving "
+        "Rhino's 'it'. Delete _paid_then_it_bodies and this canary."
+    )
+    after = correct_misparsed_shapes(rec)
+    fixed = next(t for t in after["triggers"] if t["mode"] == "Attacks")
+    assert fixed["execute"]["sub_ability"]["effect"]["target"] == {"type": "SelfRef"}
+    assert ("self_boost", "you", "counters") in {
+        (s.key, s.scope, s.subject) for s in test_signals("Thriving Rhino")
+    }
+
+
+@pytest.mark.retirement_canary
+def test_heroic_it_canary():
+    """Heroic's "Whenever you cast a spell that targets ~, put a +1/+1 counter on
+    it" (Fabled Hero): phase writes the counter on ``TriggeringSource``, the
+    spell; the spell targets the card, and a counter goes on a permanent."""
+    (rec,) = test_phase_records("Fabled Hero")
+    (trig,) = rec["triggers"]
+    assert trig["execute"]["effect"]["target"] == {"type": "TriggeringSource"}, (
+        "misparsed_shapes heroic it: RETIRE-READY — phase binds Fabled Hero's "
+        "'it'. Delete _heroic_it_effects and this canary."
+    )
+    (fixed,) = correct_misparsed_shapes(rec)["triggers"]
+    assert fixed["execute"]["effect"]["target"] == {"type": "SelfRef"}
+
+
+@pytest.mark.retirement_canary
+def test_aura_self_pump_canary():
+    """Paroxysm's "Otherwise, it gets +3/+3 until end of turn" (an Aura's upkeep
+    trigger) is written on ``SelfRef``; a noncreature permanent has no power or
+    toughness (CR 208.3), so it is the enchanted creature."""
+    (rec,) = test_phase_records("Paroxysm")
+    pump = rec["triggers"][0]["execute"]["sub_ability"]["else_ability"]["effect"]
+    assert pump["target"] == {"type": "SelfRef"}, (
+        "misparsed_shapes Aura self pump: RETIRE-READY — phase writes Paroxysm's "
+        "pump on the enchanted creature. Delete _aura_self_pumps and this canary."
+    )
+    after = correct_misparsed_shapes(rec)
+    fixed = after["triggers"][0]["execute"]["sub_ability"]["else_ability"]["effect"]
+    assert fixed["target"]["properties"] == [{"type": "EnchantedBy"}]
+    idents = {(s.key, s.scope, s.subject) for s in test_signals("Paroxysm")}
+    assert ("effect_boost", "you", "") in idents
+    assert not any(k == "self_boost" for k, _s, _sub in idents)
+
+
+@pytest.mark.parametrize(
+    ("line", "subjects", "amounts"),
+    [
+        (
+            "Creature cards in your graveyard perpetually get +1/+1",
+            [("cards", ("Graveyard",), False, "all")],
+            ("+1", "+1"),
+        ),
+        (
+            "creature cards in your hand, library, and graveyard perpetually get +1/+1",
+            [("cards", ("Hand", "Library", "Graveyard"), False, "all")],
+            ("+1", "+1"),
+        ),
+        (
+            (
+                "a random creature card in your hand perpetually gets +X/+X, where "
+                "X is the amount of life you gained"
+            ),
+            [("cards", ("Hand",), False, "random")],
+            ("+X", "+X"),
+        ),
+        (
+            "the topmost creature card in your library perpetually gets +1/+1",
+            [("cards", ("Library",), False, "topmost")],
+            ("+1", "+1"),
+        ),
+        (
+            "all artifact creature cards and Spacecraft cards you own perpetually get +1/+1",
+            [("cards", (), True, "all"), ("cards", (), True, "all")],
+            ("+1", "+1"),
+        ),
+        (
+            (
+                "other Dinosaurs you control and Dinosaur cards in your hand and "
+                "library perpetually get +1/+1"
+            ),
+            [("group", "Dinosaur"), ("cards", ("Hand", "Library"), False, "all")],
+            ("+1", "+1"),
+        ),
+        (
+            "~ and that Dragon card each perpetually get +1/+1",
+            [("self",), ("anaphor", "that")],
+            ("+1", "+1"),
+        ),
+        (
+            "It perpetually gains trample and gets +X/+X, where X is ~'s power",
+            [("it",)],
+            ("+X", "+X"),
+        ),
+        (
+            "Those duplicates perpetually get +X/+X",
+            [("anaphor", "duplicate")],
+            ("+X", "+X"),
+        ),
+        # a group's "each" / "all" picks nothing out of it
+        (
+            "all creatures you control perpetually get +1/+1",
+            [("group", None)],
+            ("+1", "+1"),
+        ),
+        (
+            "each other Elf you control perpetually gets +1/+1",
+            [("group", "Elf")],
+            ("+1", "+1"),
+        ),
+    ],
+)
+def test_perpetual_change_grammar(line, subjects, amounts):
+    from mtg_utils._card_ir.clause_grammar import (
+        CardAnaphor,
+        CardGroup,
+        perpetual_change,
+    )
+
+    change = perpetual_change(line)
+    assert change is not None
+    read = []
+    for s in change.subjects:
+        if isinstance(s, CardGroup):
+            read.append(("cards", s.zones, s.owned, s.pick))
+        elif isinstance(s, CardAnaphor):
+            read.append(("anaphor", s.word))
+        elif s.recipient == "group":
+            read.append(("group", s.subtype))
+        else:
+            read.append((s.recipient,))
+    assert read == subjects
+    assert (change.power, change.toughness) == amounts
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        # a condition on the change
+        (
+            "it perpetually gets +1/+0 if it has the same name as another creature "
+            "you control or a creature card in your graveyard"
+        ),
+        # the change is the quoted ability's, not the clause's
+        '~ perpetually gains "Enchanted creature gets -1/-1."',
+        # an instruction before the subject
+        "~ can't be blocked this turn and it perpetually gets +2/+0",
+        # a zone list this grammar can't place
+        "library, and graveyard perpetually get +1/+1",
+    ],
+)
+def test_perpetual_change_grammar_reads_no_other_clause(line):
+    from mtg_utils._card_ir.clause_grammar import perpetual_change
+
+    assert perpetual_change(line) is None
+
+
+def test_a_cut_residue_is_read_from_its_description():
+    """Phase cut Arming Gala's clause at its zone list's comma; the clause is the
+    description's sentence with its trigger peeled."""
+    from mtg_utils._card_ir.clause_grammar import residue_clause
+
+    assert residue_clause(
+        "library, and graveyard perpetually get +1/+1",
+        (
+            "At the beginning of your end step, creatures you control and creature "
+            "cards in your hand, library, and graveyard perpetually get +1/+1."
+        ),
+    ) == (
+        "creatures you control and creature cards in your hand, library, and "
+        "graveyard perpetually get +1/+1"
+    )
+
+
+@pytest.mark.parametrize(
+    ("clause", "zone"),
+    [
+        (
+            (
+                "conjure X duplicates of it into exile, where X is the number of "
+                "oil counters on it"
+            ),
+            "Exile",
+        ),
+        (
+            (
+                "Conjure a duplicate of another target creature card in your "
+                "graveyard onto the top of your library"
+            ),
+            "Library",
+        ),
+        ("shuffle those duplicates into your library", "Library"),
+        # a shuffle of a library names no card
+        ("shuffle your library", None),
+        ("draw a card", None),
+    ],
+)
+def test_parked_move_zone_grammar(clause, zone):
+    from mtg_utils._card_ir.clause_grammar import parked_move_zone
+
+    assert parked_move_zone(clause) == zone
+
+
+def test_verb_list_pump_grammar_needs_the_description_to_hold_the_list():
+    from mtg_utils._card_ir.clause_grammar import verb_list_pump
+
+    residue = 'become black, gets +1/-1, and gains "{B}: Regenerate ~."'
+    read = verb_list_pump(
+        residue,
+        'Until end of turn, target creature becomes black, gets +1/-1, and gains "{B}: Regenerate ~."',
+    )
+    assert read is not None
+    assert (read.subject.recipient, read.power, read.toughness) == (
+        "target",
+        "+1",
+        "-1",
+    )
+    assert (
+        verb_list_pump(residue, "Target creature gets +1/-1 until end of turn.") is None
+    )
+
+
+@pytest.mark.retirement_canary
+def test_moved_away_it_canary():
+    """First Responder's "return another creature you control to its owner's
+    hand, then put a number of +1/+1 counters equal to that creature's power on
+    this creature": phase writes the counter on ``ParentTarget``, the bounced
+    creature; a counter on a card in a hand grows nothing."""
+    (rec,) = test_phase_records("First Responder")
+    (trig,) = rec["triggers"]
+    counter = trig["execute"]["sub_ability"]["effect"]
+    assert counter["target"] == {"type": "ParentTarget"}, (
+        "misparsed_shapes moved-away it: RETIRE-READY — phase binds First "
+        "Responder's counter to the card. Delete _moved_away_its and this canary."
+    )
+    (fixed,) = correct_misparsed_shapes(rec)["triggers"]
+    assert fixed["execute"]["sub_ability"]["effect"]["target"] == {"type": "SelfRef"}
+
+
+@pytest.mark.retirement_canary
+def test_flattened_boon_canary():
+    """Flaming Fist Duskguard's "you get a boon with \\"When you cast your next
+    creature spell, it perpetually gets +1/+0.\\"": phase writes a ``Pump`` on
+    the controller; rewritten to phase's own ``CreateBoon``."""
+    (rec,) = test_phase_records("Flaming Fist Duskguard")
+    (trig,) = rec["triggers"]
+    effect = trig["execute"]["effect"]
+    assert (effect["type"], effect["target"]) == ("Pump", {"type": "Controller"}), (
+        "misparsed_shapes flattened boon: RETIRE-READY — phase types Flaming Fist "
+        "Duskguard's boon. Delete _flattened_boons and this canary."
+    )
+    (fixed,) = correct_misparsed_shapes(rec)["triggers"]
+    boon = fixed["execute"]["effect"]
+    assert boon["type"] == "CreateBoon"
+    change = boon["trigger"]["execute"]["effect"]
+    assert change["type"] == "ApplyPerpetual"
+    assert change["modification"]["power"] == {"type": "Fixed", "value": 1}
+
+
+def test_flattened_boon_leaves_a_player_pump_alone():
+    """Dark Salvation's player-targeted ``Pump`` carries no boon text."""
+    (rec,) = test_phase_records("Dark Salvation")
+    assert correct_misparsed_shapes(rec) is rec

@@ -8,6 +8,7 @@ import re
 from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING
 
+from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis.signal_base import Ident, ident_key
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
@@ -352,7 +353,7 @@ def typal_payoff_for(card: Mapping, kinds: Collection[str]) -> bool:
         return False
     wanted = {k.lower() for k in kinds}
     idents = _card_idents(card, membership=False)
-    keys = {ident_key(i) for i in idents}
+    keys = {ident_key(i) for i in idents if i not in _RIDER_IDENTS}
     pays_off = bool(keys - _RIDER_KEYS)
     for ident in idents:
         key, _scope, subject = Ident.parse(ident)
@@ -376,6 +377,20 @@ def typal_payoff_for(card: Mapping, kinds: Collection[str]) -> bool:
 #: pays the tribe off — a lord's anthem, Galerider Sliver's grant, The First
 #: Sliver's cascade, Sliver Overlord's tutor (an allow-list of payoff keys
 #: dropped those three, and Sliver Swarm four guide adds).
+#: The idents of a key no rider that are riders all the same: the card growing
+#: itself by an activated ability, its own +1/+1 counters or its own static
+#: (``self_boost``'s ``activated``, ``counters`` and ``static``; the first two
+#: were self_pump and self_counter_grow's; ADR-0065) — a triggered self-pump on
+#: a tribe entering pays the tribe off.
+_RIDER_IDENTS: frozenset[str] = frozenset(
+    {
+        f"{signal_keys.SELF_BOOST}|you|{signal_keys.SELF_BOOST_ACTIVATED}",
+        f"{signal_keys.SELF_BOOST}|you|{signal_keys.SELF_BOOST_COUNTERS}",
+        # its own static size ("As long as you control a Dinosaur, ~ gets +2/+2"
+        # — Drover of the Mighty, a mana dork): the body, not a tribe's payoff
+        f"{signal_keys.SELF_BOOST}|you|{signal_keys.SELF_BOOST_STATIC}",
+    }
+)
 _RIDER_KEYS: frozenset[str] = frozenset(
     {
         "subtype_ref",
@@ -383,8 +398,9 @@ _RIDER_KEYS: frozenset[str] = frozenset(
         "ramp",
         "permanent_etb",
         "self_etb_payload",
-        "self_pump",
         "self_counter_grow",
+        # The boost umbrella (ADR-0065) rides beside the key that delivers it.
+        signal_keys.BOOSTS_OTHERS,
         "evasion_self",
         "keyword_bodies",
         "graveyard_makers",

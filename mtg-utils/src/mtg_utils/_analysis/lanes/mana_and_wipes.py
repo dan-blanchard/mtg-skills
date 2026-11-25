@@ -53,7 +53,6 @@ from mtg_utils._card_ir.crosswalk import (
     controller_paid_cost_leaves,
     count_down_to_fewest,
     count_operand_filter,
-    counter_kind,
     counter_kind_any,
     discard_is_random,
     discard_recipient_scope,
@@ -108,7 +107,6 @@ from mtg_utils._card_ir.crosswalk import (
     reveal_until_player,
     static_pt_mods_on_others,
     tag_of,
-    targets_the_card,
     team_boost_or_grant_sites,
     token_creator_side,
     watches_each_players_land_taps,
@@ -121,7 +119,6 @@ from mtg_utils._card_ir.mirror.runtime import (
 from mtg_utils._card_ir.recovery import (
     CARD,
     FOR_EACH,
-    ON_SELF,
     OTHER_PLAYER,
     SELF,
     TARGET_OBJECT,
@@ -602,7 +599,7 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     your hand." — the comma stops it).
 
     Nested-grant descent (mechanism b — the ``_GRANT_ABILITY_MOD_TAGS``
-    ``.definition`` precedent :func:`_self_pump`'s sibling scan
+    ``.definition`` precedent :func:`_pump_scaling_lanes`' grant scan
     establishes): a granted TRIGGER's own draw also fires (Blitzball
     Stadium's "Go for the Goal!" grants a creature "whenever ~ deals
     combat damage to a player, draw a card for each kind of counter on
@@ -1739,7 +1736,7 @@ def _is_anthem_group_filter(filt: object) -> bool:
     )
 
 
-def _anthem_defs(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
+def anthem_defs(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
     """The continuous-effect defs an anthem can live on: a top-level static
     ability (CR 604.2: active "as long as the permanent with the ability
     remains on the battlefield") and an emblem's static
@@ -1755,10 +1752,10 @@ def _anthem_defs(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
 
 
 def _raising_anthem_defs(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
-    """The anthem defs (:func:`_anthem_defs`) that raise P/T: power and
+    """The anthem defs (:func:`anthem_defs`) that raise P/T: power and
     toughness both raised or left, at least one raised (:func:`pt_mod_signs` —
     plain ints and the scaling ``AddDynamic*`` forms alike)."""
-    for sdef in _anthem_defs(tree):
+    for sdef in anthem_defs(tree):
         if _raises_pt(sdef):
             yield sdef
 
@@ -1773,7 +1770,7 @@ def _raises_pt(sdef: object) -> bool:
 def _anthem_static(tree: ConceptTree) -> list[Signal]:
     """anthem_static — a STATIC +N/+N over a creature group (CR 604.3 / 613.4
     layer 7c): Glorious Anthem, Goblin King's subtyped "Other Goblins", Bad
-    Moon's colour group, an emblem's anthem (:func:`_anthem_defs`). Reads each
+    Moon's colour group, an emblem's anthem (:func:`anthem_defs`). Reads each
     def's P/T direction (:func:`pt_mod_signs` — plain ints and the scaling
     ``AddDynamic*`` forms alike, so "+1/+1 for each …" anthems count: Armament
     Master, Commander's Insignia, Hold the Gates): power and toughness both
@@ -1923,52 +1920,6 @@ def _pump_scaling_lanes(tree: ConceptTree) -> list[Signal]:
             if d is not None:
                 scan_mod_sites(d)
     return out
-
-
-def _self_pump(tree: ConceptTree) -> list[Signal]:
-    """self_pump — a firebreather / self-grow mana-sink (CR 122.1 / 613): an
-    ACTIVATED ability pumping SELF ("{R}: this creature gets +1/+0" — Shivan
-    Dragon) or placing a +1/+1 counter on SELF ("{4}: Put a +1/+1 counter on
-    this creature" — Walking Ballista). The activated-only gate is the
-    mana-sink anchor (a static team anthem — Glorious Anthem — and a one-shot
-    spell pump are different lanes); the self-anchor is the typed ``SelfRef``
-    target (a "target creature" pump is a granted trick, not self). Scope
-    "you".
-    """
-    for unit in tree.units:
-        if unit.origin != "ability" or unit.kind != "Activated":
-            continue
-        for c in unit.effects:
-            t = tag_of(c.node)
-            tgt = tag_of(getattr(c.node, "target", None))
-            # The overlay's ``anaphoric_pump`` arm marks a delayed trigger's
-            # "it gets -1/-0" phase stamps ``SelfRef`` (Jace, Architect of
-            # Thought's +1: the attacking creature, not Jace).
-            # A perpetual pump of the card an earlier effect of the ability
-            # returned to the battlefield is recursion that grows it, no
-            # firebreather (Vladimir and Godfrey's Rejuvenation; Dan's call,
-            # 2026-11-25).
-            if c.returned_self:
-                continue
-            if t == "Pump" and (tgt is None or targets_the_card(c)):
-                return [Signal("self_pump", "you", "", c.raw, tree.name, "high")]
-            if (
-                t == "PutCounter"
-                and counter_kind(c.node).upper() == "P1P1"
-                and tgt == "SelfRef"
-            ):
-                return [Signal("self_pump", "you", "", c.raw, tree.name, "high")]
-            # phase v0.104.0 parks a counter-or-keyword choice ("Put a +1/+1
-            # counter on ~ or ~ gains flying ..." — Flowstone Sculpture) as an
-            # Unimplemented residue the ``place_counter`` token recovers; the
-            # seam marks a +1/+1 counter put on the card itself.
-            if (
-                c.recovered_by == "place_counter"
-                and ON_SELF in c.subject
-                and "+1/+1 counter" in c.subject
-            ):
-                return [Signal("self_pump", "you", "", c.raw, tree.name, "high")]
-    return []
 
 
 def _team_boost_or_grant(tree: ConceptTree) -> list[Signal]:
@@ -3490,7 +3441,6 @@ LANES = (
     _resource_token_matters,
     _anthem_static,
     _pump_scaling_lanes,
-    _self_pump,
     _team_boost_or_grant,
     _cheat_into_play,
 )

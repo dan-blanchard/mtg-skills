@@ -12,6 +12,7 @@ from mtg_utils._analysis._sweep_detectors import (
 from mtg_utils._card_ir.crosswalk import LAND_DENIAL_KINDS
 
 from ._shared import (
+    _BOOSTS_OTHERS_EXTRA,
     _CHEAP_EVASION_EXTRA,
     _CRIPPLED_BIG_BODIES,
     _DAMAGE_SOAK_EXTRA,
@@ -22,6 +23,7 @@ from ._shared import (
     _GOWIDE_MAKER_EXTRA,
     _LANDS_FROM_GRAVE_EXTRA,
     _PILLOWFORT_IDENTS,
+    _SELF_BOOST_EXTRA,
     Serve,
     SignalSpec,
     SubAvenue,
@@ -164,6 +166,8 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         # lane's decision (it re-taps nothing else).
         None,
         serve_idents=frozenset({"untap_engine|you|"}),
+        # The power the engine taps for: anything that grows it (ADR-0065).
+        extras=(_BOOSTS_OTHERS_EXTRA, _SELF_BOOST_EXTRA),
     ),
     # Recastable ETB aggressors (Oroku Saki + the TMNT Sneak legends): cheap creatures
     # whose ENTER trigger bleeds opponents (each opponent discards / loses life), so
@@ -728,6 +732,8 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         # ("get +1/+0 and gain fear" — Dance of Shadows, Eldrazi Monument).
         None,
         serve_idents=frozenset({"team_evasion_grant|you|*"}),
+        # The evasion goes on a creature that grows itself (ADR-0065).
+        extras=(_SELF_BOOST_EXTRA,),
     ),
     # Override the auto-registered saga_matters sweep spec: surface the FULL Saga pool
     # via a subtype search (the sweep spec only found lore-counter cards), and serve the

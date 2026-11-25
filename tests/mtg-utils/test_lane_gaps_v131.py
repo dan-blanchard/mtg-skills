@@ -38,9 +38,10 @@ def _static_defs(name: str) -> list:
     ],
 )
 def test_a_counted_pump_is_a_pump_maker(name, targeted):
+    """A targeted one is a spell's boost of one chosen creature (ADR-0065)."""
     idents = _idents(name)
     assert ("effect_boost", "you", "") in idents
-    assert (("effect_boost", "you", "target") in idents) is targeted
+    assert (("boosts_others", "you", "target_spell") in idents) is targeted
 
 
 @pytest.mark.parametrize(

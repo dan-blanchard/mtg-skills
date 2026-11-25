@@ -1266,8 +1266,11 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
         "regenerate_makers",
         "has_changeling",
         "facedown_makers",
-        "self_pump",
+        "self_boost",
         "effect_boost",
+        # The umbrella over the boost keys (ADR-0065): every card holding it holds
+        # the key that delivers it, which decides.
+        "boosts_others",
         "cant_block_grant",
         # The carrier's own evasion (shadow is an evasion ability, CR 702.28a —
         # Jodah's Avenger) and its own combat keyword (banding modifies the
@@ -2007,7 +2010,7 @@ def _apply_membership_floor(
     # silence the fallback. Per CR: regeneration (701.19) is removal-resistance — a
     # resilient beater is the IDEAL Equipment carrier; changeling (702.73a) is a
     # vanilla all-creature-type body; morph/facedown (702.37a / 708) is a casting
-    # option, not an engine; self power-growth (self_pump / effect_boost) and the
+    # option, not an engine; self power-growth (self_boost / effect_boost) and the
     # evasion-enabling cant_block_grant push the carrier's own damage through (the
     # Power/Evasion legs of the triad). The voltron LOW adds above are LOW (so are
     # skipped); an exalted body's voltron HIGH from the keyword map counts but fired

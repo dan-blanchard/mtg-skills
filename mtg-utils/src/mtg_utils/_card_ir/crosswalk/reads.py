@@ -6132,6 +6132,19 @@ def effect_owner_optional(root: object, effect_node: object) -> bool:
     return getattr(owner, "optional", None) is True
 
 
+def effect_chosen_on_resolution(root: object, effect_node: object) -> bool:
+    """Whether the object ``effect_node`` acts on is chosen as it resolves, not
+    targeted (CR 115.10a): phase's ``target_choice_timing: Resolution`` on the
+    wrapper that owns it ("each player may put two +1/+1 counters on a creature
+    they control" — Agitator Ant; "Put a +1/+1 counter on enchanted creature" —
+    Daily Regimen), or the effect's own ``selection: at_resolution`` — the same
+    tells :func:`has_variable_target_count` reads."""
+    owner = _find_owner_wrapper(root, effect_node)
+    return getattr(owner, "target_choice_timing", None) == "Resolution" or (
+        getattr(effect_node, "selection", None) == "at_resolution"
+    )
+
+
 def effect_conditional(root: object, effect_node: object) -> bool:
     """Whether ``effect_node`` happens only under a condition: its own wrapper's
     ("When you do, …"; "If that spell is countered this way, …") or its whole
@@ -11219,6 +11232,36 @@ def targeting_trigger_side(trig: TypedMirrorNode) -> TargetingSide | None:
     if trigger_scope(trig) == "opponents" or "opponents" in sides:
         return "opponents"
     return "you" if sides == {"you"} else "any"
+
+
+TargetingSource = Literal["spell", "ability", ""]
+
+
+def targeting_trigger_source(trig: TypedMirrorNode) -> TargetingSource | None:
+    """What a targeting trigger (:func:`targeting_trigger_side`) watches do the
+    targeting, or ``None`` when it watches no target being chosen:
+
+    * ``"spell"`` — only a spell: a cast trigger ("Whenever you cast a spell
+      that targets ~" — heroic's cards, Feather), or a becomes-target trigger
+      whose source is a spell ("becomes the target of a spell" — Departed
+      Deckhand; "of an instant or sorcery spell" — Wild Defiance; "of an Aura
+      spell" — Fugitive Druid);
+    * ``"ability"`` — only an ability ("of an activated ability" — Professor
+      Hojo; "of an ability you control" — Loki, God of Mischief);
+    * ``""`` — either ("a spell or ability" — Cephalid Illusionist, valiant).
+
+    CR 115.1: a spell or an ability targets as it is put on the stack."""
+    if targeting_trigger_side(trig) is None:
+        return None
+    if getattr(trig, "mode", None) == "SpellCast":
+        return "spell"
+    tags = {tag_of(n) for n in iter_typed_nodes(getattr(trig, "valid_source", None))}
+    spell, ability = "StackSpell" in tags, "StackAbility" in tags
+    if spell and not ability:
+        return "spell"
+    if ability and not spell:
+        return "ability"
+    return ""
 
 
 def attack_trigger_side(trig: object) -> TargetingSide | None:

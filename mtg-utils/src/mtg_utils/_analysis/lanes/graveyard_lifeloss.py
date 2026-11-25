@@ -100,12 +100,14 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_zone_changes,
     yours_cast_keywords,
 )
+from mtg_utils._card_ir.crosswalk.perpetual import card_boost_zones
 from mtg_utils._card_ir.crosswalk.reads import GrantedTrigger, chooses
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     MirrorVariant,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.perpetual_rules import EVERYWHERE
 from mtg_utils._card_ir.recovery import (
     ANY_TARGET,
     OTHER_PLAYER,
@@ -3252,10 +3254,43 @@ def _venture(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+#: The ``card_boost`` subject for each zone a perpetual boost lands in.
+CARD_BOOST_SUBJECTS = {
+    "Hand": "hand",
+    "Graveyard": "graveyard",
+    "Library": "library",
+    "Stack": "stack",
+    EVERYWHERE: "everywhere",
+}
+
+
+def _card_boost(tree: ConceptTree) -> list[Signal]:
+    """card_boost — a perpetual power/toughness boost to cards of yours that
+    are not on the battlefield (Dan's ruling, 2026-11-25; "perpetually" is an
+    Arena-only mechanic outside the Comprehensive Rules, defined by the repo's
+    digital supplement, DD1.1), typed or parked
+    (``crosswalk.perpetual.card_boost_zones``). The subject is where the card
+    ends up in the ability, one signal per zone it names: ``hand`` (Veteran
+    Charger, Golden Sidekick), ``graveyard`` (Feed the Bog), ``library``
+    (Dalkovan Outrider's topmost creature card; Richlau, Headmaster's card, put
+    into your library after the change), ``stack`` (Rothga, Bonded Engulfer's
+    creature spell), and ``everywhere`` for every card you own (Unbreakable
+    Remnant). A change to the card itself is the card growing, a shrink is no
+    boost, and a change that lands in exile names no card of yours at v0.131.0.
+    Scope "you"."""
+    zones = set().union(*(card_boost_zones(u) for u in tree.units))
+    return [
+        Signal("card_boost", "you", CARD_BOOST_SUBJECTS[z], "", tree.name, "high")
+        for z in sorted(zones)
+        if z in CARD_BOOST_SUBJECTS
+    ]
+
+
 LANES = (
     _graveyard_makers,
     _graveyard_matters,
     _graveyard_leave_matters,
+    _card_boost,
     _fight_makers,
     _goad_makers,
     _regenerate_makers,

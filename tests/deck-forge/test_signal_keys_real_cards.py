@@ -59,8 +59,11 @@ _REAL_CASES: dict[str, str] = {
     "boast_makers": "Arni Brokenbrow",
     "boast_matters": "Birgi, God of Storytelling",
     "board_protection": "Avacyn, Angel of Hope",
+    "boosts_others": "Glorious Anthem",
     "bounce_tempo": "Boomerang",
     "cant_block_grant": "Breeches, Eager Pillager",
+    # a perpetual boost to your cards outside the battlefield, by zone
+    "card_boost": "Feed the Bog",
     "card_draw_engine": "Phyrexian Arena",
     "cascade_makers": "The First Sliver",
     "cascade_matters": "Maelstrom Nexus",
@@ -351,7 +354,7 @@ _REAL_CASES: dict[str, str] = {
     "self_counter_grow": "Adaptive Snapjaw",
     "self_death_payoff": "Kokusho, the Evening Star",
     "self_drawback": "Demonic Taskmaster",
-    "self_pump": "Shivan Dragon",
+    "self_boost": "Glaze Fiend",
     "self_recurring": "Bloodghast",
     "shield_counter_makers": "Boon of Safety",
     "snow_matters": "Diamond Faerie",
@@ -1114,3 +1117,30 @@ def test_graveyard_leave_matters_on_real_cards(name, fires):
     and plain recursion (no such trigger) do not."""
     idents = {(s.key, s.scope) for s in extract_signals(test_card(name))}
     assert (("graveyard_leave_matters", "you") in idents) is fires
+
+
+@pytest.mark.parametrize(
+    ("name", "subject"),
+    [
+        # "Creature cards in your graveyard perpetually get +1/+1"
+        ("Feed the Bog", "graveyard"),
+        # "choose a creature card in your hand. It perpetually gets +2/+2"
+        ("Veteran Charger", "hand"),
+        # "the topmost creature card in your library perpetually gets +1/+1"
+        ("Dalkovan Outrider", "library"),
+        # "all cards you own named Unbreakable Remnant perpetually get +1/+1"
+        ("Unbreakable Remnant", "everywhere"),
+    ],
+)
+def test_card_boost_on_real_cards(name, subject):
+    """A perpetual boost to your cards outside the battlefield names the zone it
+    lands in."""
+    idents = {(s.key, s.scope, s.subject) for s in extract_signals(test_card(name))}
+    assert ("card_boost", "you", subject) in idents
+
+
+def test_a_perpetual_pump_on_the_battlefield_is_no_card_boost():
+    assert not any(
+        s.key == "card_boost"
+        for s in extract_signals(test_card("Steady Tortoise // Harried Dash"))
+    )

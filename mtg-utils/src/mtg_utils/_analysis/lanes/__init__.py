@@ -147,6 +147,13 @@ from mtg_utils._analysis.lanes.board_and_ramp import (
 from mtg_utils._analysis.lanes.board_and_ramp import (
     LANES as _BOARD_AND_RAMP_LANES,
 )
+from mtg_utils._analysis.lanes.boosts import (
+    LANES as _BOOSTS_LANES,
+)
+from mtg_utils._analysis.lanes.boosts import (
+    _self_boost,
+    boosts_others_signals,
+)
 from mtg_utils._analysis.lanes.card_advantage import (
     _COMBAT_TRIGGER_BOOST_EVENTS,
     _DIES_RECURSION_GRANT_KEYWORDS,
@@ -478,7 +485,6 @@ from mtg_utils._analysis.lanes.mana_and_wipes import (
     _resource_token_matters,
     _reveal_producer_cores,
     _reveal_producer_subtypes,
-    _self_pump,
     _sibling_exile_producer_cores,
     _sibling_named_tutor_no_core,
     _sibling_selector_cores,
@@ -1300,11 +1306,11 @@ __all__ = [
     "_second_spell_node_text",
     "_seek_matters",
     "_self_blink_lane",
+    "_self_boost",
     "_self_counter_grow",
     "_self_death_payoff",
     "_self_drawback",
     "_self_etb_payload",
-    "_self_pump",
     "_self_recurring",
     "_sentence_span",
     "_sibling_exile_producer_cores",
@@ -1402,6 +1408,7 @@ __all__ = [
     "apply_membership_floor",
     "blink_flicker_is_maker",
     "blink_flicker_maker_present",
+    "boosts_others_signals",
     "draw_engine_scope",
     "etb_bulk_draw",
     "extract_crosswalk_signals",
@@ -1448,6 +1455,8 @@ _LANES = (
     # Two subject-carrying lanes added after the split (2026-10-18): new keys,
     # so their position moves no existing ident's first-wins dedupe.
     + _ANIMATE_LAND_TYPES_LANES
+    # The self-boost lane (ADR-0065): a new key, last for the same reason.
+    + _BOOSTS_LANES
 )
 
 
@@ -1533,6 +1542,11 @@ def extract_crosswalk_signals(
     for sig in _bending_lanes(tree, frozenset(keywords)):
         add(sig)
     for sig in _station_lanes(tree, frozenset(keywords)):
+        add(sig)
+    # The boost umbrella (ADR-0065) reads the lanes' own boost signals of this
+    # tree (every effect_boost card is a boost of your other creatures; the gear
+    # pumps are voltron_makers'), so it runs after every lane.
+    for sig in boosts_others_signals(tree, out):
         add(sig)
 
     # Whole-card reconciliation (granularity c): cross-open spellcast_matters LOW

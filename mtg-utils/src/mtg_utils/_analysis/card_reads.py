@@ -25,6 +25,7 @@ import functools
 from typing import TYPE_CHECKING, Any, cast
 
 from mtg_utils._analysis.write_back import MISSING, WriteBackSidecar, content_key
+from mtg_utils._card_ir.crosswalk.boosts import keyword_grant_deliveries
 from mtg_utils._card_ir.crosswalk.core import iter_nested_token_effects
 from mtg_utils._card_ir.crosswalk.reads import (
     KEYWORD_ACTION_TOKEN_SUBTYPES,
@@ -112,6 +113,29 @@ def has_trees(card: dict) -> bool:
     the signal path reads it: a card with none (a set newer than the phase pin) is
     one the readers degrade on (``roles.is_interaction``, ``swaps._does_the_job``)."""
     return bool(trees_for(card, bulk=card))
+
+
+@card_read("grants_keyword_by_spell")
+def grants_keyword_by_spell(card: dict) -> bool:
+    """Whether an instant's or sorcery's own spell gives a chosen creature of
+    yours a keyword (``crosswalk.keyword_grant_deliveries``): Gods Willing, Jump.
+    Not Dirge of Dread, whose targeted grant is its cycling trigger's. The
+    spell-only targeting page reads it (ADR-0065)."""
+    return any(
+        "spell" in keyword_grant_deliveries(tree) for tree in trees_for(card, bulk=card)
+    )
+
+
+@card_read("grants_keyword_by_ability")
+def grants_keyword_by_ability(card: dict) -> bool:
+    """Whether an activated or triggered ability gives a chosen creature of yours
+    a keyword (``crosswalk.keyword_grant_deliveries``): a creature's grant
+    ability, Dirge of Dread's cycling trigger. The ability-only targeting page
+    reads it (ADR-0065)."""
+    return any(
+        "ability" in keyword_grant_deliveries(tree)
+        for tree in trees_for(card, bulk=card)
+    )
 
 
 @card_read("makes_tokens_repeatedly")

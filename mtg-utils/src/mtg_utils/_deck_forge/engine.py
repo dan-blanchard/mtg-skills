@@ -28,6 +28,7 @@ from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import role_of
 from mtg_utils._analysis.signal_specs import (
     Serve,
+    SignalSpec,
     avenue_spec_for,
     page_serve,
     payoff_search,
@@ -1389,6 +1390,40 @@ def ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
     )
 
 
+def _subject_extras(
+    spec: SignalSpec,
+    sig: Signal,
+    avenue_id: str,
+    seen_labels: set[str],
+    *,
+    gated: bool = True,
+) -> list[dict]:
+    """The sub-avenues of ``spec`` offered to ``sig`` (``SubAvenue.offered_for``)
+    whose label isn't open yet; only the subject-gated ones when ``gated`` (the
+    theme was opened by another subject, which offered the rest)."""
+    out: list[dict] = []
+    for i, extra in enumerate(spec.extras):
+        if extra.label in seen_labels or not extra.offered_for(sig.subject):
+            continue
+        if gated and extra.deck_subjects is None:
+            continue
+        seen_labels.add(extra.label)
+        out.append(
+            avenue_with_serve(
+                {
+                    "id": f"{avenue_id}:{i}",
+                    "label": extra.label,
+                    "description": extra.avenue,
+                    "scope": sig.scope,
+                    "source": "engine",
+                    "search": dict(extra.search),
+                },
+                extra.serve,
+            )
+        )
+    return out
+
+
 def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
     """All explorable avenues: engine-derived (from scoped signals with specs) plus any
     the session-agent has discovered and posted. Each carries the search spec needed to
@@ -1401,7 +1436,15 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
         if len(seen_labels) >= _AVENUE_CAP:
             break
         spec = avenue_spec_for(sig)
-        if spec is None or spec.label in seen_labels:
+        if spec is None:
+            continue
+        suffix = f":{sig.subject}" if sig.subject else ""
+        avenue_id = f"engine:{sig.key}:{sig.scope}{suffix}"
+        if spec.label in seen_labels:
+            # The theme is open already, from another subject of the key: the
+            # sub-avenues only this subject is offered still open (ADR-0065 —
+            # a firebreather's mana sinks beside a triggered self-pump).
+            out.extend(_subject_extras(spec, sig, avenue_id, seen_labels))
             continue
         main_search = dict(spec.search)
         widening = False
@@ -1418,9 +1461,8 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
             # card that can change the deck's color identity, so this flag lives here.
             widening = True
         seen_labels.add(spec.label)
-        # Include subject so distinct tribes (Goblin vs Dwarf) get distinct avenues.
-        suffix = f":{sig.subject}" if sig.subject else ""
-        avenue_id = f"engine:{sig.key}:{sig.scope}{suffix}"
+        # The id includes subject so distinct tribes (Goblin vs Dwarf) get distinct
+        # avenues.
         # ADR-0026: split a fused payoff/source serve into a payoff avenue (oracle) +
         # a Source avenue (the pieces — auras/equipment, artifacts, instants…). Never
         # split the partner avenue (its search is commander-legality, not a serve).
@@ -1473,23 +1515,7 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
                 )
         # A signal can fan out into several precise sub-avenues (e.g. the land-creatures
         # theme: creature-lands / payoffs / animators).
-        for i, extra in enumerate(spec.extras):
-            if extra.label in seen_labels:
-                continue
-            seen_labels.add(extra.label)
-            out.append(
-                avenue_with_serve(
-                    {
-                        "id": f"{avenue_id}:{i}",
-                        "label": extra.label,
-                        "description": extra.avenue,
-                        "scope": sig.scope,
-                        "source": "engine",
-                        "search": dict(extra.search),
-                    },
-                    extra.serve,
-                )
-            )
+        out.extend(_subject_extras(spec, sig, avenue_id, seen_labels, gated=False))
     # Always-present "good stuff" avenue — independent of the deck's signals, so even a
     # signal-less commander gets a curated staples shortlist (scoped to colors/format).
     sa = staples_avenue(state)
