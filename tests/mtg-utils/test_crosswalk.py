@@ -2268,7 +2268,7 @@ def test_attack_matters_attacks_trigger():
     assert ("attack_matters", "you", "") in _idents("Accorder Paladin")
     assert ("attack_matters", "you", "") in _idents("Isshin, Two Heavens as One")
     # sibling lanes on Accorder Paladin are unchanged (combat-buff doer + type)
-    assert {"combat_buff_engine", "type_matters"} <= _keys("Accorder Paladin")
+    assert {"combat_trigger_boost", "type_matters"} <= _keys("Accorder Paladin")
 
 
 def test_spellcast_matters_trigger_and_prowess():
@@ -6327,7 +6327,7 @@ def test_v066_tapper_engine_sheds_self_tap_cost():
     stay."""
     keys = _keys("Myr Battlesphere")
     assert "tapper_engine" not in keys
-    assert {"direct_damage", "combat_buff_engine", "token_maker"} <= keys
+    assert {"direct_damage", "combat_trigger_boost", "token_maker"} <= keys
 
 
 @pytest.mark.parametrize("name", ["Myr Battlesphere", "Hellrider"])
@@ -7917,11 +7917,11 @@ def test_self_pump_activated_self_anchor(name, should_fire):
         ("Bad Moon", False),  # everyone's black creatures
     ],
 )
-def test_team_buff_generic_team_gate(name, should_fire):
-    """team_buff fires an evergreen keyword granted to, or a static anthem over,
+def test_team_boost_or_grant_generic_team_gate(name, should_fire):
+    """team_boost_or_grant fires an evergreen keyword granted to, or a static anthem over,
     your GENERIC creature board (CR 604.3 / 702); a tribal, card-type or colour
     narrowing fails the gate (checklist #6)."""
-    assert (("team_buff", "you", "") in _idents(name)) is should_fire
+    assert (("team_boost_or_grant", "you", "") in _idents(name)) is should_fire
 
 
 @pytest.mark.parametrize(
@@ -8611,18 +8611,18 @@ def test_topdeck_stack_position_and_owner_gates(name):
 
 
 @pytest.mark.parametrize("name", ["Anafenza, the Foremost", "Accorder Paladin"])
-def test_combat_buff_engine_fires(name):
+def test_combat_trigger_boost_fires(name):
     """A combat-frame trigger + a pump/counter effect in the SAME unit fires
-    combat_buff_engine (CR 508): Anafenza's attack counter; Accorder
+    combat_trigger_boost (CR 508): Anafenza's attack counter; Accorder
     Paladin's Battle-cry expansion (the keyword-payoff recall — checklist
     #3)."""
-    assert ("combat_buff_engine", "you", "") in _idents(name)
+    assert ("combat_trigger_boost", "you", "") in _idents(name)
 
 
-def test_combat_buff_engine_excludes_combat_damage():
+def test_combat_trigger_boost_excludes_combat_damage():
     """Skirk Commando's DamageDone trigger is deliberately excluded so
     Renown/self_counter_grow shapes never over-fire."""
-    assert "combat_buff_engine" not in _keys("Skirk Commando")
+    assert "combat_trigger_boost" not in _keys("Skirk Commando")
 
 
 def test_land_sacrifice_matters_gitrog():
@@ -11564,18 +11564,18 @@ def test_facedown_matters_plain_manifest_maker_stays_out():
     assert "facedown_makers" in _keys("Cloudform")
 
 
-def test_combat_buff_engine_reads_nested_mod_sites():
+def test_combat_trigger_boost_reads_nested_mod_sites():
     """Fix (b): Aethershield Artificer's begin-combat pump is a fully-typed
     ``AddPower``/``AddToughness`` mod site inside a ``GenericEffect`` (a
     static-role pump in the SAME unit, granularity a) — the engine fires."""
-    assert ("combat_buff_engine", "you", "") in _idents("Aethershield Artificer")
+    assert ("combat_trigger_boost", "you", "") in _idents("Aethershield Artificer")
 
 
-def test_combat_buff_engine_keyword_only_grant_stays_out():
+def test_combat_trigger_boost_keyword_only_grant_stays_out():
     """The nested-mod read is pump-gated: a combat-frame trigger conferring
     only KEYWORDS/other effects (Alela, Cunning Conqueror's opponent-turn
     spell trigger; no combat pump site) never fires."""
-    assert "combat_buff_engine" not in _keys("Alela, Cunning Conqueror")
+    assert "combat_trigger_boost" not in _keys("Alela, Cunning Conqueror")
 
 
 def test_topdeck_stack_tracked_set_dig():
@@ -14814,16 +14814,16 @@ def test_clue_maker_is_not_a_clue_payoff(name):
     assert "clue_matters" not in _keys("Hero's Downfall")
 
 
-def test_pump_makers_duration_gate_and_firebreathing_veto():
+def test_effect_boost_duration_gate_and_firebreathing_veto():
     """CR 611.2c: the duration-scoped trick fires (Giant Growth —
     UntilEndOfTurn on the ability node, probed verbatim); the activated
     SELF-pump (Shivan Dragon — Pump{target: SelfRef}, ported self_pump's
     country), the duration-less static (Glorious Anthem) and the debuff
     (Ascendant Evincar — negative factor) never fire."""
-    assert ("pump_makers", "you", "") in _idents("Giant Growth")
-    assert "pump_makers" not in _keys("Shivan Dragon")
-    assert "pump_makers" not in _keys("Glorious Anthem")
-    assert "pump_makers" not in _keys("Ascendant Evincar")
+    assert ("effect_boost", "you", "") in _idents("Giant Growth")
+    assert "effect_boost" not in _keys("Shivan Dragon")
+    assert "effect_boost" not in _keys("Glorious Anthem")
+    assert "effect_boost" not in _keys("Ascendant Evincar")
 
 
 def test_self_counter_grow_selfref_and_keyword_actions():
@@ -17735,8 +17735,8 @@ def test_damage_redirect_skips_a_life_floor():
         # direct_damage: the player-reaching damage arm on a newly parsed
         # trigger chain (CR 115.4).
         ("Captain America, First Avenger", "direct_damage"),
-        # combat_buff_engine: attack-trigger team buff now parsed (CR 508).
-        ("Lara Croft, Tomb Raider", "combat_buff_engine"),
+        # combat_trigger_boost: attack-trigger team buff now parsed (CR 508).
+        ("Lara Croft, Tomb Raider", "combat_trigger_boost"),
         # enchantments_matter: type-restricted top-N dig ("reveal ... put an
         # enchantment card into your hand") — the tutor/dig arm (CR 701.23).
         ("Benefaction of Rhonas", "enchantments_matter"),

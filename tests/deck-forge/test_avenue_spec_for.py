@@ -43,9 +43,9 @@ def test_lightning_greaves_opens_and_serves_the_equipment_keyword_grant_avenue()
 
 
 def test_rafiq_opens_and_serves_the_team_keyword_grant_avenue():
-    # A lone attacker gains double strike: team_buff|you|double strike only.
-    assert "Team keyword grants" in _opened("Rafiq of the Many")
-    assert _served("Rafiq of the Many", "Team keyword grants")
+    # A lone attacker gains double strike: team_boost_or_grant|you|double strike only.
+    assert "Team boosts and keyword grants" in _opened("Rafiq of the Many")
+    assert _served("Rafiq of the Many", "Team boosts and keyword grants")
 
 
 def test_impulse_draw_does_not_open_cast_from_exile():

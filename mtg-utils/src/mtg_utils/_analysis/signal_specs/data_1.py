@@ -265,7 +265,7 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=_TOKEN_MAKER_IDENTS
         | {
-            "team_buff|you|",
+            "team_boost_or_grant|you|",
             "anthem_static|you|*",
             "tokens_matter|you|",
             "creatures_matter|you|",
@@ -761,7 +761,7 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
                 "token_maker|you|*",
                 "combat_damage_to_opp|opponents|",
                 "combat_damage_matters|opponents|",
-                "combat_buff_engine|you|",
+                "combat_trigger_boost|you|",
                 "exalted_lone_attacker|you|",
                 "extra_combats|you|",
                 "extra_turns|you|",
@@ -769,14 +769,14 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
                 "entered_attacker|you|etb_pump",
                 "nonhuman_attackers|you|",
                 "keyword_grant_target|you|haste",
-                "team_buff|you|haste",
-                "team_buff|you|double strike",
-                "team_buff|you|first strike",
-                "team_buff|you|trample",
-                "team_buff|you|menace",
-                "team_buff|you|deathtouch",
-                "team_buff|you|vigilance",
-                "team_buff|you|indestructible",
+                "team_boost_or_grant|you|haste",
+                "team_boost_or_grant|you|double strike",
+                "team_boost_or_grant|you|first strike",
+                "team_boost_or_grant|you|trample",
+                "team_boost_or_grant|you|menace",
+                "team_boost_or_grant|you|deathtouch",
+                "team_boost_or_grant|you|vigilance",
+                "team_boost_or_grant|you|indestructible",
                 "team_evasion_grant|you|*",
             }
         ),
@@ -1372,17 +1372,17 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"debuff_makers|any|", "debuff_makers|you|"}),
     ),
-    # ADR-0027 β: pump_makers's SWEEP_DETECTORS row is deleted (detection moved to the
+    # ADR-0027 β: effect_boost's SWEEP_DETECTORS row is deleted (detection moved to the
     # Card IR — a kept _IR_KEPT_DETECTORS mirror; the lane is unstructurable, so no
     # structural arm). Hand-registered (scope "you"); the serve is the lane's ident.
     # SWEEP_LABELS keeps the label.
-    ("pump_makers", "you"): _spec(
-        *SWEEP_LABELS["pump_makers"],
+    ("effect_boost", "you"): _spec(
+        *SWEEP_LABELS["effect_boost"],
         # The lane reads every targeted pump the regex did, plus anaphoric "it gets"
         # (Spidery Grasp), team pumps (Surge to Victory) and attack-trigger pumps
         # (Fervent Champion).
         None,
-        serve_idents=frozenset({"pump_makers|you|"}),
+        serve_idents=frozenset({"effect_boost|you|"}),
     ),
     # ADR-0027 β: free_cast's SWEEP_DETECTORS row is deleted (detection moved to the
     # Card IR via a kept _FREE_CAST_MIRROR; the IR has no 'free' flag, so no structural
@@ -1481,12 +1481,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # and keyword-anthems that grow their attackers. ADR-0027 Cluster D: combat_buff_
     # engine migrated to the IR (its SWEEP_DETECTORS row is deleted); the serve is the
     # lane's ident.
-    ("combat_buff_engine", "you"): _sweep_spec_with_extras(
-        "combat_buff_engine",
+    ("combat_trigger_boost", "you"): _sweep_spec_with_extras(
+        "combat_trigger_boost",
         (_COMBAT_SUPPORT_EXTRA,),
         # Gains beginning-of-combat counters and buffs (Nessian Hornbeetle, Kimahri).
         # Block / becomes-blocked self pumps and flanking / exalted reminders drop out.
-        serve_idents=frozenset({"combat_buff_engine|you|"}),
+        serve_idents=frozenset({"combat_trigger_boost|you|"}),
     ),
     # A "becomes blocked" payoff (General Marhault: +3/+3 for each creature blocking it)
     # wants Lure effects — forcing every able creature to block maxes the per-blocker

@@ -72,7 +72,7 @@ def _confidence(name: str, key: str, scope: str) -> str | None:
         # these "+1/-1 or -1/+1" pumps into branches.
         ("Endling", "self_pump", "you"),
         ("Shorecrasher Elemental", "self_pump", "you"),
-        ("Pemmin's Aura", "pump_makers", "you"),
+        ("Pemmin's Aura", "effect_boost", "you"),
         ("Liliana of the Dark Realms", "scaling_pump", "you"),
         # d20 results rows.
         ("Farideh's Fireball", "symmetric_damage_each", "each"),

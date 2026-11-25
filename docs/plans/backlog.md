@@ -655,7 +655,7 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   threaded_grantees` is the target a static's back-reference names ("it",
   "those creatures" over the chain's own targets) and serves
   `iter_granted_triggers`, the animate read and `unit_keyword_grants`.
-  `team_buff_sites` and the keyword-grant lane stay on `group_grant_statics`
+  `team_boost_or_grant_sites` and the keyword-grant lane stay on `group_grant_statics`
   (the group a mass effect acted on), and `iter_named_object_statics` on the
   "it" thread plus the group half: through the chosen-target map a single
   target ("target creature you control") would read as a team, and the lane's

@@ -36,14 +36,14 @@ def _keys(name: str) -> set[str]:
         ("Concordant Crossroads", ("all_creatures_kw_grant", "any", "haste")),
         # Your team, any subset: generic, typed, attacking, and the creature a
         # watcher of your creatures triggers on.
-        ("Fervor", ("team_buff", "you", "haste")),
-        ("Bonescythe Sliver", ("team_buff", "you", "double strike")),
-        ("Blade Historian", ("team_buff", "you", "double strike")),
+        ("Fervor", ("team_boost_or_grant", "you", "haste")),
+        ("Bonescythe Sliver", ("team_boost_or_grant", "you", "double strike")),
+        ("Blade Historian", ("team_boost_or_grant", "you", "double strike")),
         # A creature type alone names creatures ("other Spiders you control").
-        ("Cosmic Spider-Man", ("team_buff", "you", "flying")),
-        ("Rafiq of the Many", ("team_buff", "you", "double strike")),
+        ("Cosmic Spider-Man", ("team_boost_or_grant", "you", "flying")),
+        ("Rafiq of the Many", ("team_boost_or_grant", "you", "double strike")),
         # An emblem's static (the deep walk).
-        ("Domri Rade", ("team_buff", "you", "haste")),
+        ("Domri Rade", ("team_boost_or_grant", "you", "haste")),
         # The suit-up recipient: "Equipped / Enchanted creature has <kw>", and a
         # modal arm of "Whenever equipped creature attacks".
         ("Fireshrieker", ("aura_equip_kw_grant", "you", "double strike")),
@@ -63,7 +63,7 @@ def test_subject_less_idents_keep_their_shape():
     ``aura_equip_kw_grant`` (that one is "Auras / Equipment you control have")."""
     assert ("keyword_grant_target", "you", "") in _idents("Tainted Strike")
     assert "keyword_grant_target" not in _keys("Akroma's Memorial")
-    assert ("team_buff", "you", "flying") in _idents("Akroma's Memorial")
+    assert ("team_boost_or_grant", "you", "flying") in _idents("Akroma's Memorial")
     assert ("aura_equip_kw_grant", "you", "") not in _idents("Fireshrieker")
 
 
@@ -81,14 +81,14 @@ def test_unknown_keyword_placeholder_names_no_subject():
     ride as subjects of the team grant."""
     idents = _idents("Concerted Effort")
     assert not {i for i in idents if i[2] == "unknown"}
-    assert ("team_buff", "you", "trample") in idents
+    assert ("team_boost_or_grant", "you", "trample") in idents
 
 
-def test_watched_creature_grant_is_a_team_buff():
+def test_watched_creature_grant_is_a_team_boost_or_grant():
     """Ogre Battledriver's "Whenever another creature you control enters, that
     creature gets +2/+0 and gains haste until end of turn": the grant lands on
     the creature the trigger watched, one of yours."""
-    assert ("team_buff", "you", "haste") in _idents("Ogre Battledriver")
+    assert ("team_boost_or_grant", "you", "haste") in _idents("Ogre Battledriver")
 
 
 @pytest.mark.retirement_canary

@@ -77,7 +77,7 @@ _REAL_CASES: dict[str, str] = {
     "color_change": "Prismatic Lace",
     "color_hoser": "Dark Betrayal",
     "colorless_matters": "Herald of Kozilek",
-    "combat_buff_engine": "Alesha, Who Laughs at Fate",
+    "combat_trigger_boost": "Alesha, Who Laughs at Fate",
     "combat_damage_matters": "Edric, Spymaster of Trest",
     "combat_damage_to_creature": "Voracious Cobra",
     "combat_damage_to_opp": "Cold-Eyed Selkie",
@@ -328,7 +328,7 @@ _REAL_CASES: dict[str, str] = {
     "proliferate_makers": "Evolution Sage",
     "proliferate_matters": "Ezuri, Claw of Progress",
     "protection_grant": "Benevolent Bodyguard",
-    "pump_makers": "Giant Growth",
+    "effect_boost": "Giant Growth",
     "rad_counter_makers": "Nuclear Fallout",
     "ramp": "Karametra's Acolyte",
     "reanimator": "Loyal Retainers",
@@ -396,7 +396,7 @@ _REAL_CASES: dict[str, str] = {
     "target_player_draws": "Lord of Tresserhorn",
     "target_redirect": "Rayne, Academy Chancellor",
     "targeting_matters": "Reality Smasher",
-    "team_buff": "Brave the Sands",
+    "team_boost_or_grant": "Brave the Sands",
     "team_evasion_grant": "Galerider Sliver",
     # _matters sweep (ADR-0034): the steal-and-cast kept-mirror DOER (Stolen Goods)
     # now fires theft_makers; the LOW gain_control / don't-own cross-open is the

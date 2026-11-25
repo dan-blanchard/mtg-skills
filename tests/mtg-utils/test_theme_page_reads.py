@@ -110,23 +110,23 @@ def test_sacrifice_death_and_enters(name, ident, has):
     ("Juggernaut", "forced_attack|any|others", False),  # itself
     ("Goblin Rabblemaster", "forced_attack|any|others", False),  # your Goblins
     # the one-shot team pump
-    ("Banners Raised", "team_buff|you|pump", True),
-    ("Wild Beastmaster", "team_buff|you|pump", True),
-    ("Battle Frenzy", "team_buff|you|pump", False),  # green creatures only
+    ("Banners Raised", "team_boost_or_grant|you|pump", True),
+    ("Wild Beastmaster", "team_boost_or_grant|you|pump", True),
+    ("Battle Frenzy", "team_boost_or_grant|you|pump", False),  # green creatures only
     # the attacking part of the team, a P/T raise or a keyword (CR 508.1k)
-    ("Jazal Goldmane", "team_buff|you|attackers", True),
-    ("Waystone's Guidance", "team_buff|you|attackers", True),
-    ("Neyali, Suns' Vanguard", "team_buff|you|attackers", True),
-    ("Tourach's Gate", "team_buff|you|attackers", False),  # +2/-1: mixed
+    ("Jazal Goldmane", "team_boost_or_grant|you|attackers", True),
+    ("Waystone's Guidance", "team_boost_or_grant|you|attackers", True),
+    ("Neyali, Suns' Vanguard", "team_boost_or_grant|you|attackers", True),
+    ("Tourach's Gate", "team_boost_or_grant|you|attackers", False),  # +2/-1: mixed
     # the team's base P/T set, an emblem's included
-    ("Biomass Mutation", "team_buff|you|base_pt", True),
-    ("The Capitoline Triad", "team_buff|you|base_pt", True),
-    ("Creeperhulk", "team_buff|you|base_pt", False),  # one target
+    ("Biomass Mutation", "team_boost_or_grant|you|base_pt", True),
+    ("The Capitoline Triad", "team_boost_or_grant|you|base_pt", True),
+    ("Creeperhulk", "team_boost_or_grant|you|base_pt", False),  # one target
     # an anthem over your tokens, one the card gives its commander included
-    ("Inspiring Leader", "team_buff|you|tokens", True),
-    ("Intangible Virtue", "team_buff|you|tokens", True),
+    ("Inspiring Leader", "team_boost_or_grant|you|tokens", True),
+    ("Intangible Virtue", "team_boost_or_grant|you|tokens", True),
     # a keyword the team gains from a choice
-    ("Angelic Skirmisher", "team_buff|you|keyword", True),
+    ("Angelic Skirmisher", "team_boost_or_grant|you|keyword", True),
     # an enters trigger that gives other Equipment a free attach
     ("Hammer of Nazahn", "voltron_makers|you|", True),
     ("Sigarda's Aid", "voltron_makers|you|", True),
@@ -211,8 +211,8 @@ def test_bodies_tokens_and_symmetry(name, ident, has):
 
 @_cases(
     # a pump on one chosen creature (CR 115.1a), never a team pump
-    ("Brute Force", "pump_makers|you|target", True),
-    ("Charge", "pump_makers|you|target", False),
+    ("Brute Force", "effect_boost|you|target", True),
+    ("Charge", "effect_boost|you|target", False),
     # a quoted ability one target gains
     ("Retraction Helix", "keyword_grant_target|you|ability", True),
     ("Giant Growth", "keyword_grant_target|you|ability", False),

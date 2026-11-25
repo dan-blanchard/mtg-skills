@@ -225,7 +225,7 @@ ARM_PINS: dict[tuple[str, str], tuple[str, str]] = {
             "Grizzly Bears",
         )
         for ref in (
-            "combat_buff_engine|you",
+            "combat_trigger_boost|you",
             "combat_choice_makers|opponents",
             "combat_damage_matters|opponents",
             "combat_damage_to_opp|opponents",

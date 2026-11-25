@@ -44,7 +44,7 @@ from mtg_utils._card_ir.crosswalk import (
     DYNAMIC_PT_SET_MODS,
     SWEPT_PERMANENT_TYPES,
     TARGETED_PLAYER_TAGS,
-    TEAM_BUFF_GRANT_KW,
+    TEAM_BOOST_OR_GRANT_GRANT_KW,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -77,7 +77,7 @@ from mtg_utils._card_ir.crosswalk import (
     is_attacking_team_filter,
     is_creature_population,
     is_self_discard_cost,
-    is_team_buff_filter,
+    is_team_boost_or_grant_filter,
     is_token_team_filter,
     iter_condition_sites,
     iter_cost_leaves,
@@ -109,7 +109,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_pt_mods_on_others,
     tag_of,
     targets_the_card,
-    team_buff_sites,
+    team_boost_or_grant_sites,
     token_creator_side,
     watches_each_players_land_taps,
     zone_change_origins,
@@ -1971,28 +1971,31 @@ def _self_pump(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _team_buff(tree: ConceptTree) -> list[Signal]:
-    """team_buff — the BROAD evergreen-keyword union anthem (CR 604.3 / 702):
+def _team_boost_or_grant(tree: ConceptTree) -> list[Signal]:
+    """team_boost_or_grant — the BROAD evergreen-keyword union anthem (CR 604.3 / 702):
     "creatures you control have/gain <evergreen keyword>" (Akroma's Memorial,
     Always Watching; Craterhoof's one-shot "gain trample"). Reads every
     modification site's ``AddKeyword`` whose keyword is a plain evergreen
     string over a generic your-team subject (the shared walk,
-    :func:`~mtg_utils._card_ir.crosswalk.reads.team_buff_sites`) — a tribal
+    :func:`~mtg_utils._card_ir.crosswalk.reads.team_boost_or_grant_sites`) — a tribal
     grant ("Sliver creatures you control gain …") or a single-target grant (an
     effect target, never a generic your-team ``affected``) stays out (checklist
     #6). The variant-
     parameterized keywords (Protection-from-X, Ward-{N}) are non-string nodes
     — a documented residue. A static anthem over the same whole team
-    (:func:`~mtg_utils._card_ir.crosswalk.reads.is_team_buff_filter` — Glorious
+    (:func:`~mtg_utils._card_ir.crosswalk.reads.is_team_boost_or_grant_filter` —
+    Glorious
     Anthem, Always Watching) is one too; an anthem over a subset (a chosen type,
     a colour, a keyword — Vanquisher's Banner, Honor of the Pure, Favorable
     Winds) or a symmetric one (Bad Moon) is only ``anthem_static``. Scope "you".
     """
-    site = next((sdef for _unit, sdef in team_buff_sites(tree)), None) or next(
+    site = next(
+        (sdef for _unit, sdef in team_boost_or_grant_sites(tree)), None
+    ) or next(
         (
             sdef
             for sdef in _raising_anthem_defs(tree)
-            if is_team_buff_filter(getattr(sdef, "affected", None))
+            if is_team_boost_or_grant_filter(getattr(sdef, "affected", None))
         ),
         None,
     )
@@ -2004,27 +2007,27 @@ def _team_buff(tree: ConceptTree) -> list[Signal]:
             (
                 pump.raw
                 for _unit, pump, kw in pump_keyword_grants(tree)
-                if normalised_keyword_name(kw) in TEAM_BUFF_GRANT_KW
-                and is_team_buff_filter(effect_filter(pump.node))
+                if normalised_keyword_name(kw) in TEAM_BOOST_OR_GRANT_GRANT_KW
+                and is_team_boost_or_grant_filter(effect_filter(pump.node))
             ),
             None,
         )
     out = _team_pump(tree)
     if raw is None:
         return out
-    return [Signal("team_buff", "you", "", raw, tree.name, "high"), *out]
+    return [Signal("team_boost_or_grant", "you", "", raw, tree.name, "high"), *out]
 
 
 def _team_pump(tree: ConceptTree) -> list[Signal]:
     """The go-wide team boosts beside the anthem, each under its own
-    ``team_buff`` subject:
+    ``team_boost_or_grant`` subject:
 
     * ``pump`` — a one-shot +N/+N over your whole team until end of turn
       ("Creatures you control get +1/+0 until end of turn" — Banners Raised,
       Akroan Phalanx's activation, Wild Beastmaster's attack trigger), where a
       static one is ``anthem_static``. Raised power and toughness, at least one
       (:func:`_raises_pt`), over the team
-      (:func:`~mtg_utils._card_ir.crosswalk.reads.is_team_buff_filter`).
+      (:func:`~mtg_utils._card_ir.crosswalk.reads.is_team_boost_or_grant_filter`).
     * ``attackers`` — raised P/T or an evergreen keyword for the attacking part
       of the team, one-shot or static
       (:func:`~mtg_utils._card_ir.crosswalk.reads.is_attacking_team_filter`):
@@ -2035,7 +2038,7 @@ def _team_pump(tree: ConceptTree) -> list[Signal]:
     * ``keyword`` — a keyword the whole team gains from a choice the card makes
       ("choose first strike, vigilance, or lifelink. Creatures you control gain
       that ability" — Angelic Skirmisher), which phase keeps unnamed
-      (``AddChosenKeyword``) where ``team_buff``'s grant names it.
+      (``AddChosenKeyword``) where ``team_boost_or_grant``'s grant names it.
     * ``tokens`` — raised P/T over your creature tokens, a static one or one the
       card gives another object ("Commander creatures you own have 'Creature
       tokens you control get +2/+2'" — Inspiring Leader; Intangible Virtue).
@@ -2047,14 +2050,14 @@ def _team_pump(tree: ConceptTree) -> list[Signal]:
             if tag_of(c.node) != "PumpAll" or pump_is_negative(c.node):
                 continue
             filt = effect_filter(c.node)
-            if unit.origin != "static" and is_team_buff_filter(filt):
+            if unit.origin != "static" and is_team_boost_or_grant_filter(filt):
                 found.setdefault("pump", c.raw)
             elif is_attacking_team_filter(filt):
                 found.setdefault("attackers", c.raw)
         # ``deep``: an emblem's static is the card's too (The Capitoline Triad).
         for sdef, mod in iter_mod_sites(unit.node, deep=True):
             affected = getattr(sdef, "affected", None)
-            if is_team_buff_filter(affected):
+            if is_team_boost_or_grant_filter(affected):
                 if tag_of(mod) in _BASE_PT_SET_MODS:
                     found.setdefault("base_pt", "")
                 elif tag_of(mod) == "AddChosenKeyword":
@@ -2068,7 +2071,7 @@ def _team_pump(tree: ConceptTree) -> list[Signal]:
             elif is_token_team_filter(affected) and _raises_pt(sdef):
                 found.setdefault("tokens", "")
     return [
-        Signal("team_buff", "you", subject, raw, tree.name, "high")
+        Signal("team_boost_or_grant", "you", subject, raw, tree.name, "high")
         for subject, raw in found.items()
     ]
 
@@ -2079,13 +2082,13 @@ _BASE_PT_SET_MODS: frozenset[str] = DYNAMIC_PT_SET_MODS | {"SetPower", "SetTough
 
 
 def _grants_team_keyword(mod: object) -> bool:
-    """Whether a modification grants an evergreen keyword ``team_buff`` reads
-    (:data:`~mtg_utils._card_ir.crosswalk.reads.TEAM_BUFF_GRANT_KW`)."""
+    """Whether a modification grants an evergreen keyword ``team_boost_or_grant`` reads
+    (:data:`~mtg_utils._card_ir.crosswalk.reads.TEAM_BOOST_OR_GRANT_GRANT_KW`)."""
     kw = getattr(mod, "keyword", None)
     return (
         tag_of(mod) in ("AddKeyword", "AddKeywordUntilEndOfTurn")
         and isinstance(kw, str)
-        and kw.lower().replace(" ", "") in TEAM_BUFF_GRANT_KW
+        and kw.lower().replace(" ", "") in TEAM_BOOST_OR_GRANT_GRANT_KW
     )
 
 
@@ -3488,6 +3491,6 @@ LANES = (
     _anthem_static,
     _pump_scaling_lanes,
     _self_pump,
-    _team_buff,
+    _team_boost_or_grant,
     _cheat_into_play,
 )

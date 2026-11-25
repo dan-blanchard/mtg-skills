@@ -442,12 +442,12 @@ _TARGET_PLAYER_DRAW_PHRASE_RE = re.compile(
     r"|\bchoose\b[^.,;]*?\bplayer\b[^.,;]*?\bdraws?\b",
     re.IGNORECASE,
 )
-# Combat-frame trigger events (CR 508 / 509.3a) — the combat_buff_engine
+# Combat-frame trigger events (CR 508 / 509.3a) — the combat_trigger_boost
 # anchor, phase's combined "attacks or blocks" trigger among them (Freelance
 # Muscle, Velukan Dragon). ``deals_damage`` is DELIBERATELY absent so Renown /
 # the separate self_counter_grow shapes don't over-fire (mirrors the live
 # exclusion).
-_COMBAT_BUFF_EVENTS: frozenset[str] = frozenset(
+_COMBAT_TRIGGER_BOOST_EVENTS: frozenset[str] = frozenset(
     {"attacks", "blocks", "attacksorblocks", "becomes_blocked"}
 )
 # Land-to-graveyard payoff trigger events (CR 701.21a / 603.6c).
@@ -2910,11 +2910,11 @@ def _buffs_with_counters(c: ConceptNode) -> bool:
     return OTHER_CHOOSER not in c.subject and "+1/+1 counter" in c.subject
 
 
-# Retired 2026-10-25: ``COMBAT_BUFF_ENGINE_SWEEP_REGEX``, the mined sweep pattern ("at
+# Retired 2026-10-25: ``COMBAT_TRIGGER_BOOST_SWEEP_REGEX``, the mined sweep pattern ("at
 # the beginning of combat on your turn … that creature gets +" and attack-trigger pumps)
 # this lane's Card IR read replaced (ADR-0027).
-def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
-    """combat_buff_engine — combat-keyed pump (CR 508 / 509.3a): a trigger in
+def _combat_trigger_boost(tree: ConceptTree) -> list[Signal]:
+    """combat_trigger_boost — combat-keyed pump (CR 508 / 509.3a): a trigger in
     the combat frame (attacks / blocks / attacks-or-blocks / becomes-blocked /
     begin-combat) with a ``pump`` / ``place_counter`` effect in the SAME unit
     that raises something (:func:`pump_raises`; a -1/-1 counter and a shrink
@@ -2934,7 +2934,7 @@ def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
     """
     for unit in tree.units:
         ev = unit.trigger_event
-        combat = ev in _COMBAT_BUFF_EVENTS or (
+        combat = ev in _COMBAT_TRIGGER_BOOST_EVENTS or (
             ev == "phase" and trigger_phase(unit.node) == "BeginCombat"
         )
         if not combat:
@@ -2949,7 +2949,7 @@ def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
             max(pt_mod_signs(d)) > 0 for d in unit.static_defs()
         )
         if effect_buff or static_buff:
-            return [Signal("combat_buff_engine", "you", "", "", tree.name, "high")]
+            return [Signal("combat_trigger_boost", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -3755,7 +3755,7 @@ LANES = (
     _topdeck_selection,
     _topdeck_selection_actions,
     _topdeck_stack,
-    _combat_buff_engine,
+    _combat_trigger_boost,
     _land_sacrifice_matters,
     _exile_matters,
     _energy_matters,

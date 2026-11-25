@@ -164,7 +164,7 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
     * an ``AddKeyword`` modification whose keyword is a SPELL-CAST keyword
       (:data:`_SPELL_GRANT_KEYWORDS` — Snapcaster Mage's targeted Flashback
       grant); the curated set is the spell-vs-battlefield discriminator (an
-      evergreen grant is team_buff territory, checklist #3);
+      evergreen grant is team_boost_or_grant territory, checklist #3);
     * a ``GrantNextSpellAbility`` effect ("the next spell you cast this
       turn has convoke" — Wand of the Worldsoul), a ONE-SHOT ability grant
       distinct from the always-on static form, read via
@@ -1323,7 +1323,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
       no subtypes/predicates. ANY granted keyword fires (the live arm is
       keyword-ungated). Scope "any" (it buffs opponents too, checklist #5).
     * ``team_evasion_grant`` — the evasion subset on your generic creature
-      team (Levitation). Co-fires with the ported ``team_buff`` (a documented
+      team (Levitation). Co-fires with the ported ``team_boost_or_grant`` (a documented
       subset). A subtype/chosen-type-scoped grant (Cover of Darkness) fails
       the generic-team gate — the live mirror tail, SUPPLEMENT, logged.
     * ``aura_equip_kw_grant`` — an evergreen keyword to YOUR Aura/Equipment
@@ -1342,7 +1342,8 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
     out, each on the key whose avenue it is, so a theme that wants one
     keyword serves on that keyword across every shape:
 
-    * ``team_buff|you|<kw>`` (the "Team keyword grants" avenue) — a grant to
+    * ``team_boost_or_grant|you|<kw>`` (the "Team boosts and keyword grants" avenue) —
+      a grant to
       YOUR creatures, any subset: the generic team (Fervor), a typed or
       predicate-qualified one (Bonescythe Sliver's Slivers, Blade Historian's
       attackers), one-shot or static, and the creature that triggers a
@@ -1428,7 +1429,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             and yours
             and on_board  # Sedris's graveyard cards have unearth — no team
         ):
-            fire_subject("team_buff", "you", subject, raw)
+            fire_subject("team_boost_or_grant", "you", subject, raw)
         # The suit-up recipient, or every creature of yours that has gear on it
         # ("Equipped creatures you control have haste" — Firion, Wild Rose
         # Warrior; Zamriel, Seraph of Steel).
@@ -1528,7 +1529,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 # "As long as ~ is paired with another creature, both creatures
                 # have double strike" (Silverblade Paladin): a soulbond pair is
                 # two creatures you control (CR 702.95a).
-                fire_kw("team_buff", "you", mod, raw)
+                fire_kw("team_boost_or_grant", "you", mod, raw)
                 continue
             if atag == "TriggeringSource" or (
                 atag == "ParentTarget" and all(mod is not m for _r, m in targeted)
@@ -1547,7 +1548,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 ):
                     fire_kw("aura_equip_kw_grant", "you", mod, raw)
                 elif trigger_subject_scope(unit.node) == "you":
-                    fire_kw("team_buff", "you", mod, raw)
+                    fire_kw("team_boost_or_grant", "you", mod, raw)
                 continue
             grantee_site(affected, keyword_subject(mod_keyword_name(mod) or ""), raw)
     # A trigger granted to your creatures that hands its bearer a keyword:
@@ -1564,7 +1565,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 if tag_of(mod) == "AddKeyword" and (
                     tag_of(getattr(sdef, "affected", None)) == "SelfRef"
                 ):
-                    fire_kw("team_buff", "you", mod, _site_raw(sdef))
+                    fire_kw("team_boost_or_grant", "you", mod, _site_raw(sdef))
     if _TEAM_EVASION_GRANT_RX.search(_kept(tree)):
         fire("team_evasion_grant", "you", "")
     # ADR-0038 W3 batch 4 — the split/aftermath BACK-HALF grant residue: phase

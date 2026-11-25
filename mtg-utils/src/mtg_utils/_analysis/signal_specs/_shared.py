@@ -733,15 +733,19 @@ _TOKEN_DOUBLER_EXTRA = SubAvenue(
 )
 # Go-wide anthems: "creatures you control get +1/+1" (Glorious Anthem), "creature
 # tokens you control get …" (Intangible Virtue) and the one-shot team pump ("Creatures
-# you control get +1/+0 until end of turn" — Banners Raised, team_buff's ``pump``) —
-# anthem_static over the whole team and every team_buff. A single-target pump needn't
+# you control get +1/+0 until end of turn" — Banners Raised, team_boost_or_grant's
+# ``pump``) —
+# anthem_static over the whole team and every team_boost_or_grant. A single-target pump
+# needn't
 # hit your team, and a tribe's lord (Goblin King) pumps one tribe. A token / go-wide
 # deck's tokens ARE creatures, so creature anthems pump them.
 _GOWIDE_ANTHEM_EXTRA = SubAvenue(
     "Go-wide anthems",
     "team anthems that pump every creature/token you control (Glorious Anthem, Dictate "
     "of Heliod, Intangible Virtue)",
-    serve=Serve(signal_idents=frozenset({"anthem_static|you|", "team_buff|you|*"})),
+    serve=Serve(
+        signal_idents=frozenset({"anthem_static|you|", "team_boost_or_grant|you|*"})
+    ),
 )
 # Token-aristocrats drain: payoffs that fire on TOKEN creation / a token leaving and
 # bleed the table (Mirkwood Bats, Nadier's Nightblade, Sanguine Brushstroke's Blood
@@ -1283,7 +1287,8 @@ def _sweep_spec_with_extras(
 # cards that make Equipment (voltron_makers' ``gear``) or attach it, an anthem or
 # keyword grant to your equipped creatures ("Equipped creatures you control get +1/+1"
 # — Stone Haven Outfitter; "… have indestructible" — Zamriel), and the team buffs and
-# combat-keyword grants (team_buff). A shrinking Aura (Dead Weight) is removal, and an
+# combat-keyword grants (team_boost_or_grant). A shrinking Aura (Dead Weight) is
+# removal, and an
 # Equipment payoff that buffs no creature (Puresteel Paladin's equip discount, Syr
 # Gwyn's draw) is a carer, not support.
 _COMBAT_SUPPORT_KEYWORDS = (
@@ -1304,9 +1309,9 @@ _COMBAT_SUPPORT_EXTRA = SubAvenue(
                 "voltron_makers|you|*",
                 "aura_equip_kw_grant|you|*",
                 "team_evasion_grant|you|*",
-                "team_buff|you|",
-                "team_buff|you|attackers",
-                *(f"team_buff|you|{kw}" for kw in _COMBAT_SUPPORT_KEYWORDS),
+                "team_boost_or_grant|you|",
+                "team_boost_or_grant|you|attackers",
+                *(f"team_boost_or_grant|you|{kw}" for kw in _COMBAT_SUPPORT_KEYWORDS),
             }
         ),
     ),
@@ -1370,7 +1375,7 @@ _PARADOX_PAYOFF_EXTRA = SubAvenue(
 )
 # Heroic / targeting enablers: cheap spells that TARGET one of your creatures to fire
 # the heroic payoff (Gods Willing, Brute Force, Defiant Strike). They must use "target"
-# (CR 115.1a) and BUFF it: the pump_makers lane's ``target`` subject (a pump on one
+# (CR 115.1a) and BUFF it: the effect_boost lane's ``target`` subject (a pump on one
 # chosen creature) and keyword_grant_target — a keyword, a choice of keywords (Gideon
 # Blackblade) or a quoted ability (Feign Death) given to a target creature. An "each
 # creature" anthem doesn't target (so won't trigger heroic) and targeted REMOVAL
@@ -1381,16 +1386,16 @@ _TARGETED_BUFF_EXTRA = SubAvenue(
     "Brute Force / Defiant Strike)",
     serve=Serve(
         signal_idents=frozenset(
-            {"keyword_grant_target|you|*", "pump_makers|you|target"}
+            {"keyword_grant_target|you|*", "effect_boost|you|target"}
         )
     ),
 )
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
-# survive blocks: the pump_makers lane.
+# survive blocks: the effect_boost lane.
 _PUMP_EXTRA = SubAvenue(
     "Combat tricks / pump",
     "instant-speed pump to push extra combat damage through and survive blocks",
-    serve=Serve(signal_idents=frozenset({"pump_makers|you|"})),
+    serve=Serve(signal_idents=frozenset({"effect_boost|you|"})),
 )
 # Damage / life-loss AMPLIFIERS — a commander that deals combat damage to opponents
 # wants its damage doubled (Gratuitous Violence, Furnace of Rath, Angrath's Marauders,
@@ -1409,7 +1414,7 @@ _DAMAGE_AMPLIFIER_EXTRA = SubAvenue(
             {
                 "damage_doubling|you|*",
                 "damage_reflect|you|",
-                "team_buff|you|double strike",
+                "team_boost_or_grant|you|double strike",
                 "keyword_grant_target|you|double strike",
                 "aura_equip_kw_grant|you|double strike",
                 "all_creatures_kw_grant|any|double strike",

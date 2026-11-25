@@ -91,7 +91,7 @@ _LAND_SAC_SERVE_IDENTS = frozenset(
 _FLYING_GRANT_IDENTS = frozenset(
     {
         "keyword_grant_target|you|flying",
-        "team_buff|you|flying",
+        "team_boost_or_grant|you|flying",
         "aura_equip_kw_grant|you|flying",
         "all_creatures_kw_grant|any|flying",
         "team_evasion_grant|you|flying",
@@ -701,7 +701,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
             for kw in ("double strike", "infect")
             for lane, scope in (
                 ("keyword_grant_target", "you"),
-                ("team_buff", "you"),
+                ("team_boost_or_grant", "you"),
                 ("aura_equip_kw_grant", "you"),
                 ("all_creatures_kw_grant", "any"),
             )

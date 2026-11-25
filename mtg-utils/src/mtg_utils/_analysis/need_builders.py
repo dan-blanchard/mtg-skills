@@ -976,7 +976,7 @@ def _own_damage_grant_need(desc: str) -> Need:
         idents=frozenset(
             f"{prefix}|you|{kw}"
             for kw in _OWN_DAMAGE_KEYWORDS
-            for prefix in ("keyword_grant_target", "team_buff")
+            for prefix in ("keyword_grant_target", "team_boost_or_grant")
         ),
         predicate=_grants_the_commander,
     )

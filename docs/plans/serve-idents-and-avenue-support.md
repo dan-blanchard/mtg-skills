@@ -30,7 +30,7 @@ three kinds, each a different job:
 
 - **Lane under-detects what the regex names.** `protection_grant` (regex 281
   cards, the lane's ident ~0), `extra_end_step` (563 vs 1), `bounce_tempo` (245),
-  `pump_makers` (862 vs a 47 % Jaccard), `creature_recursion` (404), `activated_draw`
+  `effect_boost` (862 vs a 47 % Jaccard), `creature_recursion` (404), `activated_draw`
   (117), `topdeck_stack` (88), `cant_block_grant` (70). These are phase-gap or
   lane-gap findings: the structural read exists but misses most of the idiom.
   Each one is an ADR-0039-style promotion (measure live-only vs crosswalk-only,
@@ -147,7 +147,7 @@ holds" — the input to the lane-fix pass.
 **Pass C, lane fixes (2026-10-22).** Seven agents, one per lane module, fixed the
 lane gaps ranked in the backlog's "Pass C holds", each as a SUBJECT on an existing
 key rather than a new key: keyword grants carry the keyword
-(`keyword_grant_target|you|haste`, `team_buff|you|double strike`,
+(`keyword_grant_target|you|haste`, `team_boost_or_grant|you|double strike`,
 `aura_equip_kw_grant|you|flying`); `evasion_self` its kind (unblockable, landwalk,
 menace … partial, conditional); `creature_recursion` its destination; impulse
 draw is `cast_from_exile|you|impulse`; artifact- and enchantment-token makers are
@@ -179,10 +179,10 @@ through `_CARES_ALIASES` and opening no avenue of their own. Then the specs
 converted, and **362 of 379 serves read idents**: four still match on a regex
 alone (`self_etb_payload`, `permanent_etb`, `land_protection`, and
 `ability_strip_payoff`'s drawback text beside its power floor), four keep a regex
-beside their idents (`xspell_matters`, `team_buff`, `target_redirect`,
+beside their idents (`xspell_matters`, `team_boost_or_grant`, `target_redirect`,
 `spell_redirect`), and thirteen serve on types or keywords alone; the backlog
 lists why. Since 2026-10-24 only `ability_strip_payoff`'s drawback text is left:
-the redirects, `xspell_matters` and `team_buff` read their lanes, and
+the redirects, `xspell_matters` and `team_boost_or_grant` read their lanes, and
 `self_etb_payload`, `permanent_etb` and `land_protection` read page-only doers
 (`signal_keys.PAGE_ONLY_SUBJECTS`).
 
@@ -302,7 +302,7 @@ remainder (upstream phase gap or lane gap) or its regex is re-shaped as a
 | `lifeloss_makers\|opponents` | 1078 | `lifeloss_makers\|opponents\|` (0.45) | 0.61 | `opponent[^.]*loses [^.]*life\|whenever an opponent ` |
 | `lifeloss_matters\|opponents` | 1078 | `lifeloss_makers\|opponents\|` (0.45) | 0.61 | `opponent[^.]*loses [^.]*life\|whenever an opponent ` |
 | `card_draw_engine\|you` | 1000 | `card_draw_engine\|you\|` (0.67) | 0.88 | `at the beginning of [^.]*\bdraws? (?:a\|an\|two\|thre` |
-| `team_buff\|you` | 987 | `creatures_matter\|you\|` (0.39) | 0.49 | `creatures? you control (?:gain\|gains\|have\|has) (?:` |
+| `team_boost_or_grant\|you` | 987 | `creatures_matter\|you\|` (0.39) | 0.49 | `creatures? you control (?:gain\|gains\|have\|has) (?:` |
 | `tutor\|you` | 932 | `tutor\|you\|` (0.62) | 0.66 | `search your library for` |
 | `reanimator\|you` | 836 | `creature_recursion\|you\|` (0.28) | 0.43 | `(?:return\|put)[^.]*creature card[^.]*from (?:a\|you` |
 | `lands_matter\|you` | 805 | `landfall\|you\|` (0.28) | 0.44 | `the number of lands you control\|for each land you ` |
@@ -374,7 +374,7 @@ remainder (upstream phase gap or lane gap) or its regex is re-shaped as a
 | `voltron_makers\|you` | 1325 | `enchantments_matter\|you\|` (0.12) | 0.11 | `equipped creature\|enchanted creature gets\|equip \{` |
 | `voltron_matters\|you` | 1325 | `enchantments_matter\|you\|` (0.12) | 0.11 | `equipped creature\|enchanted creature gets\|equip \{` |
 | `extra_upkeep\|you` | 1127 | `enchantments_matter\|you\|` (0.08) | 0.08 | `at the beginning of (?:your\|each) upkeep` |
-| `pump_makers\|you` | 862 | `pump_makers\|you\|` (0.47) | 0.02 | `target (?:[a-z]+ )*creature(?: you control)? gets ` |
+| `effect_boost\|you` | 862 | `effect_boost\|you\|` (0.47) | 0.02 | `target (?:[a-z]+ )*creature(?: you control)? gets ` |
 | `damage_to_opp_matters\|opponents` | 824 | `evasion_self\|you\|` (0.42) | 0.15 | `deals (?:noncombat )?damage to (?:a player\|an oppo` |
 | `evasion_self\|you` | 743 | `evasion_self\|you\|` (0.44) | 0.08 | `can't be blocked(?! except)\|\bunblockable\b\|\b(?:f` |
 | `has_ninjutsu\|you` | 743 | `evasion_self\|you\|` (0.44) | 0.08 | `can't be blocked(?! except)\|\bunblockable\b\|\b(?:f` |
@@ -393,7 +393,7 @@ remainder (upstream phase gap or lane gap) or its regex is re-shaped as a
 | `mass_death_payoff\|you` | 401 | `mass_removal\|you\|` (0.4) | 0.14 | `destroy all creatures\|exile all creatures\|deals \d` |
 | `graveyard_makers\|opponents` | 367 | `mill_makers\|any\|` (0.34) | 0.07 | `(?:each opponent\|target opponent\|an opponent\|that ` |
 | `graveyard_matters\|opponents` | 367 | `mill_makers\|any\|` (0.34) | 0.07 | `(?:each opponent\|target opponent\|an opponent\|that ` |
-| `combat_buff_engine\|you` | 362 | `combat_buff_engine\|you\|` (0.36) | 0.15 | `at the beginning of combat on your turn[^.]*creatu` |
+| `combat_trigger_boost\|you` | 362 | `combat_trigger_boost\|you\|` (0.36) | 0.15 | `at the beginning of combat on your turn[^.]*creatu` |
 | `mana_amplifier\|you` | 355 | `mana_amplifier\|you\|` (0.04) | 0.07 | `you tap [^.]*for mana[^.]*(?:add\|produces?)\|produc` |
 | `per_target_payoff\|you` | 328 | `counter_distribute\|you\|` (0.03) | 0.01 | `any number of targets?\|divided[^.]*among[^.]*(?:an` |
 | `enchantments_matter\|you` | 299 | `type_matters\|you\|Shrine` (0.08) | 0.19 | `enchantments? you control\|for each enchantment\|\bc` |
@@ -411,7 +411,7 @@ remainder (upstream phase gap or lane gap) or its regex is re-shaped as a
 | `theft_protection\|you` | 126 | `wants_theft\|opponents\|` (0.38) | 0.01 | `gain control of (?:up to one )?target (?:creature\|` |
 | `cast_from_exile\|you` | 122 | `void_warp_makers\|you\|` (0.25) | 0.27 | `spells? you cast from exile\|whenever you cast a sp` |
 | `activated_draw\|you` | 117 | `activated_draw\|you\|` (0.28) | 0.0 | `\{t\}: draw a card` |
-| `entered_attacker\|you` | 114 | `team_buff\|you\|` (0.17) | 0.0 | `(?:another \|a )?creature you control enters[^.]*(?` |
+| `entered_attacker\|you` | 114 | `team_boost_or_grant\|you\|` (0.17) | 0.0 | `(?:another \|a )?creature you control enters[^.]*(?` |
 | `cheat_from_top\|you` | 111 | `topdeck_stack\|you\|` (0.2) | 0.0 | `(?:put\|return) (?:target \|a )?(?:\w+ )?cards? from` |
 | `theft_makers\|opponents` | 110 | `theft_makers\|opponents\|` (0.27) | 0.31 | `conjure a duplicate of[^.]*from an opponent's libr` |
 | `wants_theft\|opponents` | 110 | `theft_makers\|opponents\|` (0.27) | 0.31 | `conjure a duplicate of[^.]*from an opponent's libr` |

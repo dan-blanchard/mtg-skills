@@ -39,8 +39,8 @@ def _static_defs(name: str) -> list:
 )
 def test_a_counted_pump_is_a_pump_maker(name, targeted):
     idents = _idents(name)
-    assert ("pump_makers", "you", "") in idents
-    assert (("pump_makers", "you", "target") in idents) is targeted
+    assert ("effect_boost", "you", "") in idents
+    assert (("effect_boost", "you", "target") in idents) is targeted
 
 
 @pytest.mark.parametrize(
@@ -55,7 +55,7 @@ def test_a_counted_pump_is_a_pump_maker(name, targeted):
     ],
 )
 def test_a_counted_combat_pump_is_a_combat_buff(name):
-    assert ("combat_buff_engine", "you", "") in _idents(name)
+    assert ("combat_trigger_boost", "you", "") in _idents(name)
 
 
 @pytest.mark.parametrize(
@@ -71,7 +71,7 @@ def test_a_counted_combat_pump_is_a_combat_buff(name):
     ],
 )
 def test_an_attacks_or_blocks_pump_is_a_combat_buff(name):
-    assert ("combat_buff_engine", "you", "") in _idents(name)
+    assert ("combat_trigger_boost", "you", "") in _idents(name)
 
 
 @pytest.mark.parametrize(
@@ -89,7 +89,9 @@ def test_an_attacks_or_blocks_pump_is_a_combat_buff(name):
     ],
 )
 def test_a_combat_shrink_is_no_combat_buff(name):
-    assert "combat_buff_engine" not in {key for key, _scope, _subject in _idents(name)}
+    assert "combat_trigger_boost" not in {
+        key for key, _scope, _subject in _idents(name)
+    }
 
 
 def test_a_counted_shrink_is_no_raise():
@@ -117,10 +119,12 @@ def test_a_counted_shrink_is_no_raise():
         ("Break of Day", "indestructible"),
     ],
 )
-def test_a_grant_to_the_team_a_mass_effect_named_is_a_team_buff(name, keyword):
+def test_a_grant_to_the_team_a_mass_effect_named_is_a_team_boost_or_grant(
+    name, keyword
+):
     idents = _idents(name)
-    assert ("team_buff", "you", "") in idents
-    assert ("team_buff", "you", keyword) in idents
+    assert ("team_boost_or_grant", "you", "") in idents
+    assert ("team_boost_or_grant", "you", keyword) in idents
     assert ("keyword_grant_target", "you", "") not in idents
 
 
@@ -128,8 +132,8 @@ def test_a_grant_to_part_of_the_team_names_its_keyword_only():
     # Sandstorm Salvager: "Put a +1/+1 counter on each creature token you
     # control. Those creatures gain trample" — your tokens, not the whole team.
     idents = _idents("Sandstorm Salvager")
-    assert ("team_buff", "you", "trample") in idents
-    assert ("team_buff", "you", "") not in idents
+    assert ("team_boost_or_grant", "you", "trample") in idents
+    assert ("team_boost_or_grant", "you", "") not in idents
 
 
 @pytest.mark.parametrize(
@@ -142,15 +146,15 @@ def test_a_grant_to_part_of_the_team_names_its_keyword_only():
         "Captain America, Skybound",
     ],
 )
-def test_a_grant_to_a_group_that_is_not_your_team_is_no_team_buff(name):
-    assert not {i for i in _idents(name) if i[0] == "team_buff"}
+def test_a_grant_to_a_group_that_is_not_your_team_is_no_team_boost_or_grant(name):
+    assert not {i for i in _idents(name) if i[0] == "team_boost_or_grant"}
 
 
 def test_those_creatures_after_chosen_targets_stays_a_targeted_grant():
     # Arm the Cathars: three targeted pumps, then "Those creatures gain vigilance".
     idents = _idents("Arm the Cathars")
     assert ("keyword_grant_target", "you", "vigilance") in idents
-    assert not {i for i in idents if i[0] == "team_buff"}
+    assert not {i for i in idents if i[0] == "team_boost_or_grant"}
 
 
 # ── A harm in a mode you need not choose is no drawback ─────────────────────────
@@ -220,7 +224,7 @@ def test_a_put_from_hand_or_graveyard_is_both_a_cheat_and_a_reanimation():
     [
         # "Each other creature you control gets +1/+1": ``DistinctFrom`` the
         # ability's target, the rest of the team.
-        ("Phalanx Tactics", ("team_buff", "you", "pump")),
+        ("Phalanx Tactics", ("team_boost_or_grant", "you", "pump")),
         # "exile target card from defending player's graveyard": the owner typed.
         ("Graven Abomination", ("opponent_exile_makers", "opponents", "")),
         ("Rysorian Badger", ("opponent_exile_makers", "opponents", "")),

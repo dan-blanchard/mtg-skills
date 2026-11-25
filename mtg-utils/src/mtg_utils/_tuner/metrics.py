@@ -26,7 +26,7 @@ from mtg_utils._card_ir.crosswalk import (
     pt_mod_signs,
     reach_amount,
     self_drawbacks,
-    team_buff_sites,
+    team_boost_or_grant_sites,
     unbound_x_reach,
 )
 from mtg_utils._card_ir.trees import object_facts, trees_for
@@ -142,7 +142,8 @@ def _reach_closes(trees: Sequence[ConceptTree], *, game: Game) -> bool:
 
 def _one_shot_team_pump(trees: Sequence[ConceptTree]) -> bool:
     """A one-shot team pump that swings for the win — Overrun, Craterhoof Behemoth,
-    Triumph of the Hordes: the ``team_buff`` lane's keyword grant to your team, from
+    Triumph of the Hordes: the ``team_boost_or_grant`` lane's keyword grant to your
+    team, from
     a spell, trigger or activation, that also gives the team +N power. A static
     anthem (Akroma's Memorial, Always Watching, Glorious Anthem) is board presence,
     and a one-shot grant with no pump (Azorius Charm's lifelink, Crash Through's
@@ -150,7 +151,7 @@ def _one_shot_team_pump(trees: Sequence[ConceptTree]) -> bool:
     return any(
         unit.origin != "static" and pt_mod_signs(sdef)[0] > 0
         for tree in trees
-        for unit, sdef in team_buff_sites(tree)
+        for unit, sdef in team_boost_or_grant_sites(tree)
     )
 
 
@@ -356,7 +357,7 @@ NEUTRAL_KEYS: frozenset[str] = frozenset(
         "anthem_static",
         "count_anthem",
         "scaling_pump",
-        "team_buff",
+        "team_boost_or_grant",
         "evasion_self",
         "self_etb_payload",
         "variable_pt",

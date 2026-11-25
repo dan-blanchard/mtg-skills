@@ -35,6 +35,7 @@ from mtg_utils._analysis.tree_synthesis import (
     _arm_dice_makers,
     _arm_discover_makers,
     _arm_dont_own,
+    _arm_effect_boost,
     _arm_exhaust_matters,
     _arm_extra_land_drop,
     _arm_fight_makers,
@@ -58,7 +59,6 @@ from mtg_utils._analysis.tree_synthesis import (
     _arm_opponent_exile_matters,
     _arm_per_target_payoff,
     _arm_proliferate_remove_cost,
-    _arm_pump_makers,
     _arm_ramp_dropped_add_mana_clause,
     _arm_ramp_grant_unimplemented_body,
     _arm_sacrifice_protection,
@@ -100,6 +100,7 @@ from mtg_utils._analysis.tree_synthesis import (
     has_structural_creature_cast_trigger,
     has_structural_crimes_matter,
     has_structural_dice_makers,
+    has_structural_effect_boost,
     has_structural_extra_land_drop,
     has_structural_fight_makers,
     has_structural_firebending_grant,
@@ -117,7 +118,6 @@ from mtg_utils._analysis.tree_synthesis import (
     has_structural_opponent_counter_grant,
     has_structural_outlaw,
     has_structural_proliferate,
-    has_structural_pump_makers,
     has_structural_ramp_grant_mana,
     has_structural_self_counter_grow,
     has_structural_snow_matters,
@@ -4254,7 +4254,7 @@ def test_suspect_matters_lane_reads_synth_node_end_to_end():
     assert any(s.key == "suspect_matters" for s in sigs)
 
 
-# ── batch T5-niche-a: pump_makers (bucket-A widen + bucket-B tail) ─────────
+# ── batch T5-niche-a: effect_boost (bucket-A widen + bucket-B tail) ─────────
 
 
 def _pump_static_tree(affected):
@@ -4301,13 +4301,13 @@ def _pump_static_tree(affected):
     return ConceptTree(name="X", oracle_id="x", oracle="X", units=(unit,))
 
 
-def test_pump_makers_structural_arm_giant_growth():
+def test_effect_boost_structural_arm_giant_growth():
     """Giant Growth's direct ``Pump`` effect (Fixed +3/+3) — the live
     effects-role structural arm."""
-    assert has_structural_pump_makers(_fixture_tree("Giant Growth")) is True
+    assert has_structural_effect_boost(_fixture_tree("Giant Growth")) is True
 
 
-def test_pump_makers_bucket_a_nested_static_team_buff():
+def test_effect_boost_bucket_a_nested_static_team_boost_or_grant():
     """A "Creatures you control get +2/+2 until end of turn"-shaped card:
     phase renders the temporary team buff as a ``GenericEffect`` wrapping a
     nested ``Continuous`` static (Adamant Will / Cavalier of Flame's real
@@ -4316,27 +4316,27 @@ def test_pump_makers_bucket_a_nested_static_team_buff():
     tree = _pump_static_tree(
         T_affected__Typed(controller="You", properties=[], type_filters=[])
     )
-    assert has_structural_pump_makers(tree) is True
+    assert has_structural_effect_boost(tree) is True
 
 
-def test_pump_makers_self_buff_veto_not_structural():
+def test_effect_boost_self_buff_veto_not_structural():
     """A SelfRef-affected nested static (Clickslither / Crazed Armodon's
     firebreathing self-buff shape) is self_pump's country, NOT
-    pump_makers."""
+    effect_boost."""
     tree = _pump_static_tree(T_affected__SelfRef())
-    assert has_structural_pump_makers(tree) is False
+    assert has_structural_effect_boost(tree) is False
 
 
-def test_pump_makers_no_fire_on_unrelated_card():
-    assert has_structural_pump_makers(_fixture_tree("Llanowar Elves")) is False
-    assert _arm_pump_makers(_fixture_tree("Llanowar Elves")) is None
+def test_effect_boost_no_fire_on_unrelated_card():
+    assert has_structural_effect_boost(_fixture_tree("Llanowar Elves")) is False
+    assert _arm_effect_boost(_fixture_tree("Llanowar Elves")) is None
 
 
-def test_pump_makers_bucket_b_synth_dynamic_amount_residue():
+def test_effect_boost_bucket_b_synth_dynamic_amount_residue():
     """Kessig Wolf Run-shaped "Target creature gets +X/+0 … until end of
     turn" — a dynamic/X amount with no raw text to ground a positive/
     negative tell; the deleted ``PUMP_MATTERS_REGEX`` kept-mirror relocated,
-    gap-gated against :func:`has_structural_pump_makers`."""
+    gap-gated against :func:`has_structural_effect_boost`."""
     tree = ConceptTree(
         name="X",
         oracle_id="x",
@@ -4344,22 +4344,22 @@ def test_pump_makers_bucket_b_synth_dynamic_amount_residue():
         "until end of turn.",
         units=(),
     )
-    assert has_structural_pump_makers(tree) is False
-    node = _arm_pump_makers(tree)
+    assert has_structural_effect_boost(tree) is False
+    node = _arm_effect_boost(tree)
     assert node is not None
-    assert node.concept == "synth_pump_makers"
+    assert node.concept == "synth_effect_boost"
 
 
-def test_pump_makers_synth_registered():
-    assert "pump_makers" in SYNTHESIS_ARM_IDS
+def test_effect_boost_synth_registered():
+    assert "effect_boost" in SYNTHESIS_ARM_IDS
 
 
-def test_pump_makers_lane_reads_synth_node_end_to_end():
-    from mtg_utils._analysis.lanes import _pump_makers_lane
+def test_effect_boost_lane_reads_synth_node_end_to_end():
+    from mtg_utils._analysis.lanes import _effect_boost_lane
 
     synth = ConceptNode(
-        concept="synth_pump_makers",
-        node=SynthesizedNode(arm_id="pump_makers", description="x"),
+        concept="synth_effect_boost",
+        node=SynthesizedNode(arm_id="effect_boost", description="x"),
         role="effect",
         scope="you",
         subject=(),
@@ -4378,8 +4378,8 @@ def test_pump_makers_lane_reads_synth_node_end_to_end():
     tree = ConceptTree(
         name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
     )
-    sigs = _pump_makers_lane(tree)
-    assert any(s.key == "pump_makers" for s in sigs)
+    sigs = _effect_boost_lane(tree)
+    assert any(s.key == "effect_boost" for s in sigs)
 
 
 # ── batch T5-niche-a: opponent_exile_matters (full relocation, no gate) ────

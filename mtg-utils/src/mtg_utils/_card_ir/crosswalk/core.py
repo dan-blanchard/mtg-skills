@@ -391,7 +391,7 @@ class ConceptNode:
     made_body_keywords: tuple[str, ...] = ()
     # A ``pump`` decorating a perpetual power/toughness change (``crosswalk.
     # perpetual``): its ``node`` is a ``Pump`` / ``PumpAll`` view of the
-    # change, with no duration: the change lasts, so ``pump_makers`` reads it as
+    # change, with no duration: the change lasts, so ``effect_boost`` reads it as
     # timed or better, except one on the card itself (the card growing).
     perpetual: bool = False
     # A perpetual view on the card itself that an earlier effect of the same

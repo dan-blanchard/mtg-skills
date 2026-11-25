@@ -890,13 +890,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Familiar, Ertai Resurrected), a granted/quoted Aura ability (Equinox, Sunken
     # Field), or a non-grant carrier (Goblin Artisans). NOT in _IR_FLOOR_LANES; the
     # serve spec stays hand-registered in signal_specs (FP-free at this breadth).
-    # ADR-0027: team_buff migrated to the Card IR — phase's `grant_keyword` Effect (one
+    # ADR-0027: team_boost_or_grant migrated to the Card IR — phase's `grant_keyword`
+    # Effect (one
     # per granted keyword, the keyword in counter_kind) on a GENERIC "creatures you
-    # control" subject (_is_team_buff_grant + _TEAM_BUFF_GRANT_KW). The structural IR
+    # control" subject (_is_team_boost_or_grant_grant + _TEAM_BOOST_OR_GRANT_GRANT_KW).
+    # The structural IR
     # drops the regex's tribal / color / attacking / single-target over-fires (it
     # matched the "creatures you control have <kw>" mass_grant roll-up text even when
     # the real grant was tribal/color-scoped); 0 genuine generic anthems lost. NOT in
-    # _IR_FLOOR_LANES; this _HAND_FLOOR producer + the SWEEP_DETECTORS team_buff row
+    # _IR_FLOOR_LANES; this _HAND_FLOOR producer + the SWEEP_DETECTORS
+    # team_boost_or_grant row
     # are deleted; the serve spec stays hand-registered.
     # ADR-0027 reveal/dig-v2: tutor migrated to the Card IR via a BYTE-IDENTICAL
     # kept mirror (_TUTOR_MATTERS_MIRROR in _signals_ir._IR_KEPT_DETECTORS == the
@@ -1264,7 +1267,7 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
         "has_changeling",
         "facedown_makers",
         "self_pump",
-        "pump_makers",
+        "effect_boost",
         "cant_block_grant",
         # The carrier's own evasion (shadow is an evasion ability, CR 702.28a —
         # Jodah's Avenger) and its own combat keyword (banding modifies the
@@ -2004,7 +2007,7 @@ def _apply_membership_floor(
     # silence the fallback. Per CR: regeneration (701.19) is removal-resistance — a
     # resilient beater is the IDEAL Equipment carrier; changeling (702.73a) is a
     # vanilla all-creature-type body; morph/facedown (702.37a / 708) is a casting
-    # option, not an engine; self power-growth (self_pump / pump_makers) and the
+    # option, not an engine; self power-growth (self_pump / effect_boost) and the
     # evasion-enabling cant_block_grant push the carrier's own damage through (the
     # Power/Evasion legs of the triad). The voltron LOW adds above are LOW (so are
     # skipped); an exalted body's voltron HIGH from the keyword map counts but fired

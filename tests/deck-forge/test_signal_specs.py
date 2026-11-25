@@ -191,9 +191,14 @@ def test_target_redirect_serves_spell_redirect():
 
 
 def test_ident_serves_drop_their_oracle_arm():
-    # xspell_matters, team_buff, target_redirect and spell_redirect page by the
+    # xspell_matters, team_boost_or_grant, target_redirect and spell_redirect page by the
     # lanes' idents alone (backlog (o), 2026-10-24).
-    for key in ("xspell_matters", "team_buff", "target_redirect", "spell_redirect"):
+    for key in (
+        "xspell_matters",
+        "team_boost_or_grant",
+        "target_redirect",
+        "spell_redirect",
+    ):
         serve = SPECS[(key, "you")].serve
         assert serve.oracle is None, key
         assert serve.not_oracle is None, key
@@ -219,8 +224,8 @@ def test_ident_serves_drop_their_oracle_arm():
         ("Bad Moon", False),  # everyone's black creatures, not your team
     ],
 )
-def test_team_buff_serves_team_grants_and_anthems(name, served):
-    assert serves(_card(name), _sig("team_buff", "you")) is served
+def test_team_boost_or_grant_serves_team_grants_and_anthems(name, served):
+    assert serves(_card(name), _sig("team_boost_or_grant", "you")) is served
 
 
 @pytest.mark.parametrize(
@@ -228,7 +233,7 @@ def test_team_buff_serves_team_grants_and_anthems(name, served):
     ["Vanquisher's Banner", "Honor of the Pure", "Favorable Winds", "Bad Moon"],
 )
 def test_subset_anthems_keep_their_anthem_serves(name):
-    # Out of team_buff, a subset anthem still pages as an anthem and go-wide.
+    # Out of team_boost_or_grant, a subset anthem still pages as an anthem and go-wide.
     assert serves(_card(name), _sig("anthem_static", "you")) is True
     assert serves(_card(name), _sig("creatures_matter", "you")) is True
 
@@ -2203,7 +2208,7 @@ class TestStructuredServeFixes4:
 
     def test_pump_matters_drops_minus_bonuses(self):
         """pump's `[+\\-]` matched -X/-X shrink (that's debuff_makers). Positive only."""
-        sig = _sig("pump_makers", "you")
+        sig = _sig("effect_boost", "you")
         giant_growth = _card("Giant Growth")
         festering_goblin = _card("Festering Goblin")
         assert serves(giant_growth, sig) is True

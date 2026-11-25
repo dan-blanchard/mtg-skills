@@ -81,12 +81,12 @@ def test_no_blink_without_exile_return():
 
 
 # ── beginning-of-combat single-target pump (full text, spans period) ──
-def test_begin_combat_single_target_pump_is_combat_buff_engine():
+def test_begin_combat_single_target_pump_is_combat_trigger_boost():
     # Leinore, Autumn Sovereign — "At the beginning of combat on your turn, put a
     # +1/+1 counter on up to one target creature you control" is the same
     # begin-combat single-target pump shape as Aurelia, Exemplar of Justice (not
     # yet snapshot-resident).
-    assert "combat_buff_engine" in {
+    assert "combat_trigger_boost" in {
         s.key for s in test_signals("Leinore, Autumn Sovereign")
     }
 
@@ -94,7 +94,9 @@ def test_begin_combat_single_target_pump_is_combat_buff_engine():
 def test_static_anthem_not_combat_buff():
     # No combat trigger → not a combat-buff engine: Glorious Anthem is a bare static
     # pump, not a triggered ability.
-    assert "combat_buff_engine" not in {s.key for s in test_signals("Glorious Anthem")}
+    assert "combat_trigger_boost" not in {
+        s.key for s in test_signals("Glorious Anthem")
+    }
 
 
 # ── loot/rummage across a sentence boundary ──

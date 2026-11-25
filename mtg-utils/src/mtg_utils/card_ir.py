@@ -127,7 +127,7 @@ class Effect:
     # tap. CR 106.4 / 605.
     mana_kind: str = ""  # "" | basic | fixing
     # ADR-0027 Duration fast-follow (SIDECAR v44): the duration of an effect (e.g.
-    # "UntilEndOfTurn"). Used by pump_makers / debuff_makers to distinguish a
+    # "UntilEndOfTurn"). Used by effect_boost / debuff_makers to distinguish a
     # temporary combat trick (Giant Growth) from a permanent anthem/static modifier,
     # retiring the dynamic -X/-X regex mirror. CR 611.2a.
     duration: str = ""

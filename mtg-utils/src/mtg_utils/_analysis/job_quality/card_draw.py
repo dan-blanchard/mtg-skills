@@ -814,9 +814,9 @@ _COUNTER_PLACER_KEYS = frozenset({"plus_one_makers", "any_counter_makers"})
 _PUMP_KEYS = _COUNTER_PLACER_KEYS | frozenset(
     {
         "anthem_static",
-        "team_buff",
-        "pump_makers",
-        "combat_buff_engine",
+        "team_boost_or_grant",
+        "effect_boost",
+        "combat_trigger_boost",
         "voltron_makers",
         "self_counter_grow",
         "self_pump",

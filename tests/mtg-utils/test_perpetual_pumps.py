@@ -81,14 +81,14 @@ def test_the_typed_change_stays_in_the_tree():
 
 
 def test_the_lanes_read_a_perpetual_pump_with_no_special_case():
-    assert ("combat_buff_engine", "you", "") in _idents(
+    assert ("combat_trigger_boost", "you", "") in _idents(
         "Steady Tortoise // Harried Dash"
     )
     assert ("self_pump", "you", "") in _idents("Scion of Shiv")
     assert ("debuff_makers", "any", "") in _idents("Davriel's Withering")
     assert not {k for k, _s, _sub in _idents("Veteran Charger")} & {
         "self_pump",
-        "pump_makers",
+        "effect_boost",
         "debuff_makers",
     }
 
@@ -105,10 +105,10 @@ def test_an_activation_restricted_to_the_graveyard_names_its_zone():
 
 
 def test_a_perpetual_pump_of_the_card_itself_is_no_pump_maker():
-    """Ichor Aberration only grows itself: no ``pump_makers``, though a sibling
+    """Ichor Aberration only grows itself: no ``effect_boost``, though a sibling
     effect of its trigger ("you may cast it from your graveyard this turn") is
     timed (Dan's call, 2026-11-25)."""
-    assert ("pump_makers", "you", "") not in _idents("Ichor Aberration")
+    assert ("effect_boost", "you", "") not in _idents("Ichor Aberration")
     assert any(
         c.perpetual
         for u in _units("Ichor Aberration")
@@ -122,8 +122,8 @@ def test_a_perpetual_pump_of_a_chosen_creature_is_a_pump_maker():
     Survivalist): a permanent pump of one chosen creature of yours is a pump
     maker, the targeted kind, as a pump until end of turn is."""
     idents = _idents("Prairie Survivalist")
-    assert ("pump_makers", "you", "") in idents
-    assert ("pump_makers", "you", "target") in idents
+    assert ("effect_boost", "you", "") in idents
+    assert ("effect_boost", "you", "target") in idents
 
 
 def test_a_chosen_players_creatures_keep_their_controller():
@@ -131,7 +131,7 @@ def test_a_chosen_players_creatures_keep_their_controller():
     creatures perpetually get +2/+0" (Chaos Balor's attack mode): the player can
     be you, so it is a combat buff of yours; the view is a ``PumpAll`` over that
     filter, ``TargetPlayer`` kept."""
-    assert ("combat_buff_engine", "you", "") in _idents("Chaos Balor")
+    assert ("combat_trigger_boost", "you", "") in _idents("Chaos Balor")
     views = [
         c.node
         for u in _units("Chaos Balor")

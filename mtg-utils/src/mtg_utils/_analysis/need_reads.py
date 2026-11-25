@@ -297,7 +297,7 @@ def _spends_counters(kind: str) -> Callable[[dict], bool]:
 #: them: team pumps and anthems, team protection, and the evasion grants a
 #: "deals combat damage to a player" trigger already asks for.
 _ATTACKER_SUPPORT_KEYS: frozenset[str] = frozenset(
-    {"team_buff", "anthem_static", "board_protection", "team_evasion_grant"}
+    {"team_boost_or_grant", "anthem_static", "board_protection", "team_evasion_grant"}
 )
 
 

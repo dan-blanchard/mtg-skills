@@ -3870,7 +3870,7 @@ def mod_keyword_name(mod: TypedMirrorNode) -> str | None:
     """The keyword NAME of an ``AddKeyword`` modification, across both shapes.
 
     A plain evergreen grant carries a bare string (``"Trample"`` — the
-    team_buff read); a PARAMETERIZED grant carries a variant wrapper whose key
+    team_boost_or_grant read); a PARAMETERIZED grant carries a variant wrapper whose key
     is the keyword name (``{Flashback: <cost>}`` — Snapcaster Mage's targeted
     flashback grant, CR 702.34). ``None`` when absent / not a keyword node.
     """
@@ -7910,7 +7910,7 @@ def is_evasive_body(tree: ConceptTree) -> bool:
 
 # Evergreen team-anthem keywords (CR 702), in phase's spaceless lowercase spelling
 # (a keyword name normalized via lower + strip spaces: "doublestrike").
-TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
+TEAM_BOOST_OR_GRANT_GRANT_KW: frozenset[str] = frozenset(
     {
         "flying",
         "trample",
@@ -7929,8 +7929,11 @@ TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
     }
 )
 # Predicates a GENERIC your-team anthem subject may carry (Always Watching's
-# NonToken, "each OTHER creature you control") — mirrors ``_TEAM_BUFF_OK_PREDS``.
-_TEAM_BUFF_OK_PREDS: frozenset[str] = frozenset({"NonToken", "Another", "Other"})
+# NonToken, "each OTHER creature you control") — mirrors
+# ``_TEAM_BOOST_OR_GRANT_OK_PREDS``.
+_TEAM_BOOST_OR_GRANT_OK_PREDS: frozenset[str] = frozenset(
+    {"NonToken", "Another", "Other"}
+)
 
 
 def _team_narrowing_predicates(filt: object) -> set[str]:
@@ -7960,8 +7963,8 @@ def _names_every_creature(filt: object) -> bool:
     return tag_of(filt) == "Typed" and filter_core_types(filt) == ("Creature",)
 
 
-def is_team_buff_filter(filt: object) -> bool:
-    """The team_buff anthem subject (CR 604.3): GENERIC creatures YOU control
+def is_team_boost_or_grant_filter(filt: object) -> bool:
+    """The team_boost_or_grant anthem subject (CR 604.3): GENERIC creatures YOU control
     — every creature, not a card-type subset (:func:`_names_every_creature`),
     no subtypes (tribal is type_matters), predicates at most
     NonToken/Another/Other or "each other" beside the ability's target
@@ -7973,7 +7976,7 @@ def is_team_buff_filter(filt: object) -> bool:
         filter_controller(filt) == "You"
         and _names_every_creature(filt)
         and not filter_subtypes(filt)
-        and _team_narrowing_predicates(filt) <= _TEAM_BUFF_OK_PREDS
+        and _team_narrowing_predicates(filt) <= _TEAM_BOOST_OR_GRANT_OK_PREDS
     )
 
 
@@ -7983,14 +7986,14 @@ def is_attacking_team_filter(filt: object) -> bool:
     you control" (Jazal Goldmane, Tears of Rage), "other attacking creatures"
     (Qala, Ajani's Pridemate), "attacking tokens you control" (Waystone's
     Guidance, Neyali, Suns' Vanguard) — no subtype, colour or other narrowing
-    (:func:`is_team_buff_filter`'s whole team, attacking)."""
+    (:func:`is_team_boost_or_grant_filter`'s whole team, attacking)."""
     return _team_part_filter(filt, "Attacking")
 
 
 def is_token_team_filter(filt: object) -> bool:
     """Your creature tokens as a group: "creature tokens you control"
     (Intangible Virtue), "tokens you control" — no subtype, colour or other
-    narrowing (:func:`is_team_buff_filter`'s whole team, its tokens)."""
+    narrowing (:func:`is_team_boost_or_grant_filter`'s whole team, its tokens)."""
     return _team_part_filter(filt, "Token")
 
 
@@ -8003,7 +8006,7 @@ def _team_part_filter(filt: object, part: str) -> bool:
         filter_controller(filt) != "You"
         or part not in preds
         or filter_subtypes(filt)
-        or not preds - {part, "Token"} <= _TEAM_BUFF_OK_PREDS
+        or not preds - {part, "Token"} <= _TEAM_BOOST_OR_GRANT_OK_PREDS
     ):
         return False
     if "Token" in preds and not filter_core_types(filt):
@@ -8011,11 +8014,12 @@ def _team_part_filter(filt: object, part: str) -> bool:
     return _names_every_creature(filt)
 
 
-def team_buff_sites(
+def team_boost_or_grant_sites(
     tree: ConceptTree,
 ) -> Iterator[tuple[AbilityUnit, TypedMirrorNode]]:
     """Every ``(unit, static def)`` granting the team an evergreen keyword — the
-    one walk behind the ``team_buff`` lane and the tuner's closer read, which asks
+    one walk behind the ``team_boost_or_grant`` lane and the tuner's closer read, which
+    asks
     the unit's ``origin`` (a one-shot pump vs a static anthem). The team is the
     static's own ``affected`` or the group a mass effect before it acted on
     (:func:`group_grant_statics`)."""
@@ -8026,13 +8030,13 @@ def team_buff_sites(
             kw = getattr(mod, "keyword", None)
             if not isinstance(kw, str):
                 continue
-            if kw.lower().replace(" ", "") not in TEAM_BUFF_GRANT_KW:
+            if kw.lower().replace(" ", "") not in TEAM_BOOST_OR_GRANT_GRANT_KW:
                 continue
             # "Those creatures", after a mass effect over your team, is the team.
             grantee = group_grant_statics(unit.node).get(
                 id(sdef), getattr(sdef, "affected", None)
             )
-            if is_team_buff_filter(grantee):
+            if is_team_boost_or_grant_filter(grantee):
                 yield unit, sdef
 
 

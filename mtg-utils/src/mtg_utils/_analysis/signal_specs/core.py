@@ -351,7 +351,7 @@ def _subject_spec(signal: Signal) -> SignalSpec:
                         f"{signal_keys.KEYWORD_TRIBE}|you|{subj}",
                         f"{signal_keys.KEYWORD_TRIBE}|any|{subj}",
                         f"keyword_bodies|you|{kw}",
-                        f"team_buff|you|{kw}",
+                        f"team_boost_or_grant|you|{kw}",
                         f"team_evasion_grant|you|{kw}",
                         f"aura_equip_kw_grant|you|{kw}",
                         f"keyword_grant_target|you|{kw}",

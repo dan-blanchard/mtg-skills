@@ -170,7 +170,7 @@ def test_creatures_matter_serve_reads_the_go_wide_lanes():
         "creatures_matter",
         "you",
         "token_maker|you|*",
-        "team_buff|you|",
+        "team_boost_or_grant|you|",
         "tokens_matter|you|",
         "creatures_matter|you|",
     )

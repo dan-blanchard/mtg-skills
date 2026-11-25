@@ -60,7 +60,7 @@ _ABILITY_HASTE_COST_EXTRA = SubAvenue(
             {
                 "activated_ability|you|enabler",
                 "keyword_grant_target|you|haste",
-                "team_buff|you|haste",
+                "team_boost_or_grant|you|haste",
                 "aura_equip_kw_grant|you|haste",
                 "all_creatures_kw_grant|any|haste",
             }
@@ -990,8 +990,8 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ),
     # Team keyword grants and static anthems, read off the cards' idents: a one-shot
     # pump or a non-keyword clause doesn't read as a team grant.
-    ("team_buff", "you"): _spec(
-        "Team keyword grants",
+    ("team_boost_or_grant", "you"): _spec(
+        "Team boosts and keyword grants",
         "keyword grants and anthems for your board",
         # The lane's team keyword grants, whatever the keyword (its subject;
         # Rafiq's double strike to a lone attacker, Akroma's Will's modes, the
@@ -1004,7 +1004,7 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         # Overwhelming Encounter) is. anthem_static and creatures_matter keep
         # the subset anthems.
         None,
-        serve_idents=frozenset({"team_buff|you|*"}),
+        serve_idents=frozenset({"team_boost_or_grant|you|*"}),
     ),
     # lf_ramp (2026-07-13): land-fetch-to-battlefield is RAMP, not tutor —
     # the serve side must not surface Rampant Growth / Cultivate / Nature's

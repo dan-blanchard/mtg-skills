@@ -38,7 +38,7 @@ recipient is read off the structure (:func:`perpetual_changes`):
 The rules themselves live in ``_card_ir.perpetual_rules``, which the parked-
 change rewrite (``misparsed_shapes``) asks too. The view is marked
 ``ConceptNode.perpetual``: the change lasts, timed or better, so
-``pump_makers`` reads it as a pump with a duration of its own — except one on
+``effect_boost`` reads it as a pump with a duration of its own — except one on
 the card itself, which is the card growing (Dan's call, 2026-11-25).
 
 Anything else — an earlier effect phase left a residue, a trigger mode phase

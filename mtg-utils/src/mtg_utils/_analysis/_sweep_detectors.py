@@ -91,7 +91,7 @@ TOPDECK_STACK_SWEEP_REGEX = "put (?:two|three|\\w+) cards? from your hand on top
 COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX = (
     "attacking creatures you control have[^.]*double strike"
 )
-# ADR-0027 β / #24 — pump_makers migrated to the Card IR; its SWEEP_DETECTORS row is
+# ADR-0027 β / #24 — effect_boost migrated to the Card IR; its SWEEP_DETECTORS row is
 # deleted but the EXACT mined regex survives here as a shared constant. The lane (a
 # POSITIVE single-target combat-trick buff: "target creature gets +N/+N") now has a
 # STRUCTURAL arm — a FIXED positive `pump_target` over a real target-Creature subject
@@ -501,7 +501,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Color change",
         "color-changing effects for protection and devotion",
     ),
-    "combat_buff_engine": ("Beginning-of-combat buff", "attackers to grow each combat"),
+    "combat_trigger_boost": (
+        "Combat-trigger boosts",
+        "attackers and blockers that grow in combat",
+    ),
     "combat_damage_to_creature": (
         "Combat damage to creatures",
         "evasive/first-strike/deathtouch attackers that connect with creatures",
@@ -743,9 +746,9 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Grant protection",
         "creatures worth protecting with hexproof/protection",
     ),
-    "pump_makers": (
-        "Combat tricks / pump",
-        "instant-speed pump to win combat and push damage",
+    "effect_boost": (
+        "Creature boosts (others / team)",
+        "boosts for your other creatures: tricks, team pumps and lasting boosts",
     ),
     "sacrifice_protection": (
         "Sacrifice protection",

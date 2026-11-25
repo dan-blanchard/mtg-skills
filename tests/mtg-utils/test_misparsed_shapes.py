@@ -572,12 +572,12 @@ def test_a_where_x_pump_reads_as_the_pump_it_is():
     def idents(name):
         return {(s.key, s.scope, s.subject) for s in test_signals(name)}
 
-    assert ("pump_makers", "you", "") in idents("General Tazri")
-    assert ("pump_makers", "you", "") in idents("Huntmaster Liger")
-    assert ("team_buff", "you", "pump") in idents("Huntmaster Liger")
+    assert ("effect_boost", "you", "") in idents("General Tazri")
+    assert ("effect_boost", "you", "") in idents("Huntmaster Liger")
+    assert ("team_boost_or_grant", "you", "pump") in idents("Huntmaster Liger")
     assert ("self_pump", "you", "") in idents("Keldon Battlewagon")
     assert ("voltron_makers", "you", "pump") in idents("Bronze Cudgels")
-    assert ("combat_buff_engine", "you", "") in idents("Razorfield Ripper")
+    assert ("combat_trigger_boost", "you", "") in idents("Razorfield Ripper")
 
 
 def test_only_a_pumps_own_residue_is_rewritten():
@@ -861,7 +861,7 @@ def test_second_verb_pump_canary():
         "target": {"type": "ParentTarget"},
     }
     assert after["sub_ability"]["duration"] == "UntilEndOfTurn"
-    assert ("pump_makers", "you", "") in {
+    assert ("effect_boost", "you", "") in {
         (s.key, s.scope, s.subject) for s in test_signals("Spry and Mighty")
     }
 

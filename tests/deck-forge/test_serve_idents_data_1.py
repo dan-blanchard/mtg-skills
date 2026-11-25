@@ -628,8 +628,8 @@ def test_named_synergy_serve_reads_for_each_named():
     assert serve.matches(_card("Plague Rats"))
 
 
-def test_combat_buff_engine_serve_drops_block_self_pumps():
-    serve = _ident_serve("combat_buff_engine", "you", "combat_buff_engine|you|")
+def test_combat_trigger_boost_serve_drops_block_self_pumps():
+    serve = _ident_serve("combat_trigger_boost", "you", "combat_trigger_boost|you|")
     assert serve.matches(_card("Marchesa, the Black Rose"))
     # Bushido (a block / becomes-blocked self pump) is no beginning-of-combat buff.
     assert not serve.matches(_card("Fumiko the Lowblood"))
@@ -641,7 +641,7 @@ def test_combat_buff_engine_serve_drops_block_self_pumps():
         ("tribal_etb_multi", "Marwyn, the Nurturer"),
         ("typed_enters_punish", "Impact Tremors"),
         ("spell_keyword_grant", "Maelstrom Nexus"),
-        ("pump_makers", "Shared Animosity"),
+        ("effect_boost", "Shared Animosity"),
         ("scaling_pump", "Might of the Masses"),
         ("vanilla_matters", "Ruxa, Patient Professor"),
         ("topdeck_stack", "Future Sight"),
@@ -945,7 +945,7 @@ def test_attack_matters_serve_rides_the_combat_lanes():
         "token_maker|you|*",
         "combat_damage_matters|opponents|",
         "extra_turns|you|",
-        "team_buff|you|haste",
+        "team_boost_or_grant|you|haste",
         "team_evasion_grant|you|*",
     )
     assert "haste" in serve.keywords

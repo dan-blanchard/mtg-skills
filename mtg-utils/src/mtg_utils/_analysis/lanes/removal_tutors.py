@@ -33,9 +33,9 @@ from mtg_utils._analysis.tree_synthesis import (
     has_self_etb_payload,
     has_self_etb_value,
     has_structural_crimes_matter,
+    has_structural_effect_boost,
     has_structural_outlaw,
     has_structural_proliferate,
-    has_structural_pump_makers,
     has_structural_self_counter_grow,
     has_structural_suspend_matters,
     has_structural_theft_makers,
@@ -565,8 +565,8 @@ def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
 
 # ── Batch-14 mirror constants + census sets ──────────────────────────────────
 
-# (pump_makers's ``_PUMP_MAKERS_RX`` kept-mirror was ADR-0036/0037 folded to
-# Tier-1 — see ``has_structural_pump_makers`` / ``_arm_pump_makers``.)
+# (effect_boost's ``_EFFECT_BOOST_RX`` kept-mirror was ADR-0036/0037 folded to
+# Tier-1 — see ``has_structural_effect_boost`` / ``_arm_effect_boost``.)
 
 # Byte-identical copies of the INLINE (unnamed) ``_IR_KEPT_DETECTORS`` rows —
 # the _JOHAN_MIRROR precedent (no importable name exists for these).
@@ -2181,12 +2181,12 @@ def _clue_matters_lane(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _pump_makers_lane(tree: ConceptTree) -> list[Signal]:
-    """pump_makers (§11) — CR 611.2c: the duration-scoped combat-trick BUFF.
-    Tier-1 (ADR-0036/0037 fold — the ``_PUMP_MAKERS_RX`` kept-mirror is
+def _effect_boost_lane(tree: ConceptTree) -> list[Signal]:
+    """effect_boost (§11) — CR 611.2c: the duration-scoped combat-trick BUFF.
+    Tier-1 (ADR-0036/0037 fold — the ``_EFFECT_BOOST_RX`` kept-mirror is
     RETIRED):
 
-    * **Structural:** :func:`has_structural_pump_makers` — a duration-scoped
+    * **Structural:** :func:`has_structural_effect_boost` — a duration-scoped
       ``Pump``/``PumpAll`` effect with a positive fixed power OR toughness
       (widened from power-only — Affa Guard Hound's "+0/+3"), a "+"-grounded
       dynamic amount, or a nested ``GenericEffect``/``Continuous``-static
@@ -2195,7 +2195,7 @@ def _pump_makers_lane(tree: ConceptTree) -> list[Signal]:
       ``SelfRef``-affected veto (Clickslither, Shivan Dragon — self_pump's
       country).
     * **bucket-B synth:** the ``tree_synthesis`` stage's
-      ``synth_pump_makers`` node — the X-based/dynamic-amount residue
+      ``synth_effect_boost`` node — the X-based/dynamic-amount residue
       (Kessig Wolf Run's "+X/+0", Liliana of the Dark Realms's "+X/+X") with
       no raw text to ground a positive/negative dynamic-amount tell.
 
@@ -2205,13 +2205,13 @@ def _pump_makers_lane(tree: ConceptTree) -> list[Signal]:
     "you", HIGH.
     """
     if not (
-        has_structural_pump_makers(tree)
-        or any(c.concept == "synth_pump_makers" for c in tree.iter_concepts())
+        has_structural_effect_boost(tree)
+        or any(c.concept == "synth_effect_boost" for c in tree.iter_concepts())
     ):
         return []
-    out = [Signal("pump_makers", "you", "", "", tree.name, "high")]
-    if has_structural_pump_makers(tree, targeted=True):
-        out.append(Signal("pump_makers", "you", "target", "", tree.name, "high"))
+    out = [Signal("effect_boost", "you", "", "", tree.name, "high")]
+    if has_structural_effect_boost(tree, targeted=True):
+        out.append(Signal("effect_boost", "you", "target", "", tree.name, "high"))
     return out
 
 
@@ -2924,7 +2924,7 @@ LANES = (
     _wants_cloning,
     _food_matters_lane,
     _clue_matters_lane,
-    _pump_makers_lane,
+    _effect_boost_lane,
     _self_counter_grow,
     _flash_matters_lane,
     _activated_ability,

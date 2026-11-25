@@ -27,7 +27,7 @@ def _top_issues_for(*, focus_r, template_r, **metrics):
         ("Phage the Untouchable", True),  # that player loses (CR 104.3e)
         # Extra combat (the extra_combats key).
         ("Aggravated Assault", True),
-        # One-shot team pumps (Dan's call: "+N" closers): the team_buff grant from a
+        # One-shot team pumps (Dan's call: "+N" closers): the team_boost_or_grant grant from a
         # spell or trigger that also adds power.
         ("Overrun", True),
         ("Craterhoof Behemoth", True),

@@ -1018,7 +1018,7 @@ def _recover_counter_removal(card: Card, oracle: str) -> Card:
 # only fills the residue; where phase scattered the operand across many effect
 # categories (lands_matter's land count, devotion's collapsed ``op``) the
 # supplement appends ONE inert marker carrying the recovered operand rather than
-# mutating the overloaded ``amount`` of each (which cascades into pump_makers /
+# mutating the overloaded ``amount`` of each (which cascades into effect_boost /
 # ramp that read ``amount.op``). All append-only / idempotent.
 
 # lands_matter — DEFERRED (mirror kept): phase's card-data.json omits the AFTERMATH
@@ -1034,7 +1034,7 @@ def _recover_counter_removal(card: Card, oracle: str) -> Card:
 # Merchant, the Theros gods) but COLLAPSES it to op=='variable' on a devotion-scaled
 # ramp (Nyx Lotus, Karametra's Acolyte, Nykthos) and DROPS it on a devotion pump /
 # characteristic_pt (Aspect of Hydra, Daxos). Re-stamping the op in place would
-# cascade (ramp reads op=='variable' for its accel split, pump_makers reads
+# cascade (ramp reads op=='variable' for its accel split, effect_boost reads
 # op=='fixed'); instead append ONE inert devotion marker so the devotion_matters arm
 # reads op=='devotion' without disturbing those neighbors. Gated to a card not
 # already carrying a devotion operand. CR 700 (devotion).
@@ -1053,7 +1053,7 @@ def _recover_devotion_operand(card: Card, oracle: str) -> Card:
     """Append a synthetic devotion marker (op='devotion') for the devotion operand
     phase collapses to op='variable' (ramp) or drops (pump / characteristic_pt), so
     the devotion_matters arm reads it structurally without re-stamping the overloaded
-    ``amount.op`` of the real ramp/pump effect (which ramp / pump_makers
+    ``amount.op`` of the real ramp/pump effect (which ramp / effect_boost
     read). Append-only; skipped when an op=='devotion' operand already exists."""
     if not card.faces:
         return card

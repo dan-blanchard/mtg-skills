@@ -854,7 +854,7 @@ def _site_raw(sdef: object) -> str:
 
 # Spell-cast keywords (CR 702 — flash 702.8, flashback 702.34, cascade
 # 702.85, …): an ``AddKeyword`` grant of one of these is a grant to a SPELL /
-# castable card, never a battlefield keyword anthem (team_buff). Normalized
+# castable card, never a battlefield keyword anthem (team_boost_or_grant). Normalized
 # lower/spaceless/hyphenless (phase spells ``JumpStart``).
 _SPELL_GRANT_KEYWORDS: frozenset[str] = frozenset(
     {

@@ -243,9 +243,12 @@ def test_partly_read_grant_read(name, kw):
 @pytest.mark.parametrize(
     ("name", "ident"),
     [
-        ("Tromp the Domains", "team_buff|you|trample"),  # your whole team
-        ("Tromp the Domains", "team_buff|you|"),
-        ("Haldir, Lórien Lieutenant", "team_buff|you|vigilance"),  # your Elves
+        ("Tromp the Domains", "team_boost_or_grant|you|trample"),  # your whole team
+        ("Tromp the Domains", "team_boost_or_grant|you|"),
+        (
+            "Haldir, Lórien Lieutenant",
+            "team_boost_or_grant|you|vigilance",
+        ),  # your Elves
         ("Stolen Vitality", "keyword_grant_target|you|first strike"),  # a target
     ],
 )

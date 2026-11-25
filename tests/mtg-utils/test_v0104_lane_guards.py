@@ -134,8 +134,8 @@ def test_own_target_spell_keeps_targeted_own_permanents(name):
     [
         # "put a +1/+1 counter on target creature of defending player's choice":
         # the opponent aims it, so it is no combat buff of yours.
-        ("Erithizon", "combat_buff_engine|you|", False),
-        ("Cait, Cage Brawler", "combat_buff_engine|you|", True),
+        ("Erithizon", "combat_trigger_boost|you|", False),
+        ("Cait, Cage Brawler", "combat_trigger_boost|you|", True),
         # Power-scaled damage to a PLAYER is not a creature ping.
         ("Consuming Ferocity", "creature_ping|you|", False),
         ("Consuming Ferocity", "direct_damage|you|", True),
@@ -216,7 +216,7 @@ def test_recovered_clause_reads_the_seams_marks(name, ident):
         # "deals damage equal to its power to its controller": a player recipient.
         ("Consuming Ferocity", "creature_ping|"),
         # Erithizon's counter goes on a creature of the defending player's choice.
-        ("Erithizon", "combat_buff_engine|"),
+        ("Erithizon", "combat_trigger_boost|"),
         # "You may cast this card from your graveyard or from exile": the card's
         # own cast (SELF), not a pile of cards in exile.
         ("Squee, the Immortal", "exile_matters|"),

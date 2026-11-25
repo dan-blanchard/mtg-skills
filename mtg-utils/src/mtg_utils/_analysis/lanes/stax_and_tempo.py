@@ -2132,7 +2132,7 @@ def _etb_pump_unit(unit: AbilityUnit) -> bool:
 def _entered_attacker_etb_pump(tree: ConceptTree) -> list[Signal]:
     """``entered_attacker|you|etb_pump`` (:func:`_etb_pump_unit`), the
     enter-trigger pump a newly-entered-attacker commander (Samut) wants beside
-    team haste (``team_buff|you|haste``)."""
+    team haste (``team_boost_or_grant|you|haste``)."""
     if any(_etb_pump_unit(unit) for unit in tree.units):
         return [Signal("entered_attacker", "you", "etb_pump", "", tree.name, "high")]
     return []

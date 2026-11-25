@@ -546,7 +546,7 @@ def _arm_power_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
-# ── batch T5-niche-a: pump_makers (bucket-A widen + bucket-B tail) ──────────
+# ── batch T5-niche-a: effect_boost (bucket-A widen + bucket-B tail) ──────────
 # CR 611.2c: the duration-scoped combat-trick BUFF. Two bucket-A widenings over
 # the live effect-role ``Pump``/``PumpAll`` arm PLUS one bucket-B residue arm
 # (the deleted ``PUMP_MATTERS_REGEX`` kept-mirror relocated), together closing
@@ -589,7 +589,7 @@ def _targets_a_friendly_object(target: object) -> bool:
     )
 
 
-def has_structural_pump_makers(tree: ConceptTree, *, targeted: bool = False) -> bool:
+def has_structural_effect_boost(tree: ConceptTree, *, targeted: bool = False) -> bool:
     """A duration-scoped ``Pump``/``PumpAll`` effect (or a perpetual one on a
     creature other than the card itself) with a positive fixed
     power OR toughness (widened from power-only), a "+"-grounded dynamic
@@ -675,26 +675,26 @@ def has_structural_pump_makers(tree: ConceptTree, *, targeted: bool = False) -> 
     return False
 
 
-_PUMP_MAKERS_SYNTH_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
+_EFFECT_BOOST_SYNTH_RX = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
 
 
-def _matches_pump_makers_idiom(oracle: str) -> bool:
-    return bool(_PUMP_MAKERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+def _matches_effect_boost_idiom(oracle: str) -> bool:
+    return bool(_EFFECT_BOOST_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
 
 
-def _arm_pump_makers(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``pump_makers`` node for the X-based/dynamic-amount
+def _arm_effect_boost(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``effect_boost`` node for the X-based/dynamic-amount
     residue (the deleted ``PUMP_MATTERS_REGEX`` kept-mirror relocated,
-    gap-gated against :func:`has_structural_pump_makers` — Kessig Wolf
+    gap-gated against :func:`has_structural_effect_boost` — Kessig Wolf
     Run's "+X/+0", Liliana of the Dark Realms's "+X/+X", no raw text to
     ground a positive/negative dynamic-amount tell)."""
-    if has_structural_pump_makers(tree):
+    if has_structural_effect_boost(tree):
         return None
-    if not _matches_pump_makers_idiom(tree.oracle or ""):
+    if not _matches_effect_boost_idiom(tree.oracle or ""):
         return None
     return _synthetic_concept(
-        arm_id="pump_makers",
-        concept="synth_pump_makers",
+        arm_id="effect_boost",
+        concept="synth_effect_boost",
         scope="you",
         subject=(),
         desc="bucket-B dynamic/X-amount combat-trick residue (CR 611.2c)",

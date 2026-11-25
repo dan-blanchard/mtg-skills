@@ -48,7 +48,7 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         serve_keywords=("trample",),
     ),
     # anthem_static: a STATIC anthem, not a one-shot pump — VETO "until end of turn"
-    # (those are pump_makers). Oracle-with-temporal-guard (no structured 'is-static').
+    # (those are effect_boost). Oracle-with-temporal-guard (no structured 'is-static').
     ("anthem_static", "you"): _spec(
         "Static anthem",
         "go-wide creatures to ride the anthem",
@@ -461,7 +461,7 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset(
             {
                 "entered_attacker|you|etb_pump",
-                "team_buff|you|haste",
+                "team_boost_or_grant|you|haste",
             }
         ),
     ),

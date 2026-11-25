@@ -109,7 +109,7 @@ Comprehensive Rules entry. A "those creatures" view is a `PumpAll` over the
 earlier effect's filter, so it keeps whose creatures they are; a raise on a
 population only your opponents control is no pump of yours. The rules live in `_card_ir.perpetual_rules`, which the
 parked-change rewrite (`misparsed_shapes`) asks too. The view is marked
-`ConceptNode.perpetual`: the change lasts, so `pump_makers` reads it as timed
+`ConceptNode.perpetual`: the change lasts, so `effect_boost` reads it as timed
 or better on its own node, except a change to the card itself (the card
 growing, no pump maker).
 _Avoid_: "perpetual pump" for a change to a card off the battlefield.

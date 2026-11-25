@@ -62,7 +62,7 @@ from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
     DAMAGE_EFFECT_TAGS,
     FACE_DOWN_PUT_TAGS,
-    TEAM_BUFF_GRANT_KW,
+    TEAM_BOOST_OR_GRANT_GRANT_KW,
     _filter_type_words,
     aggregate_filter,
     chosen_type_payoffs,
@@ -2062,7 +2062,7 @@ def _egg_counter_gap(tree: ConceptTree) -> bool:
     return _says(_EGG_COUNTER_RX, tree.residues("unparsed_condition"))
 
 
-# A combat-keyed pump → combat_buff_engine: Septic Rats', Sickle Dancer's attack
+# A combat-keyed pump → combat_trigger_boost: Septic Rats', Sickle Dancer's attack
 # self-pump (Proft's Eidetic Memory's begin-combat counters also match; recovery
 # serves that one).
 _COMBAT_PUMP_RX = re.compile(
@@ -2089,7 +2089,7 @@ def _plains_lifegain_gap(tree: ConceptTree) -> bool:
     return _says(_PLAINS_LIFEGAIN_RX, tree.residues("unparsed_condition"))
 
 
-# A conditional "gets +N/+N until end of turn" → pump_makers (Alex Wilder's "it
+# A conditional "gets +N/+N until end of turn" → effect_boost (Alex Wilder's "it
 # gets +2/+0 and gains haste until end of turn", Septic Rats, Sickle Dancer).
 _PUMP_CONDITION_RX = re.compile(
     r"\bgets \+\d+/\+\d+ (?:and gains \w+ )?until end of turn\b", re.IGNORECASE
@@ -2211,7 +2211,7 @@ def _lore_saga_gap(tree: ConceptTree) -> bool:
 
 # ── unparsed_verb_arguments ──────────────────────────────────────────────────
 # Trail of Mystery's "Whenever a permanent you control is turned face up, if it's
-# a creature, it gets +2/+2 until end of turn" → pump_makers.
+# a creature, it gets +2/+2 until end of turn" → effect_boost.
 _FACE_UP_PUMP_RX = re.compile(
     r"\bif it's a creature, it gets \+\d+/\+\d+ until end of turn\b",
     re.IGNORECASE,
@@ -2225,7 +2225,7 @@ def _face_up_pump_gap(tree: ConceptTree) -> bool:
 # ── perpetual_modify_pt: Alchemy's "perpetually gets" ────────────────────────
 # (The combat-frame perpetual pump row — By Elspeth's Command's begin-combat "Up
 # to one target Soldier perpetually gets +1/+1", Hurkyl's Prodigy's attack "~
-# can't be blocked this turn and it perpetually gets +2/+0" → combat_buff_engine
+# can't be blocked this turn and it perpetually gets +2/+0" → combat_trigger_boost
 # — retired 2026-11-25: ``misparsed_shapes``' perpetual-pump row writes both as
 # phase's ``ApplyPerpetual`` change, which ``crosswalk.perpetual`` reads as the
 # pump it is.)
@@ -3815,7 +3815,7 @@ BRIDGES: dict[str, Bridge] = {
         ),
         _residue_row(
             "conditional_combat_pump_parked",
-            "combat_buff_engine",
+            "combat_trigger_boost",
             "unparsed_condition",
             "an intervening-if on a combat-keyed pump trigger",
             # Septic Rats graduated at phase v0.131.0: an IsPoisoned
@@ -3837,7 +3837,7 @@ BRIDGES: dict[str, Bridge] = {
         ),
         _residue_row(
             "pump_condition_parked",
-            "pump_makers",
+            "effect_boost",
             "unparsed_condition",
             "an intervening-if 'gets +N/+N until end of turn'",
             # Septic Rats graduated at phase v0.131.0 (see
@@ -3937,7 +3937,7 @@ BRIDGES: dict[str, Bridge] = {
         ),
         _residue_row(
             "face_up_creature_pump_parked",
-            "pump_makers",
+            "effect_boost",
             "unparsed_verb_arguments",
             "'if it's a creature, it gets +N/+N until end of turn'",
             ("Trail of Mystery",),
@@ -4320,7 +4320,7 @@ def _no_x_cost_filter(tree: ConceptTree) -> bool:
     return all(tag_of(n) != "HasXInManaCost" for n in tree.iter_typed())
 
 
-# ── team_buff: a team keyword grant phase loses ─────────────────────────────
+# ── team_boost_or_grant: a team keyword grant phase loses ─────────────────────────────
 # "creatures you control gain <evergreen keyword>" (CR 702), the grant
 # ``lanes.triggers_damage`` reads off an AddKeyword over your creatures: folded
 # into the card's own SelfRef pump (Moku's "gets +2/+1 and creatures you control
@@ -4329,13 +4329,14 @@ def _no_x_cost_filter(tree: ConceptTree) -> bool:
 # "Creatures you control gain vigilance"); one dropped beside a PumpAll (Tromp
 # the Domains) the lane reads off the recovery stage's decoration
 # (``crosswalk.pump_keyword_grants``). The lane's own team test
-# (``crosswalk.is_team_buff_filter``) admits only the whole team, so nothing may
+# (``crosswalk.is_team_boost_or_grant_filter``) admits only the whole team, so nothing
+# may
 # stand between the clause's start (a sentence, a comma, an "and") and
 # "creatures": "Other red attacking creatures
 # you control gain trample" (Tori D'Avenant) is a subset grant the lane would
 # reject once phase typed it. The keywords are the lane's, in oracle spelling.
 _TEAM_GAIN_KEYWORDS = "|".join(
-    sorted(kw.replace("strike", " strike") for kw in TEAM_BUFF_GRANT_KW)
+    sorted(kw.replace("strike", " strike") for kw in TEAM_BOOST_OR_GRANT_GRANT_KW)
 )
 _TEAM_GAIN_KEYWORD_RX = re.compile(
     r"(?:^|[.,;:\u2014]\s*|\band\s+)creatures you control gain "
@@ -4587,7 +4588,7 @@ BRIDGES.update(
             ),
             Bridge(
                 bridge_id="team_keyword_grant_misscoped_selfref",
-                key="team_buff",
+                key="team_boost_or_grant",
                 kind="upstream_parse_failure",
                 todo=(
                     "the moku_haste_grant_misscoped_selfref report (Dan posts), "
@@ -4607,7 +4608,7 @@ BRIDGES.update(
             ),
             Bridge(
                 bridge_id="team_keyword_grant_aftermath_face",
-                key="team_buff",
+                key="team_boost_or_grant",
                 kind="missing_face",
                 todo=(
                     "the W2c gap (ADR-0038): phase has no record for an aftermath "
@@ -5770,7 +5771,7 @@ BRIDGES.update(
         for b in (
             Bridge(
                 bridge_id="team_base_pt_quantity_parse_failure",
-                key="team_buff",
+                key="team_boost_or_grant",
                 subject="base_pt",
                 kind="upstream_parse_failure",
                 todo=(
@@ -6110,7 +6111,7 @@ BRIDGES.update(
             ),
             Bridge(
                 bridge_id="team_double_strike_parked",
-                key="team_buff",
+                key="team_boost_or_grant",
                 subject="double strike",
                 kind="upstream_parse_failure",
                 todo=_upstream(
@@ -6126,7 +6127,7 @@ BRIDGES.update(
             ),
             Bridge(
                 bridge_id="chosen_creatures_double_strike_parked",
-                key="team_buff",
+                key="team_boost_or_grant",
                 subject="double strike",
                 kind="upstream_parse_failure",
                 todo=_upstream(
