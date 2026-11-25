@@ -2,7 +2,7 @@
 
     limited-stats --set FRA [--premium-sealed PATH] [--premium-draft PATH]
                   [--pool-min-games 60] [--margin 10] [--tier-gap 5] [--clash 10]
-                  [--min-games 30] [--json]
+                  [--min-games 30] [--reviews | --reviews-json PATH] [--json]
     limited-stats --set FRA --event SEALED [--premium-json PATH] [--json]
 
 Untapped.gg publishes per-card limited stats for every Arena set, keyed by the
@@ -36,9 +36,11 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import statistics
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urljoin
 
 import click
 import requests
@@ -46,6 +48,7 @@ import requests
 from mtg_utils._http import BROWSER_HEADERS, HttpFetcher, cache_root, is_fresh
 from mtg_utils._sidecar import atomic_write_bytes
 from mtg_utils.arena_card_db import arena_title
+from mtg_utils.names import normalize_card_name
 
 # The v2 query (2026-11: the v1 ``card_stats_limited_by_set`` answers 204 for every
 # set). The payload shape is unchanged; the time interval is the page's own default.
@@ -99,6 +102,12 @@ _UNDERPERFORM_WR = 50.0
 _EXAMPLE_EVENTS = "PREMIER_DRAFT, QUICK_DRAFT, SEALED"
 # The formats the pooled view reads, Sealed first (the closer format for 2HG).
 POOL_EVENTS = ("SEALED", "PREMIER_DRAFT")
+#: chunk.science's set pages: ``/<CODE>`` redirects to the set's page, whose
+#: ``data/<code>.<hash>.js`` script holds every reviewer's grade per card.
+REVIEWS_URL = "https://chunk.science"
+#: The reviewer average at or over which a rare the data is too thin for is a
+#: bomb (0-100; A- is 90): the guide skill's own evidence rule.
+REVIEWER_BOMB_MEAN = 90.0
 # A card needs this many games drawn in each format before a gap between the
 # formats is listed as a disagreement.
 _CLASH_FLOOR = 20
@@ -574,6 +583,89 @@ def format_disagreements(cards: list[dict], *, clash: float = 10.0) -> list[dict
     return out
 
 
+# --- Reviewer consensus -----------------------------------------------------------
+
+_DATA_ASSIGNMENT_RX = re.compile(r"\s*window\.\w+\s*=\s*")
+
+
+def _review_key(name: str) -> str:
+    """A card name as the two sites both spell it: accents, case, punctuation
+    and spacing folded (Arena's "All Good Things . . ." is chunk.science's
+    "All Good Things...")."""
+    return re.sub(r"[^a-z0-9]", "", normalize_card_name(name))
+
+
+def parse_reviews(script: str) -> dict[str, dict]:
+    """chunk.science's set data script (``window.<CODE>_DATA = {...};``) as
+    folded card name (:func:`_review_key`) -> ``{name, rarity, mean, sources}``:
+    the reviewers' average grade (0-100) and how many graded the card. A
+    double-faced card answers to its whole name and its front face. Raises
+    ``ValueError`` on any other script."""
+    assignment = _DATA_ASSIGNMENT_RX.match(script)
+    if assignment is None:
+        msg = "not a chunk.science set data script (no `window.<CODE>_DATA = `)"
+        raise ValueError(msg)
+    data = json.loads(script[assignment.end() :].rstrip().rstrip(";"))
+    out: dict[str, dict] = {}
+    for card in data.get("cards") or []:
+        consensus = card.get("consensus") or {}
+        name, mean = card.get("name"), consensus.get("mean")
+        if not name or mean is None:
+            continue
+        row = {
+            "name": name,
+            "rarity": str(card.get("rarity") or "").lower(),
+            "mean": float(mean),
+            "sources": int(consensus.get("sourceCount") or 0),
+        }
+        for spelling in (name, name.split(" // ")[0]):
+            out.setdefault(_review_key(spelling), row)
+    return out
+
+
+def _review_of(card: dict, reviews: dict[str, dict]) -> dict | None:
+    """The review of a stats row's card, by its whole name (Arena names a
+    double-faced card by its front face, which :func:`parse_reviews` also
+    keys)."""
+    return reviews.get(_review_key(str(card.get("name") or "")))
+
+
+def reviewer_bombs(
+    cards: list[dict], reviews: dict[str, dict], pool_min_games: int
+) -> list[dict]:
+    """The rares and mythics the data is too thin to judge (under
+    ``pool_min_games`` drawn across the formats, the ones with no stats row
+    included) that the reviewers grade a bomb (:data:`REVIEWER_BOMB_MEAN` or
+    better), highest grade first. Each row carries the grade, the reviewer count
+    and the games drawn; ``iwd`` is there only where some were."""
+    drawn = {}
+    for card in cards:
+        if (review := _review_of(card, reviews)) is not None:
+            drawn[review["name"]] = card
+    out = []
+    graded = {r["name"]: r for r in reviews.values()}.values()
+    for review in sorted(graded, key=lambda r: (-r["mean"], r["name"])):
+        if review["rarity"] not in ("rare", "mythic"):
+            continue
+        if review["mean"] < REVIEWER_BOMB_MEAN:
+            continue
+        card = drawn.get(review["name"])
+        if card is not None and card["gih"] >= pool_min_games:
+            continue  # the data's to call
+        out.append(
+            {
+                "name": card["name"] if card is not None else review["name"],
+                "rarity": review["rarity"],
+                "review_mean": review["mean"],
+                "review_sources": review["sources"],
+                "gih": card["gih"] if card is not None else 0,
+                "iwd": card["iwd"] if card is not None else None,
+                "set": card.get("set") if card is not None else None,
+            }
+        )
+    return out
+
+
 def build_pooled(
     reports: dict[str, dict],
     *,
@@ -583,6 +675,7 @@ def build_pooled(
     margin: float = 10.0,
     tier_gap: float = 5.0,
     clash: float = 10.0,
+    reviews: dict[str, dict] | None = None,
 ) -> dict:
     """The pooled view over each format's :func:`build_report`.
 
@@ -592,6 +685,10 @@ def build_pooled(
     sample is listed as thin (a reviewer's call, not the data's), special
     guests from other sets included (they're in the set's boosters), once a
     handful have been drawn so a card seen once doesn't crowd the list.
+
+    ``reviews`` (:func:`parse_reviews`) puts the reviewers' average grade and
+    count on each thin rare (``review_mean`` / ``review_sources``) and adds
+    ``reviewer_bombs`` (:func:`reviewer_bombs`); without it both are absent.
     """
     cards = pooled_cards(reports, min_games=min_games)
     sampled = [c for c in cards if c["gih"] >= pool_min_games]
@@ -613,6 +710,23 @@ def build_pooled(
             "average_pair": None if avg_pair is None else round(avg_pair, 1),
             "average_iwd": None if avg_iwd is None else round(avg_iwd, 1),
         }
+    thin_rares = [
+        c
+        for c in cards
+        if c["rarity"] in rare and _SMALL_SAMPLE_FLOOR <= c["gih"] < pool_min_games
+    ]
+    graded = {}
+    if reviews is not None:
+        thin_rares = [
+            c
+            | (
+                {"review_mean": r["mean"], "review_sources": r["sources"]}
+                if (r := _review_of(c, reviews)) is not None
+                else {}
+            )
+            for c in thin_rares
+        ]
+        graded = {"reviewer_bombs": reviewer_bombs(cards, reviews, pool_min_games)}
     return {
         "events": list(reports),
         "missing": missing or {},
@@ -632,11 +746,8 @@ def build_pooled(
             (c for c in sampled if c["vs_average"] <= -margin),
             key=lambda c: c["vs_average"],
         ),
-        "thin_rares": [
-            c
-            for c in cards
-            if c["rarity"] in rare and _SMALL_SAMPLE_FLOOR <= c["gih"] < pool_min_games
-        ],
+        "thin_rares": thin_rares,
+        **graded,
         "disagreements": format_disagreements(cards, clash=clash),
         "cards": cards,
     }
@@ -692,6 +803,74 @@ def fetch_card_stats(set_code: str, event: str) -> tuple[dict, str]:
         atomic_write_bytes(path, resp.content)  # never an empty or error answer
         return payload, _mtime_iso(path)
     return json.loads(path.read_text(encoding="utf-8")), _mtime_iso(path)
+
+
+def _reviews_script_url(page: str, page_url: str, set_code: str) -> str | None:
+    """The set data script a chunk.science set page loads: its ``<script src>``
+    ending ``data/<code>.<hash>.js`` (never ``<code>_17lands…``)."""
+    wanted = re.compile(
+        r'<script[^>]*\bsrc="([^"]*/data/'
+        + re.escape(set_code.lower())
+        + r'\.[0-9a-f]+\.js)"'
+    )
+    found = wanted.search(page)
+    return urljoin(page_url, found.group(1)) if found else None
+
+
+def fetch_reviews(set_code: str) -> tuple[dict[str, dict], str]:
+    """chunk.science's reviewer grades for the set (:func:`parse_reviews`) and
+    when they were fetched: the set page, then the data script it loads, kept 24
+    hours under ``<cache>/reviews/<CODE>.js``."""
+    code = set_code.upper()
+    path = cache_root() / "reviews" / f"{code}.js"
+    if not is_fresh(path):
+        page = requests.get(f"{REVIEWS_URL}/{code}", headers=HEADERS, timeout=_TIMEOUT)
+        if page.status_code >= 400:
+            raise click.ClickException(
+                f"no reviewer page for {code} at {REVIEWS_URL} "
+                f"(HTTP {page.status_code})"
+            )
+        url = _reviews_script_url(page.text, page.url, code)
+        if url is None:
+            raise click.ClickException(
+                f"{page.url} loads no data/{code.lower()}.<hash>.js script: "
+                "chunk.science changed its page, or has no page for this set"
+            )
+        script = requests.get(url, headers=HEADERS, timeout=_TIMEOUT)
+        if script.status_code >= 400:
+            raise click.ClickException(f"{url}: HTTP {script.status_code}")
+        try:
+            # the bytes, not ``.text``: served without a charset, requests would
+            # read the script's UTF-8 as Latin-1 and the cache would not
+            reviews = parse_reviews(script.content.decode("utf-8"))
+        except ValueError as exc:
+            raise click.ClickException(f"{url}: {exc}") from exc
+        atomic_write_bytes(path, script.content)  # only ever a script that parses
+        return reviews, _mtime_iso(path)
+    return parse_reviews(path.read_text(encoding="utf-8")), _mtime_iso(path)
+
+
+def cached_stat_names(set_code: str) -> dict[str, str | None]:
+    """Card name -> home set for every card the set's cached stats payloads
+    list, read off the cache alone (no network): the cards in the set's
+    boosters, its bonus sheet's guests among them, which the bulk files under
+    their home set. Empty when nothing is cached (``limited-stats`` has not been
+    run for the set on this machine)."""
+    payloads = sorted(cache_dir().glob(f"card_stats_{set_code.upper()}_*.json"))
+    files = [cache_dir() / name for name in ("cards.json", "loc_en.json")]
+    if not payloads or not all(f.is_file() for f in files):
+        return {}
+    title_ids = {
+        str(title_id)
+        for path in payloads
+        for title_id in json.loads(path.read_text(encoding="utf-8")).get("data") or {}
+    }
+    cards, loc = (json.loads(f.read_text(encoding="utf-8")) for f in files)
+    return {
+        row["name"]: row["set"]
+        for title_id, row in build_card_index(cards, loc, set_code, title_ids).items()
+        if row["name"] != f"titleId {title_id}"
+    }
 
 
 def mtgajson_files() -> tuple[list[dict], list[dict]]:
@@ -830,12 +1009,31 @@ def _per_event(events: dict[str, dict], count: str) -> str:
     )
 
 
+def _review_note(card: dict) -> str:
+    if "review_mean" not in card:
+        return ""
+    return f"  reviewers {card['review_mean']:.1f} ({card['review_sources']})"
+
+
 def _card_line(card: dict, code: str, *, bracket: bool = False) -> str:
     iwd = _signed(card["iwd"])
     iwd = f"[{iwd}]" if bracket else iwd
     return (
         f"  {iwd:>7}  {_label(card, code)}  vs avg {_signed(card['vs_average'])},"
         f" {card['gih']} drawn  ({_per_event(card['events'], 'gih')})"
+        f"{_review_note(card)}"
+    )
+
+
+def _reviewer_bomb_line(card: dict, code: str) -> str:
+    data = (
+        f"[{_signed(card['iwd'])}], {card['gih']} drawn"
+        if card["gih"]
+        else "no stats under this name"
+    )
+    return (
+        f"  {card['review_mean']:>5.1f}  {card['name']}{_set_note(card, code)}"
+        f" [{card['rarity']}]  {card['review_sources']} reviewers  ({data})"
     )
 
 
@@ -912,6 +1110,18 @@ def render_pooled(pooled: dict, set_code: str) -> str:
         lines += ["", heading]
         lines.extend(_card_line(c, code, bracket=bracket) for c in cards)
         if not cards:
+            lines.append("  none")
+    if "reviewer_bombs" in pooled:
+        lines += [
+            "",
+            (
+                f"## Reviewer bombs (rares / mythics under {th['pool_min_games']}"
+                f" drawn that reviewers average {REVIEWER_BOMB_MEAN:g}+;"
+                " chunk.science)"
+            ),
+        ]
+        lines.extend(_reviewer_bomb_line(c, code) for c in pooled["reviewer_bombs"])
+        if not pooled["reviewer_bombs"]:
             lines.append("  none")
     lines += [
         "",
@@ -1022,6 +1232,20 @@ def _report(
     type=click.FloatRange(min=0),
     help="Points apart before the formats count as disagreeing.",
 )
+@click.option(
+    "--reviews",
+    "with_reviews",
+    is_flag=True,
+    help=(
+        "Pooled view: fetch chunk.science's reviewer grades (cached 24 h), put"
+        " the average on each thin rare and list the reviewer bombs."
+    ),
+)
+@click.option(
+    "--reviews-json",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="A saved chunk.science data/<code>.<hash>.js script, instead of fetching.",
+)
 @click.option("--json", "as_json", is_flag=True, help="Print the full structure.")
 def main(
     set_code: str,
@@ -1034,6 +1258,8 @@ def main(
     margin: float,
     tier_gap: float,
     clash: float,
+    with_reviews: bool,  # noqa: FBT001 — a click flag
+    reviews_json: Path | None,
     as_json: bool,  # noqa: FBT001 — a click flag
 ) -> None:
     """Untapped.gg limited card stats for SET as guide-ready numbers.
@@ -1044,6 +1270,10 @@ def main(
             raise click.UsageError(
                 "--premium-sealed / --premium-draft are for the pooled view; with"
                 " --event, pass --premium-json"
+            )
+        if with_reviews or reviews_json:
+            raise click.UsageError(
+                "--reviews / --reviews-json are for the pooled view; drop --event"
             )
         event = event.upper()
         payload, source, fetched_at = _load(set_code, event, premium_json)
@@ -1073,6 +1303,14 @@ def main(
         ev: _report(payload, index, set_code, ev, source, fetched_at, min_games)
         for ev, (payload, source, fetched_at) in loaded.items()
     }
+    reviews = None
+    if reviews_json is not None:
+        try:
+            reviews = parse_reviews(reviews_json.read_text(encoding="utf-8"))
+        except ValueError as exc:
+            raise click.ClickException(f"{reviews_json}: {exc}") from exc
+    elif with_reviews:
+        reviews, _fetched = fetch_reviews(set_code)
     pooled = build_pooled(
         reports,
         missing=missing,
@@ -1081,6 +1319,7 @@ def main(
         margin=margin,
         tier_gap=tier_gap,
         clash=clash,
+        reviews=reviews,
     )
     if as_json:
         click.echo(json.dumps({"pooled": pooled, "events": reports}, indent=2))

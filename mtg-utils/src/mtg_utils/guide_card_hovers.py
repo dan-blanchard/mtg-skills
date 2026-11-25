@@ -18,7 +18,11 @@ shows the card. ``guide-card-hovers`` fills that map from the page's own text:
    at all; any phrase the page uses can point at a card.
 3. **Printing.** Per card, the printing ``CardPool.set_records`` lists (the lowest
    collector number in the set); its image is ``image_uris``' ``normal`` or, for a
-   multi-face card, the front face's.
+   multi-face card, the front face's. A bonus sheet's guests are in the set's
+   boosters but printed under their home sets, so they are added by name, each
+   in its newest printing with an image: every card the set's cached
+   ``limited-stats`` data lists (``limited_stats.cached_stat_names``; nothing
+   when that tool has not run for the set here), and each ``--card "Name"``.
 4. **Images.** Downloaded once into a shared cache
    ``<cache>/card-images/<scryfall-id>.jpg`` (``_http.cache_root()``), throttled
    between network fetches, then written to ``<out>/cards/<slug>.jpg`` (slug: the
@@ -33,7 +37,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
@@ -47,6 +51,7 @@ from mtg_utils.card_images import image_urls
 from mtg_utils.card_pool import CardPool
 from mtg_utils.companion import _front_name
 from mtg_utils.deck_cli import bulk_data_option, resolve_bulk_path
+from mtg_utils.limited_stats import cached_stat_names
 from mtg_utils.names import normalize_card_name, slug
 
 __all__ = [
@@ -54,6 +59,7 @@ __all__ = [
     "build_hovers",
     "card_slug",
     "find_names",
+    "guest_cards",
     "guide_text",
     "image_url",
     "main",
@@ -156,6 +162,34 @@ def _resolve_alias(target: str, cards: dict[str, dict]) -> str:
             return key
     msg = f"--alias target {target!r} is not a card in this set"
     raise ValueError(msg)
+
+
+def guest_cards(
+    names: Iterable[str],
+    set_cards: list[dict],
+    by_name: Mapping[str, dict],
+    printings_by_oracle: Mapping[str, list[dict]],
+) -> tuple[list[dict], list[str]]:
+    """``(records, unknown names)`` for the cards among *names* the set itself
+    doesn't print: each in its newest printing that has an image
+    (*printings_by_oracle* lists a card's printings newest first), found
+    through the pool's *by_name* (which answers to a face's name too). A name the set
+    prints, or one given twice, adds nothing; a name the pool doesn't know is
+    returned for the caller to report."""
+    seen = {_card_key(rec) for rec in set_cards}
+    guests: list[dict] = []
+    unknown: list[str] = []
+    for name in names:
+        rec = by_name.get(name)
+        if rec is None:
+            unknown.append(name)
+            continue
+        if _card_key(rec) in seen:
+            continue
+        seen.add(_card_key(rec))
+        printings = printings_by_oracle.get(rec.get("oracle_id") or "", [])
+        guests.append(next((p for p in printings if image_url(p)), rec))
+    return guests, unknown
 
 
 # --- Output -------------------------------------------------------------------
@@ -281,21 +315,50 @@ def _parse_aliases(values: tuple[str, ...]) -> dict[str, str]:
     metavar="FACE=CARD",
     help="Hover a name (e.g. a face several cards share) as CARD. Repeatable.",
 )
+@click.option(
+    "--card",
+    "card_names",
+    multiple=True,
+    metavar="NAME",
+    help=(
+        "Also hover NAME, a card in the set's boosters that another set prints "
+        "(a bonus-sheet guest). Repeatable; the cards the set's cached "
+        "limited-stats data lists are added without it."
+    ),
+)
 @bulk_data_option
 def main(
     guide: Path,
     set_code: str,
     out_dir: Path,
     alias_values: tuple[str, ...],
+    card_names: tuple[str, ...],
     bulk_data: Path | None,
 ) -> None:
     """Fill a guide page's card-image hover map from the set's card names in its
     text, download the images (cached), and write the page + files.json to OUT."""
     aliases = _parse_aliases(alias_values)
     pool = CardPool.load(resolve_bulk_path(bulk_data))
-    set_cards = pool.set_records(set_code)
+    set_cards = list(pool.set_records(set_code))
     if not set_cards:
         raise click.ClickException(f"no cards found for set {set_code!r}")
+    # The set's boosters hold cards other sets print. The stats cache names the
+    # ones Arena's data saw (an Arena-only name the bulk lacks is skipped); a
+    # --card the bulk lacks is the user's typo.
+    from_stats, _arena_only = guest_cards(
+        cached_stat_names(set_code), set_cards, pool.by_name, pool.printings_by_oracle
+    )
+    asked, unknown = guest_cards(
+        card_names, [*set_cards, *from_stats], pool.by_name, pool.printings_by_oracle
+    )
+    if unknown:
+        raise click.ClickException(f"--card: no such card: {', '.join(unknown)}")
+    set_cards += [*from_stats, *asked]
+    if from_stats or asked:
+        click.echo(
+            f"{len(from_stats) + len(asked)} guest card(s) from other sets "
+            f"({len(from_stats)} from the limited-stats cache)"
+        )
     images = cache_root() / "card-images"
     fetcher = HttpFetcher(images, max_age_seconds=_IMAGE_MAX_AGE_SECONDS)
     try:

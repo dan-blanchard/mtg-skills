@@ -633,3 +633,175 @@ class TestPooledCli:
         result = CliRunner().invoke(ls.main, ["--set", "TST", *args])
         assert result.exit_code == 2
         assert "--premium" in result.output
+
+
+# --- Reviewer consensus (chunk.science) ----------------------------------------------
+
+# The set data script's shape, with fictional cards: a window assignment of one
+# JSON object whose ``cards`` each carry ``consensus.mean`` / ``sourceCount``.
+_REVIEWED = [
+    {
+        "name": "Card thin",
+        "rarity": "Mythic",
+        "consensus": {"mean": 93.5, "sourceCount": 7},
+    },
+    {
+        "name": "Card guest",
+        "rarity": "Rare",
+        "consensus": {"mean": 71.0, "sourceCount": 8},
+    },
+    {
+        "name": "Card bomb",
+        "rarity": "Rare",
+        "consensus": {"mean": 96.0, "sourceCount": 8},
+    },
+    {
+        "name": "Undrawn Testwing // Its Other Face",
+        "rarity": "Rare",
+        "consensus": {"mean": 90.0, "sourceCount": 5},
+    },
+    {
+        "name": "Card good",
+        "rarity": "Common",
+        "consensus": {"mean": 99.0, "sourceCount": 8},
+    },
+    {"name": "Ungraded Card", "rarity": "Rare", "consensus": {}},
+]
+REVIEWS_SCRIPT = (
+    "window.TST_DATA = "
+    + json.dumps({"set": {"code": "TST"}, "cards": _REVIEWED})
+    + ";\n"
+)
+
+REVIEWS_PAGE = (
+    '<script src="/mtga-test/data/tst_17lands.682e70c31ce1.js"></script>'
+    '<script src="/mtga-test/data/tst.0ef434212333.js"></script>'
+)
+
+
+class TestReviews:
+    def test_parse_reads_each_graded_card_by_its_names(self):
+        reviews = ls.parse_reviews(REVIEWS_SCRIPT)
+        assert reviews["cardthin"] == {
+            "name": "Card thin",
+            "rarity": "mythic",
+            "mean": 93.5,
+            "sources": 7,
+        }
+        # a double-faced card answers to its whole name and its front face
+        assert reviews["undrawntestwing"] is reviews["undrawntestwingitsotherface"]
+        assert "ungradedcard" not in reviews
+        with pytest.raises(ValueError, match="not a chunk"):
+            ls.parse_reviews("<html>not a script</html>")
+
+    def test_a_name_the_two_sites_punctuate_differently_still_matches(self):
+        """Arena writes an ellipsis spaced out and with other accents than the
+        reviewers' page does; a miss here would list a well-drawn card as a
+        bomb nobody has data for."""
+        script = "window.TST_DATA = " + json.dumps(
+            {
+                "cards": [
+                    {
+                        "name": "All Good Tests...",
+                        "rarity": "Rare",
+                        "consensus": {"mean": 95.0, "sourceCount": 4},
+                    }
+                ]
+            }
+        )
+        reviews = ls.parse_reviews(script)
+        drawn = {"name": "All Good Tests . . .", "gih": 7000, "iwd": 4.0}
+        assert ls._review_of(drawn, reviews)["mean"] == 95.0
+        assert ls.reviewer_bombs([drawn], reviews, 60) == []
+
+    def test_thin_rares_carry_the_grade_and_the_bombs_are_listed(self):
+        reports = TestBuildPooled()._reports()
+        plain = ls.build_pooled(reports, pool_min_games=60)
+        assert "reviewer_bombs" not in plain
+        assert all("review_mean" not in c for c in plain["thin_rares"])
+
+        pooled = ls.build_pooled(
+            reports, pool_min_games=60, reviews=ls.parse_reviews(REVIEWS_SCRIPT)
+        )
+        thin = {c["title_id"]: c for c in pooled["thin_rares"]}
+        assert (thin["thin"]["review_mean"], thin["thin"]["review_sources"]) == (
+            93.5,
+            7,
+        )
+        assert thin["guest"]["review_mean"] == 71.0
+        # A reviewer bomb: a rare or mythic the data is too thin for, graded 90
+        # or better. "Card bomb" has 80 drawn (the data's to call), "Card guest"
+        # is graded 71, "Card good" is a common, and the card nobody drew counts.
+        bombs = pooled["reviewer_bombs"]
+        assert [(b["name"], b["review_mean"], b["gih"]) for b in bombs] == [
+            ("Card thin", 93.5, 20),
+            ("Undrawn Testwing // Its Other Face", 90.0, 0),
+        ]
+        text = ls.render_pooled(pooled, "tst")
+        assert "## Reviewer bombs" in text
+        assert "reviewers 93.5 (7)" in text
+        assert "5 reviewers  (no stats under this name)" in text
+        assert "## Reviewer bombs" not in ls.render_pooled(plain, "tst")
+
+    def test_fetch_finds_the_data_script_and_caches_it(self, cache):
+        page = MagicMock(status_code=200, text=REVIEWS_PAGE)
+        page.url = "https://chunk.science/mtga-test.html"
+        # the bytes are read as UTF-8 whatever charset the server claims
+        script = MagicMock(status_code=200, text="read as Latin-1")
+        script.content = REVIEWS_SCRIPT.encode()
+        with patch.object(ls.requests, "get", side_effect=[page, script]) as get:
+            reviews, _fetched = ls.fetch_reviews("tst")
+            assert get.call_args_list[0].args[0] == "https://chunk.science/TST"
+            assert get.call_args_list[1].args[0] == (
+                "https://chunk.science/mtga-test/data/tst.0ef434212333.js"
+            )
+            # the second read is the cache's
+            again, _fetched = ls.fetch_reviews("TST")
+            assert get.call_count == 2
+        assert reviews == again
+        assert (cache.parent / "reviews" / "TST.js").read_text() == REVIEWS_SCRIPT
+
+    def test_fetch_says_when_the_page_has_no_data_script(self, cache):
+        page = MagicMock(status_code=200, text="<html></html>")
+        page.url = "https://chunk.science/mtga-test.html"
+        with (
+            patch.object(ls.requests, "get", return_value=page),
+            pytest.raises(click.ClickException, match="loads no data/tst"),
+        ):
+            ls.fetch_reviews("TST")
+
+    def test_fetch_says_when_the_data_script_fails(self, cache):
+        page = MagicMock(status_code=200, text=REVIEWS_PAGE)
+        page.url = "https://chunk.science/mtga-test.html"
+        with (
+            patch.object(
+                ls.requests, "get", side_effect=[page, MagicMock(status_code=503)]
+            ),
+            pytest.raises(click.ClickException, match="HTTP 503"),
+        ):
+            ls.fetch_reviews("TST")
+        assert not (cache.parent / "reviews" / "TST.js").exists()
+
+    def test_cli_reviews_are_the_pooled_views(self, cache, tmp_path):
+        saved = tmp_path / "tst.js"
+        saved.write_text(REVIEWS_SCRIPT)
+        res = CliRunner().invoke(
+            ls.main, ["--set", "TST", "--event", "SEALED", "--reviews-json", str(saved)]
+        )
+        assert res.exit_code != 0
+        assert "pooled view" in res.output
+
+
+def test_cached_stat_names_reads_the_cache_alone(cache):
+    """The cards a set's cached stats list, by name with their home set: what
+    ``guide-card-hovers`` adds the bonus sheet's guests from. Nothing fetched,
+    and nothing at all before ``limited-stats`` has run for the set."""
+    with patch.object(ls.requests, "get", side_effect=AssertionError("no network")):
+        assert ls.cached_stat_names("TST") == {}
+        _seed_card_files(cache)
+        assert ls.cached_stat_names("TST") == {}  # no stats payload yet
+        (cache / "card_stats_TST_SEALED.json").write_text(json.dumps(FREE_PAYLOAD))
+        names = ls.cached_stat_names("tst")
+    assert names["Visiting Relic"] == "GST"  # the guest keeps its home set
+    assert names["Glimmerwing Test Angel"] == "TST"
+    assert "Unrelated Card" not in names

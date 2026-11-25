@@ -78,7 +78,7 @@ Work in the session scratchpad. Launch these together:
    - Each card is tagged `[ir]` (phase's parse) or `[text]` (an oracle-text fallback, used for sets phase hasn't parsed yet). Read `[text]` rows more skeptically, and check them against the card text.
 2. **Fresh rules**: `download-rules --output-dir <scratch>`; every later `rules-lookup` passes
    `--rules-file` pointing at it (Iron Rule 2).
-3. **Arena stats, pooled**: `limited-stats --set <CODE> --json > stats.json`. With no `--event` it reads Arena Sealed and Premier Draft and puts the **pooled view** first (`pooled` in the JSON): pair tiers, standouts, underperformers, data bombs, thin rares, color depth at common, and the cards where the formats disagree, each measured against its own format's average and pooled by games. 2HG is sealed, but Sealed alone is too thin to rank most pairs or cards, so draft joins it as evidence (see **Reading the evidence** below). If one format has no data yet, the pooled view says so and uses the other.
+3. **Arena stats, pooled**: `limited-stats --set <CODE> --reviews --json > stats.json`. With no `--event` it reads Arena Sealed and Premier Draft and puts the **pooled view** first (`pooled` in the JSON): pair tiers, standouts, underperformers, data bombs, thin rares, color depth at common, and the cards where the formats disagree, each measured against its own format's average and pooled by games. 2HG is sealed, but Sealed alone is too thin to rank most pairs or cards, so draft joins it as evidence (see **Reading the evidence** below). If one format has no data yet, the pooled view says so and uses the other.
    - The free tier works over plain HTTP. It omits the diamond and mythic ranks; for TRK it gave Sealed as one all-ranks bucket.
    - `--event SEALED` (or `PREMIER_DRAFT`) prints one format alone, the old report.
    - **Premium**, via Chrome, when the user has Untapped Premium:
@@ -103,13 +103,12 @@ Work in the session scratchpad. Launch these together:
      - Each rank holds three arrays: games/wins in deck, drawn-or-in-hand ("GIH"), and opening hand.
      - The free tier truncates these arrays and omits diamond/mythic. `metadata.fields` names the positions.
    - The query is `card_stats_limited_by_set_v2` (the v1 path answers 204 for every set since 2026-11). If `limited-stats` reports an empty answer while the set-guide page shows stats, Untapped has moved it again: read the page's network calls (`read_network_requests`, filter `card_stats`) for the new path, then update `API_URL` in `limited_stats.py`.
+   - **Reviewer consensus** (`--reviews`; it names the bombs the data is too thin for) is chunk.science's aggregate, fetched and cached 24 hours: each thin rare carries `review_mean` (0–100; A− = 90, B+ = 85, B = 80) and `review_sources`, and `pooled.reviewer_bombs` lists the rares and mythics under 60 drawn that reviewers average 90 or better, the ones nobody has drawn included. If the fetch fails (the site changed, or has no page for the set yet), save the page's `data/<code>.<hash>.js` script by hand and pass it with `--reviews-json`.
 4. **Web research subagent** (general-purpose, background). It gathers:
    - the WPN prerelease page (the 2HG product);
    - the official release notes and mechanics article;
    - Early Access write-ups (Substack, MTG Rocks);
    - set reviews: Draftsim sealed, best commons and archetypes; Card Game Base; MTGAZone.
-
-   **Reviewer consensus** (it names the bombs the data is too thin for) comes from chunk.science's aggregate: `https://chunk.science/<CODE>` (e.g. `/TRK`, `/FRA`) redirects to the set's page. The page renders client-side, so read its data file instead: the page's `<script src=".../data/<code>.<hash>.js">` sets `window.<CODE>_DATA`, and each `cards[]` entry has `consensus.mean` (0–100; A− = 90, B+ = 85, B = 80) and `consensus.sourceCount`. Fetch it with curl into its own scratch directory and parse it with `python3 -I`.
 
    Tell it that Reddit is unreachable, and to mark each claim *reported* (played events) or *predicted* (reviews), and each played event *sealed* or *draft*.
 5. **Paper reports**:
@@ -144,7 +143,7 @@ Settled with Dan (2026-11-08) after the TRK sheet; every section below follows i
 | **The ×2 cards** | A table (rarity · card · cost · the 2HG math) built from `doubles`. Add a "bigger here" line for triggers that fire off opponents, and a **not doubled** line from `step_triggers` rows where `fires: once` (CR 805.4d). | scan |
 | **Downgrades & gotchas** | From `hits_partner` and `target_player`: wipes that hit your partner (still good, just time them together); "each player" effects; "target opponent" doesn't double; "target player" can be your partner; set-specific traps. | scan |
 | **Rules that win games** | 102.3 + 810.9, 805.4d, 805.10d (a combined block; menace needs 2 blockers from your team), 805.10b, 810.8a (one decked head loses for both), 810.6 (whoever plays first skips *both* first draws, so usually draw first), 810.5, 805.8. Cite from `rules-lookup` output only. | rules-lookup |
-| **Bombs** | Your pile and their threats, by color and gold pair. Each entry says whether the data or the reviewers name it (see **Reading the evidence**), with its pooled IWD (bracketed when thin), paper evidence where there is some, and a play-around note for the big ones. Mark ones that are also ×2. Include the set's special guests (cards from other sets on a bonus sheet): they're in paper prerelease packs too, and `thin_rares` lists them. Add a line of the standout uncommons to fear. End with "not bombs despite the hype" (reviewer A− cards with 60+ games and no standout data) and the rares below average. | `pooled` `data_bombs` / `thin_rares` / `underperformers` + reviewer consensus + paper |
+| **Bombs** | Your pile and their threats, by color and gold pair. Each entry says whether the data or the reviewers name it (see **Reading the evidence**), with its pooled IWD (bracketed when thin), paper evidence where there is some, and a play-around note for the big ones. Mark ones that are also ×2. Include the set's special guests (cards from other sets on a bonus sheet): they're in paper prerelease packs too, and `thin_rares` lists them. Add a line of the standout uncommons to fear. End with "not bombs despite the hype" (reviewer A− cards with 60+ games and no standout data) and the rares below average. | `pooled` `data_bombs` / `thin_rares` (with `review_mean`) / `reviewer_bombs` / `underperformers` + paper |
 | **Removal** | Your pile and their answers, by color, with costs and speed. Say which spells can and can't hit a planeswalker (`removal_reach`) and the MV-floor note, plus which toughness dodges what. | scan + card text |
 | **Build hour checklist** | Confirm the product, pull piles (removal → bombs → ×2 → fixing; colors follow the piles), the anchor color if there is one, splashes and ~17 lands, 2HG grade adjustments, draw first, play fast if rounds go to time, and in-game coordination. | everything above |
 | **Sources** (footer) | Every source used, with links, dates and sample sizes. Credit card images to Scryfall and © Wizards. | — |
@@ -169,7 +168,7 @@ Settled with Dan (2026-11-08) after the TRK sheet; every section below follows i
 
 ```bash
 guide-card-hovers <scratch>/<code>-2hg.html --set <CODE> --out <scratch>/publish \
-    [--alias "Prepare Spell=Card Name" ...]
+    [--alias "Prepare Spell=Card Name" ...] [--card "Guest Card Name" ...]
 ```
 
 - The command:
@@ -188,6 +187,7 @@ guide-card-hovers <scratch>/<code>-2hg.html --set <CODE> --out <scratch>/publish
   from a new session creates a second page.
 - Tell the user the page is private until they share it from its Share menu, and give them the link.
 - A face name shared by several cards (e.g. a prepare spell on three cards) is skipped with a warning. Pass `--alias` for the one the sheet means.
+- A bonus sheet's guests (cards in the set's boosters that other sets print) hover too: the command adds every card the set's cached `limited-stats` data lists, so run it after Phase 2's stats on the same machine. Pass `--card "Name"` for one the stats don't list yet.
 
 ## Revisions
 

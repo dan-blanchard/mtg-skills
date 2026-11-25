@@ -6,10 +6,12 @@ import re
 import pytest
 from click.testing import CliRunner
 
+from mtg_utils import guide_card_hovers
 from mtg_utils.guide_card_hovers import (
     build_hovers,
     card_slug,
     find_names,
+    guest_cards,
     guide_text,
     image_url,
     read_template,
@@ -238,6 +240,90 @@ def test_alias_resolves_ambiguous_face_and_reuses_cache(tmp_path, printings):
     # Only the newly-needed card is fetched; the other five are cache hits.
     assert fetcher.urls == ["https://img.test/id-302-0.jpg"]
     assert result.cards == 6
+
+
+def test_guest_cards_are_added_in_their_newest_printing_with_an_image(printings):
+    """A bonus sheet's guest is in the set's boosters and printed elsewhere: it is
+    added by name, in its newest printing that has an image; a card the set
+    prints, or one named twice, adds nothing, and an unknown name is reported."""
+    old = {**test_printing("Sol Ring", "old", "1"), "id": "id-old", "image_uris": {}}
+    new = {
+        **test_printing("Sol Ring", "new", "2"),
+        "id": "id-new",
+        "image_uris": {"normal": "https://img.test/id-new.jpg"},
+    }
+    newest_without_image = {**test_printing("Sol Ring", "art", "3"), "id": "id-art"}
+    by_name = {"Sol Ring": old, "Murder": printings[1]}
+    printings_by_oracle = {old["oracle_id"]: [newest_without_image, new, old]}
+    guests, unknown = guest_cards(
+        ["Sol Ring", "Murder", "Sol Ring", "No Such Card"],
+        printings,
+        by_name,
+        printings_by_oracle,
+    )
+    assert [g["id"] for g in guests] == ["id-new"]
+    assert unknown == ["No Such Card"]
+
+
+def test_a_guest_hovers_like_a_card_of_the_set(tmp_path, printings):
+    guest = {
+        **test_printing("Sol Ring", "old", "1"),
+        "id": "id-guest",
+        "image_uris": {"normal": "https://img.test/id-guest.jpg"},
+    }
+    guide = _guide(tmp_path, "<p>Open Sol Ring and Murder.</p>")
+    result = build_hovers(
+        guide, [*printings, guest], out_dir=tmp_path / "out", fetcher=FakeFetcher()
+    )
+    assert result.cards_map == {
+        "Sol Ring": "cards/sol-ring.jpg",
+        "Murder": "cards/murder.jpg",
+    }
+
+
+def test_cli_adds_guests_from_the_stats_cache_and_from_card(
+    tmp_path, printings, monkeypatch
+):
+    """The command line: a guest the set's cached limited-stats data names is
+    hovered with no flag, ``--card`` adds one more, and a ``--card`` the bulk
+    doesn't know is an error."""
+    guests = [
+        {
+            **printing,
+            "id": f"id-old-{n}",
+            "image_uris": {"normal": f"https://img.test/id-old-{n}.jpg"},
+        }
+        for n, printing in enumerate(
+            (
+                test_printing("Sol Ring", "old", "1"),
+                test_printing("Counterspell", "old", "2"),
+            )
+        )
+    ]
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text(json.dumps([*printings[:2], *guests]))
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(
+        guide_card_hovers, "cached_stat_names", lambda _set: {"Sol Ring": "OLD"}
+    )
+    monkeypatch.setattr(
+        guide_card_hovers, "HttpFetcher", lambda *_a, **_k: FakeFetcher()
+    )
+    guide = _guide(tmp_path, "<p>Sol Ring, Counterspell and Murder.</p>")
+    base = [str(guide), "--set", SET, "--out", str(tmp_path / "out")]
+    base += ["--bulk-data", str(bulk)]
+
+    res = CliRunner().invoke(guide_card_hovers.main, [*base, "--card", "Counterspell"])
+    assert res.exit_code == 0, res.output
+    assert "2 guest card(s) from other sets (1 from the limited-stats cache)" in (
+        res.output
+    )
+    page = (tmp_path / "out" / guide.name).read_text()
+    assert all(f"cards/{slug}.jpg" in page for slug in ("sol-ring", "counterspell"))
+
+    res = CliRunner().invoke(guide_card_hovers.main, [*base, "--card", "Nope Card"])
+    assert res.exit_code != 0
+    assert "--card: no such card: Nope Card" in res.output
 
 
 def test_alias_to_unknown_card_and_missing_map_fail(tmp_path, printings):
