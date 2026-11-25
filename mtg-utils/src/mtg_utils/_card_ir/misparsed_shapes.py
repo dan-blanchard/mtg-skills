@@ -138,11 +138,13 @@ from __future__ import annotations
 
 import copy
 import re
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
+from typing import NamedTuple
 
 from mtg_utils._card_ir.clause_grammar import (
     ParkedPump,
     attached_attackers_kind,
+    binding_sentence,
     parked_pump,
     subtype_keyword_grant,
 )
@@ -395,36 +397,46 @@ def _chain(body: object) -> Iterator[dict]:
         body = body.get("sub_ability")
 
 
-def _described_bodies(rec: dict) -> Iterator[tuple[dict, str, dict | None, bool]]:
-    """``(body, description, trigger, follows)`` for every body of each ability's
+class _Earlier(NamedTuple):
+    """What precedes a body in its chain: any effect at all, and one that names
+    an object (a target, a filter) a later "it" could mean."""
+
+    any: bool = False
+    object: bool = False
+
+
+#: An effect's ``target`` that names the card itself or a player, never an
+#: object a later "it" could mean.
+_NO_OBJECT_TARGETS = frozenset({"SelfRef", "Controller", "Player"})
+
+
+def _names_object(body: dict) -> bool:
+    target = (body.get("effect") or {}).get("target")
+    return isinstance(target, dict) and target.get("type") not in _NO_OBJECT_TARGETS
+
+
+def _with_earlier(chain: Iterable[dict]) -> Iterator[tuple[dict, _Earlier]]:
+    earlier = _Earlier()
+    for body in chain:
+        yield body, earlier
+        earlier = _Earlier(any=True, object=earlier.object or _names_object(body))
+
+
+def _described_bodies(rec: dict) -> Iterator[tuple[dict, str, dict | None, _Earlier]]:
+    """``(body, description, trigger, earlier)`` for every body of each ability's
     and each trigger's own chain: the description is the ability's or trigger's
     whole text, ``trigger`` the trigger a body runs for (``None`` in an
-    ability), ``follows`` whether an earlier effect of the chain precedes it."""
+    ability), ``earlier`` what precedes the body in its chain."""
     for ability in rec.get("abilities") or ():
         if isinstance(ability, dict):
-            for i, body in enumerate(_chain(ability)):
-                yield body, str(ability.get("description") or ""), None, i > 0
+            description = str(ability.get("description") or "")
+            for body, earlier in _with_earlier(_chain(ability)):
+                yield body, description, None, earlier
     for trig in rec.get("triggers") or ():
         if isinstance(trig, dict):
-            for i, body in enumerate(_chain(trig.get("execute"))):
-                yield body, str(trig.get("description") or ""), trig, i > 0
-
-
-_SENTENCE_START_RX = re.compile(r"[.:]\"?\s+")
-
-
-def _binding_sentence(residue: str, description: str) -> str:
-    """The sentence a ``where_x_binding`` residue was cut from: the residue's own
-    text where it holds the instruction (The Kami War's "~ gets +X/+0 until end
-    of turn, where X is …"), else the description from the last sentence break
-    before the residue through its end."""
-    at = description.find(residue)
-    if at <= 0:
-        return residue
-    start = max(
-        (m.end() for m in _SENTENCE_START_RX.finditer(description, 0, at)), default=0
-    )
-    return description[start : at + len(residue)]
+            description = str(trig.get("description") or "")
+            for body, earlier in _with_earlier(_chain(trig.get("execute"))):
+                yield body, description, trig, earlier
 
 
 def _pump_amount(written: str) -> dict:
@@ -435,20 +447,23 @@ def _pump_amount(written: str) -> dict:
     return {"type": "Fixed", "value": int(written)}
 
 
-def _pump_target(pump: ParkedPump, trig: dict | None, *, follows: bool) -> dict | None:
+def _pump_target(pump: ParkedPump, trig: dict | None, earlier: _Earlier) -> dict | None:
     """The target phase writes for ``pump``'s subject; ``None`` for a pronoun
-    that names nothing this row can know: an "it" outside a trigger, a "those
-    creatures" with no earlier effect (``follows``) for it to name."""
+    that names nothing this row can know: an "it" outside a trigger or after an
+    effect that names an object (it may be that object, phase's
+    ``ParentTarget``; after "you get {E}" it is still the trigger's source —
+    Razorfield Ripper), a "those creatures" with no earlier effect for it to
+    name."""
     who = pump.subject
     if who.recipient == "self":
         return {"type": "SelfRef"}
     if who.recipient == "it":
-        if trig is None:
+        if trig is None or earlier.object:
             return None
         watches_itself = (trig.get("valid_card") or {}).get("type") == "SelfRef"
         return {"type": "SelfRef" if watches_itself else "TriggeringSource"}
     if who.recipient == "those":
-        return {"type": "TrackedSet", "id": 0} if follows else None
+        return {"type": "TrackedSet", "id": 0} if earlier.any else None
     types: list[object] = ["Creature"]
     if who.subtype is not None:
         types.append({"Subtype": who.subtype})
@@ -467,10 +482,14 @@ def _pump_target(pump: ParkedPump, trig: dict | None, *, follows: bool) -> dict 
 #: The targets phase writes on a ``Pump`` (one object); any other is a
 #: ``PumpAll``'s (a group: a filter, or the set an earlier effect acted on).
 _ONE_OBJECT = frozenset({"SelfRef", "TriggeringSource"})
+#: The residues a pump is parked as: the binding of its X, and the "those
+#: creatures get" rider after a mass untap. Any other residue holds a clause
+#: this row has no business reading (a whole parked trigger among them).
+_WHOLE_PUMP_RESIDUE = "plural_rider_after_mass_tap_population"
 
 
 def _parked_pump(
-    body: dict, description: str, trig: dict | None, *, follows: bool
+    body: dict, description: str, trig: dict | None, earlier: _Earlier
 ) -> dict | None:
     """The typed pump for a body whose effect is a residue the clause grammar
     reads as a pump until end of turn and nothing more: a
@@ -482,14 +501,18 @@ def _parked_pump(
         return None
     text = str(effect.get("description") or "")
     if effect.get("name") == "where_x_binding":
-        text = _binding_sentence(text, description)
+        # its own text where it holds the instruction (The Kami War's "~ gets
+        # +X/+0 until end of turn, where X is …"), else its sentence
+        text = binding_sentence(text, description) or text
+    elif effect.get("name") != _WHOLE_PUMP_RESIDUE:
+        return None
     pump = parked_pump(text)
     # A pump with no duration is a static ability's line ("Enchanted creature
     # gets -X/-X, where X is …" — Death's Approach), which phase types as a
     # static's modifications, never as this one-shot effect.
     if pump is None or not pump.until_end_of_turn:
         return None
-    target = _pump_target(pump, trig, follows=follows)
+    target = _pump_target(pump, trig, earlier)
     if target is None:
         return None
     return {
@@ -537,8 +560,8 @@ def correct_misparsed_shapes(rec: dict) -> dict:
     ]
     pumps = [
         (body, pump)
-        for body, description, trig, follows in _described_bodies(rec)
-        if (pump := _parked_pump(body, description, trig, follows=follows)) is not None
+        for body, description, trig, earlier in _described_bodies(rec)
+        if (pump := _parked_pump(body, description, trig, earlier)) is not None
     ]
     found = (
         sweeps,

@@ -519,6 +519,16 @@ def _at(rec: dict, path: tuple) -> dict:
             "Pump",
             {"type": "SelfRef"},
         ),
+        # "Tap an untapped red creature you control other than ~: ~ gets +X/+0"
+        ("Impelled Giant", ("abilities", 0), "Pump", {"type": "SelfRef"}),
+        # the back face: "… Return that card to your hand. ~ gets +X/+0 until
+        # end of turn, where X is the mana value of that card."
+        (
+            "The Kami War // O-Kagachi Made Manifest",
+            ("triggers", 0, "execute", "sub_ability", "sub_ability"),
+            "Pump",
+            {"type": "SelfRef"},
+        ),
         # a clause parked whole that is the pump itself, after "Untap all
         # creatures you control"
         (
@@ -536,7 +546,8 @@ def test_parked_pump_canary(name, path, tag, target):
     whole clause ("Those creatures get +1/+1 until end of turn"). The stage
     writes the pump back as the node phase types for those words elsewhere, and
     the face still loads."""
-    (rec,) = test_phase_records(name)
+    face = name.split(" // ")[-1]  # the pump's face: the last one named
+    (rec,) = (r for r in test_phase_records(name) if r["name"] == face)
     parked = _at(rec, path)["effect"]
     assert parked.get("type") == "Unimplemented", (
         f"misparsed_shapes parked pump: RETIRE-READY — phase types {name}'s "
@@ -567,6 +578,61 @@ def test_a_where_x_pump_reads_as_the_pump_it_is():
     assert ("self_pump", "you", "") in idents("Keldon Battlewagon")
     assert ("voltron_makers", "you", "pump") in idents("Bronze Cudgels")
     assert ("combat_buff_engine", "you", "") in idents("Razorfield Ripper")
+
+
+def test_only_a_pumps_own_residue_is_rewritten():
+    """The row reads two residues: the binding of a pump's X and the "those
+    creatures get" rider after a mass untap. A whole trigger parked under
+    another name is left alone, however much its last words read as a pump."""
+    whole = "Whenever ~ attacks, creatures you control get +1/+0 until end of turn."
+    rec = {
+        "name": "Zzyx Test Bannerman",
+        "abilities": [
+            {
+                "effect": {
+                    "type": "Unimplemented",
+                    "name": "static_structure",
+                    "description": whole,
+                },
+                "description": whole,
+            }
+        ],
+    }
+    assert correct_misparsed_shapes(rec) is rec
+
+
+def test_it_after_a_targeted_effect_is_not_guessed():
+    """ "It" after an effect that names an object may be that object, which phase
+    writes ``ParentTarget``; after "you get {E}" it is the trigger's own source
+    (Razorfield Ripper, in the canary). The first is left a residue."""
+    text = "where X is the number of cards in your hand"
+    rec = {
+        "name": "Zzyx Test Goader",
+        "triggers": [
+            {
+                "mode": "Attacks",
+                "valid_card": {"type": "SelfRef"},
+                "description": (
+                    "Whenever ~ attacks, tap target creature, then it gets +X/+0 "
+                    f"until end of turn, {text}."
+                ),
+                "execute": {
+                    "effect": {
+                        "type": "SetTapState",
+                        "target": {"type": "Typed", "type_filters": ["Creature"]},
+                    },
+                    "sub_ability": {
+                        "effect": {
+                            "type": "Unimplemented",
+                            "name": "where_x_binding",
+                            "description": text,
+                        }
+                    },
+                },
+            }
+        ],
+    }
+    assert correct_misparsed_shapes(rec) is rec
 
 
 _MUSCLE = (

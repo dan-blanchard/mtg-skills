@@ -214,7 +214,7 @@ def test_recovered_shrink_serves_debuff_makers(name):
 
 def test_foul_renewal_shrink_recovers_from_its_binding_sentence():
     """Foul Renewal's -X/-X survives only as its "where X is …" binding; the
-    ``debuff`` row reads the binding's sentence (``from_binding_sentence``)."""
+    ``debuff`` row reads the binding's sentence, for the verb its X sizes."""
     assert _recovered("Foul Renewal", "debuff")
     assert "debuff_makers|any|" in _idents("Foul Renewal")
 

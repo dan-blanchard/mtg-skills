@@ -69,7 +69,6 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_mod_sites,
     iter_nested_granted_bodies,
-    iter_static_defs,
     iter_typed_nodes,
     keyword_resource_events,
     lets_you_play_exiled,
@@ -80,7 +79,7 @@ from mtg_utils._card_ir.crosswalk import (
     own_turn_step_triggers,
     permission_tag,
     pt_mod_signs,
-    pump_is_negative,
+    pump_raises,
     recipient_tag,
     recursion_card_types,
     requires_condition_inner,
@@ -2897,11 +2896,12 @@ def _stacked_card_origin(unit: AbilityUnit, tgt: object) -> str:
 
 
 def _buffs_with_counters(c: ConceptNode) -> bool:
-    """A counter placement that can be the combat buff: any typed one, or — phase
-    v0.104.0 failing closed on a counter clause it can't fully parse (Cait, Cage
-    Brawler's "if you discarded …" tail, Finneas's "that's a token or a Rabbit")
-    and parking it as a residue the ``place_counter`` token recovers — one whose
-    clause names a +1/+1 counter (an experience or rad counter is no buff)."""
+    """A counter placement that can be the combat buff: a typed one of any kind
+    but -1/-1, or — phase v0.104.0 failing closed on a counter clause it can't
+    fully parse (Cait, Cage Brawler's "if you discarded …" tail, Finneas's
+    "that's a token or a Rabbit") and parking it as a residue the
+    ``place_counter`` token recovers — one whose clause names a +1/+1 counter
+    (an experience or rad counter is no buff)."""
     if not c.recovered_by:
         # a -1/-1 counter shrinks what it lands on (Dusk Urchins)
         return counter_kind_any(c.node) != "M1M1"
@@ -2915,8 +2915,10 @@ def _buffs_with_counters(c: ConceptNode) -> bool:
 # this lane's Card IR read replaced (ADR-0027).
 def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
     """combat_buff_engine — combat-keyed pump (CR 508 / 509.3a): a trigger in
-    the combat frame (attacks / blocks / becomes-blocked / begin-combat) with
-    a ``pump`` / ``place_counter`` effect in the SAME unit (granularity a) —
+    the combat frame (attacks / blocks / attacks-or-blocks / becomes-blocked /
+    begin-combat) with a ``pump`` / ``place_counter`` effect in the SAME unit
+    that raises something (:func:`pump_raises`; a -1/-1 counter and a shrink
+    are no buff: the flanking cards, Fear of Falling) (granularity a) —
     Anafenza's attack counter, Accorder Paladin's Battle-cry ``PumpAll``
     (the keyword expansion the deleted regex missed — checklist #3: the
     keyword tags payoffs, so the structural read wins). The batch-9
@@ -2937,18 +2939,16 @@ def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
         )
         if not combat:
             continue
-        # A buff raises: a shrink is no combat buff, as an effect ("it gets
-        # -1/-1 until end of turn" — the flanking cards, Fear of Falling) or as
-        # a static grant (:func:`pt_mod_signs`).
-        if any(
-            (c.concept == "pump" and not pump_is_negative(c.node))
+        # A buff raises power or toughness, as an effect or as a static grant.
+        effect_buff = any(
+            (c.concept == "pump" and pump_raises(c.node))
             or (c.concept == "place_counter" and _buffs_with_counters(c))
             for c in unit.effects
-        ) or any(
-            max(pt_mod_signs(d)) > 0
-            for d in iter_static_defs(unit.node)
-            if any(c.concept == "pump" for c in unit.statics)
-        ):
+        )
+        static_buff = any(c.concept == "pump" for c in unit.statics) and any(
+            max(pt_mod_signs(d)) > 0 for d in unit.static_defs()
+        )
+        if effect_buff or static_buff:
             return [Signal("combat_buff_engine", "you", "", "", tree.name, "high")]
     return []
 

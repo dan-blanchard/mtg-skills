@@ -5768,7 +5768,7 @@ BRIDGES.update(
 )
 
 
-# Two team boosts whose amount phase can't bind, so the boost goes with it:
+# A team boost whose amount phase can't bind, so the boost goes with it:
 # Candlekeep Inspiration's "creatures you control have base power and toughness
 # X/X, where X is the number of cards you own in exile and in your graveyard
 # that are instant cards …" parks whole as an ``unparsed_quantity`` residue.

@@ -37,11 +37,12 @@ they test fields, never the recovered text. A compound clause recovers each
 instruction ("you lose 1 life and you draw an additional card"), each a
 decoration of the same node, and a granted ability's body is recovered too, then
 served by the shared granted walk. A `where_x_binding` residue ("where X is
-…") carries no verb of its own: a row flagged `from_binding_sentence` (connive,
-amass, investigate, debuff) reads the sentence — or colon-delimited clause — of
-the unit's own description that contains the residue verbatim, up to the
-residue's end, never past a sentence break and never beyond that unit; every
-other row never reads outside the residue. One more decoration rides the stage:
+…") carries no verb of its own: the recovery reads the verb its X sizes from
+the sentence — or colon-delimited clause — of the unit's own description that
+contains the residue verbatim, up to the residue's end, never past a sentence
+break and never beyond that unit (a granted quote's sentence is its granter's),
+and only where phase typed no effect of that kind beside the residue; every
+other residue is read from its own text alone. One more decoration rides the stage:
 **body keywords** (`ConceptNode.body_keywords`), the keywords a residue's clause
 puts on a body of yours ("it gains flying until end of turn", a token "with
 flying", "put a flying counter on it"), a counter kind phase read as the rest of

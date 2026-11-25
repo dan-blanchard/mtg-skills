@@ -236263,6 +236263,235 @@
     "type_line": "Creature — Elemental Knight"
    }
   },
+  "Cave People": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [
+            "Red",
+            "Red"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}{R}{R}, {T}: Target creature gains mountainwalk until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "gain mountainwalk",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": {
+             "Landwalk": "Mountain"
+            },
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "088e7d7b-cf45-4349-adbd-170b3daad2da",
+       "3b270a91-e055-497a-a82d-e020c392f2d8",
+       "72746a5d-faa1-44b7-97b5-0ef9302a3c13",
+       "99e9ff47-b98c-4ab6-a4bc-8914360c3f6d",
+       "fb29b6b9-1674-483f-9912-0892e39ab106"
+      ]
+     },
+     "name": "Cave People",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks, it gets +1/-2 until end of turn.\n{1}{R}{R}, {T}: Target creature gains mountainwalk until end of turn. (It can't be blocked as long as defending player controls a Mountain.)",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "4BB",
+      "4ED",
+      "5ED",
+      "DRK",
+      "REN"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6a4e8d44-e6ee-40f7-8df4-52fa4cb346aa",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, it gets +1/-2 until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": -2
+         },
+         "type": "Pump"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{R}",
+    "name": "Cave People",
+    "oracle_id": "6a4e8d44-e6ee-40f7-8df4-52fa4cb346aa",
+    "oracle_text": "Whenever this creature attacks, it gets +1/-2 until end of turn.\n{1}{R}{R}, {T}: Target creature gains mountainwalk until end of turn. (It can't be blocked as long as defending player controls a Mountain.)",
+    "power": "1",
+    "toughness": "4",
+    "type_line": "Creature — Human"
+   }
+  },
   "Cavern Harpy": {
    "phase_records": [
     {
@@ -624225,6 +624454,170 @@
     "type_line": "Enchantment"
    }
   },
+  "Impelled Giant": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "filter": {
+         "controller": "You",
+         "properties": [
+          {
+           "color": "Red",
+           "type": "HasColor"
+          },
+          {
+           "type": "Another"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "requirement": {
+         "count": 1,
+         "requirement": "count"
+        },
+        "type": "TapCreatures"
+       },
+       "description": "Tap an untapped red creature you control other than ~: ~ gets +X/+0 until end of turn, where X is the power of the creature tapped this way.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "description": "where X is the power of the creature tapped this way",
+        "name": "where_x_binding",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Giant",
+       "Warrior"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Trample"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4b768940-409a-4876-809f-ef311002b944"
+      ]
+     },
+     "name": "Impelled Giant",
+     "non_ability_text": null,
+     "oracle_text": "Trample\nTap an untapped red creature you control other than this creature: This creature gets +X/+0 until end of turn, where X is the power of the creature tapped this way.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "EVE",
+      "PS11"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2008-08-01",
+       "text": "Since the activated ability doesn't have a tap symbol in its cost, you can tap creatures that haven't been under your control since your most recent turn began to pay the cost."
+      },
+      {
+       "date": "2008-08-01",
+       "text": "The power of the creature you tap is checked as the ability resolves, not as the creature is tapped, and not at any later time should the power of that creature change. If that creature is no longer on the battlefield as the ability resolves, use the power it had when it was last on the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "eb7c9442-7bfa-4bcf-a394-b5de187f224a",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{R}{R}",
+    "name": "Impelled Giant",
+    "oracle_id": "eb7c9442-7bfa-4bcf-a394-b5de187f224a",
+    "oracle_text": "Trample\nTap an untapped red creature you control other than this creature: This creature gets +X/+0 until end of turn, where X is the power of the creature tapped this way.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Giant Warrior"
+   }
+  },
   "Impending Flux": {
    "phase_records": [
     {
@@ -668658,6 +669051,224 @@
     "oracle_id": "f7518456-45ed-41d4-bd3c-5aacea28eb35",
     "oracle_text": "Target creature gains flying until end of turn.",
     "type_line": "Instant"
+   }
+  },
+  "Jungle Wurm": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Wurm"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "f17f81b9-1fa1-4062-a9b3-048179274c05",
+       "f646c83f-e804-4878-9160-8f2059dba496"
+      ]
+     },
+     "name": "Jungle Wurm",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature becomes blocked, it gets -1/-1 until end of turn for each creature blocking it beyond the first.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "MIR",
+      "VMA"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "457705c9-5b0c-4c3a-89dd-80286fac6a6c",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ becomes blocked, it gets -1/-1 until end of turn for each creature blocking it beyond the first.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Quantity",
+          "value": {
+           "factor": -1,
+           "inner": {
+            "inner": {
+             "inner": {
+              "qty": {
+               "filter": {
+                "controller": null,
+                "properties": [
+                 {
+                  "type": "BlockingSource"
+                 }
+                ],
+                "type": "Typed",
+                "type_filters": [
+                 "Creature"
+                ]
+               },
+               "type": "ObjectCount"
+              },
+              "type": "Ref"
+             },
+             "offset": -1,
+             "type": "Offset"
+            },
+            "minimum": 0,
+            "type": "ClampMin"
+           },
+           "type": "Multiply"
+          }
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "toughness": {
+          "type": "Quantity",
+          "value": {
+           "factor": -1,
+           "inner": {
+            "inner": {
+             "inner": {
+              "qty": {
+               "filter": {
+                "controller": null,
+                "properties": [
+                 {
+                  "type": "BlockingSource"
+                 }
+                ],
+                "type": "Typed",
+                "type_filters": [
+                 "Creature"
+                ]
+               },
+               "type": "ObjectCount"
+              },
+              "type": "Ref"
+             },
+             "offset": -1,
+             "type": "Offset"
+            },
+            "minimum": 0,
+            "type": "ClampMin"
+           },
+           "type": "Multiply"
+          }
+         },
+         "type": "Pump"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "BecomesBlocked",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{G}",
+    "name": "Jungle Wurm",
+    "oracle_id": "457705c9-5b0c-4c3a-89dd-80286fac6a6c",
+    "oracle_text": "Whenever this creature becomes blocked, it gets -1/-1 until end of turn for each creature blocking it beyond the first.",
+    "power": "5",
+    "toughness": "5",
+    "type_line": "Creature — Wurm"
    }
   },
   "Junji, the Midnight Sky": {
@@ -1188864,6 +1189475,646 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Legendary Creature — Weasel Mercenary"
+   }
+  },
+  "The Kami War // O-Kagachi Made Manifest": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment",
+       "Creature"
+      ],
+      "subtypes": [
+       "Dragon",
+       "Spirit"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Green",
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [
+      "Flying",
+      "Trample"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "36052532-5028-43a8-9fc4-56221ec867fd",
+       "68dfd0ee-64bf-425d-a847-c4a72f84d8aa",
+       "cfcc7dd5-c6ac-4e66-b197-c010dcfdb397"
+      ]
+     },
+     "name": "O-Kagachi Made Manifest",
+     "non_ability_text": null,
+     "oracle_text": "O-Kagachi Made Manifest is all colors.\nFlying, trample\nWhenever this creature attacks, defending player chooses a nonland card in your graveyard. Return that card to your hand. This creature gets +X/+0 until end of turn, where X is the mana value of that card.",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "NEO",
+      "PNEO",
+      "PRM"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4d23b22b-31a5-4eec-b894-2dd5a7138c5a",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Library",
+        "Hand",
+        "Battlefield",
+        "Graveyard",
+        "Stack",
+        "Exile",
+        "Command"
+       ],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": true,
+       "condition": null,
+       "description": "~ is all colors.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "colors": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "type": "SetColor"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, defending player chooses a nonland card in your graveyard. Return that card to your hand. ~ gets +X/+0 until end of turn, where X is the mana value of that card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "choose a nonland card in your graveyard",
+         "name": "choose",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": null,
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "Bounce"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "description": "~ gets +X/+0 until end of turn, where X is the mana value of that card",
+           "name": "where_x_binding",
+           "type": "Unimplemented"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Saga"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Green",
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "Blue",
+       "Black",
+       "Red",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "36052532-5028-43a8-9fc4-56221ec867fd",
+       "68dfd0ee-64bf-425d-a847-c4a72f84d8aa",
+       "cfcc7dd5-c6ac-4e66-b197-c010dcfdb397"
+      ]
+     },
+     "name": "The Kami War",
+     "non_ability_text": null,
+     "oracle_text": "(As this Saga enters and after your draw step, add a lore counter.)\nI — Exile target nonland permanent an opponent controls.\nII — Return up to one other target nonland permanent to its owner's hand. Then each opponent discards a card.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.",
+     "power": null,
+     "printings": [
+      "NEO",
+      "PNEO",
+      "PRM"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "Saga ETB lore counter",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "lore",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2022-02-18",
+       "text": "A transforming double-faced card enters the battlefield with its front face up by default, unless a spell or ability instructs you to put it onto the battlefield transformed or you cast it transformed, in which case it enters with its back face up."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "Each face of a transforming double-faced card has its own set of characteristics: name, types, subtypes, abilities, and so on. While a transforming double-faced permanent is on the battlefield, consider only the characteristics of the face that's currently up. The other set of characteristics is ignored."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "Each transforming double-faced card in this set is cast face up. In every zone other than the battlefield, consider only the characteristics of its front face. If it is on the battlefield, consider only the characteristics of the face that's up; the other face's characteristics are ignored."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "If you are instructed to put a card that isn't a double-faced card onto the battlefield transformed, it will not enter the battlefield at all. In that case, it stays in the zone it was previously in. For example, if a single-faced card is a copy of Azusa's Many Journeys, the chapter III ability will cause it to be exiled and then remain in exile."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "The back face of a transforming double-faced card usually has a color indicator that defines its color."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "The mana value of a transforming double-faced card is the mana value of its front face, no matter which face is up."
+      }
+     ],
+     "scryfall_oracle_id": "4d23b22b-31a5-4eec-b894-2dd5a7138c5a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 1
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 1",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 1,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 2
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 2",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": null,
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "type": "Bounce"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "multi_target": {
+         "max": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "min": 0
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Discard"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "player_scope": {
+          "type": "Opponent"
+         },
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 2,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 3
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 3",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Battlefield",
+          "enter_tapped": false,
+          "enter_transformed": true,
+          "enters_attacking": false,
+          "enters_under": "You",
+          "origin": null,
+          "owner_library": false,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 3,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "B",
+       "G",
+       "R",
+       "U",
+       "W"
+      ],
+      "keywords": [
+       "Flying",
+       "Trample",
+       "Transform"
+      ],
+      "mana_cost": "{1}{W}{U}{B}{R}{G}",
+      "name": "The Kami War",
+      "oracle_text": "(As this Saga enters and after your draw step, add a lore counter.)\nI — Exile target nonland permanent an opponent controls.\nII — Return up to one other target nonland permanent to its owner's hand. Then each opponent discards a card.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.",
+      "type_line": "Enchantment — Saga"
+     },
+     {
+      "colors": [
+       "B",
+       "G",
+       "R",
+       "U",
+       "W"
+      ],
+      "keywords": [
+       "Flying",
+       "Trample",
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "O-Kagachi Made Manifest",
+      "oracle_text": "O-Kagachi Made Manifest is all colors.\nFlying, trample\nWhenever this creature attacks, defending player chooses a nonland card in your graveyard. Return that card to your hand. This creature gets +X/+0 until end of turn, where X is the mana value of that card.",
+      "power": "6",
+      "toughness": "6",
+      "type_line": "Enchantment Creature — Dragon Spirit"
+     }
+    ],
+    "cmc": 6.0,
+    "color_identity": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Flying",
+     "Trample",
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "The Kami War // O-Kagachi Made Manifest",
+    "oracle_id": "4d23b22b-31a5-4eec-b894-2dd5a7138c5a",
+    "type_line": "Enchantment — Saga // Enchantment Creature — Dragon Spirit"
    }
   },
   "The Legend of Roku": {

@@ -98,7 +98,9 @@ are already known to it (each draft says where).
     Alchemy cards, in about twenty subject shapes ("creature cards in your
     graveyard", "the topmost creature card in your library", "~ and that Dragon
     card each", "all cards you own named …"). Phase's typed form is
-    `ApplyPerpetual{target, modification}`, and NO lane reads it today: about
+    `ApplyPerpetual{target, modification}`, and no lane reads its power and
+    toughness change today (two reads take other parts of it: the perpetual
+    graveyard return and the keyword grant): about
     fifty already-typed perpetual pumps (Accident-Prone Apprentice's "~
     perpetually gets +1/+1") carry no pump signal. Dan's call (2026-11-25):
     rewrite them into that form, and count one as a pump only on a creature on
@@ -111,13 +113,22 @@ are already known to it (each draft says where).
   - *A static line*: Archangel of Strife's two ("Creatures controlled by
     players who chose war get +3/+0": no phase filter for the choice),
     Tyrannical Pitlord's "The chosen creature gets +3/+3 and has flying", The
-    Muckslinger Gang's (cards outside the battlefield). A static pump is a
-    static's modifications, not this row's one-shot effect.
+    Muckslinger Gang's (cards outside the battlefield), and two where-X ones,
+    Death's Approach and Disturbing Conversion ("Enchanted creature gets
+    -X/-X, where X is …"). A static pump is a static's modifications, not this
+    row's one-shot effect.
   - *A pump as a clause's second verb* (Dan's call: split them): Heartseeker's
     "Equipped creature gets +2/+1 and has '…'", Spry and Mighty's "draw X cards
-    and the chosen creatures get +X/+X and gain trample", and three perpetual
-    ones (Benalish Partisan, Managorger Phoenix, Hurkyl's Prodigy). Four
-    shapes for five cards.
+    and the chosen creatures get +X/+X and gain trample", Defiling Tears, and
+    three perpetual ones (Benalish Partisan, Managorger Phoenix, Hurkyl's
+    Prodigy). Five shapes for six cards.
+  - *An "it" after a targeted effect* is left a residue: it may be that
+    effect's target, which phase writes `ParentTarget`. No card at v0.131.0.
+- **The combat-buff read misses phase's other combined trigger**
+  (`BlocksOrBecomesBlocked`: Chub Toad, Brushwagg — clear buffs). And its typed
+  counter arm takes any counter but -1/-1 as a buff, where the recovered arm
+  asks for a +1/+1 counter: a combat trigger that places a charge or stun
+  counter reads as a buff. Measure before narrowing.
 - **Where-X clauses the recovery reads as the wrong thing** (each to settle
   per card; none moves a signal today unless said): Commander Liara Portyr's
   "spells you cast from exile this turn cost {X} less" recovers as
@@ -128,10 +139,10 @@ are already known to it (each draft says where).
   the card lets you play them. The recovery reads a clause's details over its
   whole sentence, the "where X is …" text included (Dan's call, 2026-11-25:
   leave it, fix per card).
-- **Not recovered**: the six `where_x_binding` residues left: a verb the
-  allowlist doesn't hold (Florian's and Surveyor's Scope's look / search,
-  Anzrag's Rampage's exile-top), and Niv-Mizzet, Guildpact's two and Concert
-  Kaboomist's face-up twin (the "combat damage" / "turned face up" veto).
+- **Not recovered**: the five `where_x_binding` residues left: a verb the
+  allowlist doesn't hold (Florian's and Surveyor's Scope's look / search), and
+  Niv-Mizzet, Guildpact's two and Concert Kaboomist's face-up twin (the
+  "combat damage" / "turned face up" veto).
 
 **From comparing Arena game logs with phase (2026-11-09)**
 

@@ -2949,6 +2949,23 @@ def negative_pt_field(node: TypedMirrorNode, field: str) -> bool:
     return False
 
 
+def pump_raises(node: TypedMirrorNode) -> bool:
+    """Whether a ``Pump`` / ``PumpAll`` effect raises power or toughness: a
+    field that is there, isn't negative (:func:`negative_pt_field`, every shape
+    phase writes a shrink in) and isn't a fixed zero. "+1/-2" raises (Cave
+    People); "-1/-1" and "-1/-0" don't, nor does "-1/-1 for each creature
+    blocking it beyond the first" (Jungle Wurm's negative ``Multiply``). The
+    effect-side twin of ``max(pt_mod_signs(static)) > 0``."""
+    for fname in ("power", "toughness"):
+        sub = getattr(node, fname, MISSING)
+        if not _present(sub) or negative_pt_field(node, fname):
+            continue
+        if tag_of(sub) == "Fixed" and not getattr(sub, "value", 0):
+            continue
+        return True
+    return False
+
+
 def mod_value(node: TypedMirrorNode) -> int | None:
     """The plain-int ``value`` of a static P/T modification (``AddPower`` /
     ``SetToughness`` …), or ``None`` when absent/dynamic.

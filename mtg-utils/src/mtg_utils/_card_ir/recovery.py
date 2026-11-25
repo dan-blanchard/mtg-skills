@@ -33,6 +33,9 @@ from mtg_utils._card_ir._substrate_purity import assert_substrate_pure, l1_ident
 from mtg_utils._card_ir.clause_grammar import (
     _SENTENCE_RX,
     _VERB_PRESENT,
+    SENTENCE_BREAK_RX,
+    WHERE_X_BINDING_RX,
+    binding_sentence,
     keyword_grants,
     parse_clause,
     replacement_sentences,
@@ -46,6 +49,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    change_zone_dirs,
     counter_keyword,
     counter_kind,
     discard_recipient_scope,
@@ -647,27 +651,16 @@ ALLOWLIST.update(
 
 
 def _binding_sentence(c: ConceptNode, unit: AbilityUnit | None) -> str | None:
-    """The sentence a ``where_x_binding`` residue was cut from: in its unit's own
-    ``description``, the text from the last sentence break (``.`` or ``:`` and
-    whitespace) before the residue's first verbatim occurrence through the
-    residue's end — "Whenever equipped creature deals combat damage to a player,
-    it connives X, where X is …" (Mask of the Schemer). ``None`` when ``c`` is no
-    such residue or the description doesn't hold it verbatim."""
+    """The sentence ``c``, a ``where_x_binding`` residue, was cut from in its
+    unit's own ``description`` (``clause_grammar.binding_sentence``). ``None``
+    when ``c`` is no such residue or the description doesn't hold it verbatim."""
     if unit is None or not residue_is(c.node, "where_x_binding") or not c.raw:
         return None
     desc = getattr(unit.node, "description", None)
-    if not isinstance(desc, str):
-        return None
-    end = desc.find(c.raw)
-    if end < 0:
-        return None
-    start = max((m.end() for m in _SENTENCE_BREAK_RX.finditer(desc, 0, end)), default=0)
-    return desc[start : end + len(c.raw)]
+    return binding_sentence(c.raw, desc) if isinstance(desc, str) else None
 
 
-# Where a binding's sentence stops being instructions ("…, where X is …"), and
-# an X an instruction names ("connives X", "+X/+X", "{X} less", "top X cards").
-_WHERE_X_RX = re.compile(r",?\s*\bwhere X is\b", re.IGNORECASE)
+# An X an instruction names ("connives X", "+X/+X", "{X} less", "top X cards").
 _X_RX = re.compile(r"(?<![A-Za-z])X(?![A-Za-z])")
 _THEN_RX = re.compile(r",?\s+then\s+", re.IGNORECASE)
 
@@ -680,14 +673,14 @@ def _x_instruction(sentence: str, table: dict[str, TokenRule]) -> str | None:
     the top X cards of your library" — Anzrag's Rampage: the exile, never the
     destroy). ``None`` when no instruction names X. An instruction starts at a
     sentence break, at "then", or where :func:`_later_clauses` reads a verb."""
-    binding = _WHERE_X_RX.search(sentence)
+    binding = WHERE_X_BINDING_RX.search(sentence)
     head = sentence[: binding.start()] if binding else sentence
     named = _X_RX.search(head)
     if named is None:
         return None
     starts = sorted(
         {
-            *(m.end() for m in _SENTENCE_BREAK_RX.finditer(head)),
+            *(m.end() for m in SENTENCE_BREAK_RX.finditer(head)),
             *(m.end() for m in _THEN_RX.finditer(head)),
             *(start for start, _part in _later_clauses(head, table)),
         }
@@ -709,28 +702,42 @@ def _recover_binding_sentence(
     """``c``, a ``where_x_binding`` residue, recovered as the verb its X belongs
     to (:func:`_x_instruction`, over the sentence :func:`_binding_sentence`
     finds in ``described_by``'s description). Phase parks only the binding and
-    drops that verb, unless it typed the verb beside the residue: an ability
-    already holding a typed effect of the recovered concept keeps its own, and
-    the residue stays a residue."""
+    drops that verb, unless it typed the verb beside the residue
+    (:func:`_types_the_verb`): that ability keeps its own, and the residue stays
+    a residue."""
     sentence = _binding_sentence(c, described_by)
     text = _x_instruction(sentence, table) if sentence is not None else None
     out = _recover(c, table, unit, text) if text is not None else None
     if out is None:
         return None
-    # One sentence, one verb: a second residue cut from the same binding
-    # ("draw X cards, then … put up to X land cards …" — Starfleet
-    # Communicator parks the binding twice) would read that verb again.
+    # One sentence, one verb: an earlier residue that already holds this
+    # binding would read that verb again — the same binding parked twice ("draw
+    # X cards, then … put up to X land cards …": Starfleet Communicator), or a
+    # residue holding the instruction with its binding ("spells you cast from
+    # exile this turn cost {X} less to cast, where X is …": Commander Liara
+    # Portyr).
     earlier = siblings[: next(i for i, s in enumerate(siblings) if s is c)]
     if any(
-        other.raw == c.raw and residue_is(other.node, "where_x_binding")
+        tag_of(other.node) == "Unimplemented" and c.raw in (other.raw or "")
         for other in earlier
     ):
         return None
-    typed_beside = any(
-        other.concept == out.concept and tag_of(other.node) != "Unimplemented"
-        for other in siblings
-    )
-    return None if typed_beside else out
+    return None if any(_types_the_verb(other, out) for other in siblings) else out
+
+
+#: The zone a recovered move's token sends its object to.
+_MOVE_DESTINATION = {"exile": "Exile", "bounce": "Hand", "reanimate": "Battlefield"}
+
+
+def _types_the_verb(other: ConceptNode, recovered: ConceptNode) -> bool:
+    """Whether ``other`` is the typed effect ``recovered`` would repeat: a typed
+    node of the same concept and, for a move, to the same zone. Anzrag's
+    Rampage's "exile the top X cards of your library" is no repeat of the typed
+    "put a creature card exiled this way onto the battlefield" beside it."""
+    if other.concept != recovered.concept or tag_of(other.node) == "Unimplemented":
+        return False
+    destination = _MOVE_DESTINATION.get(recovered.recovered_by)
+    return destination is None or change_zone_dirs(other.node)[1] == destination
 
 
 _NON_DRAW_SENSE = re.compile(r"\bgame is a draw\b|\bdraw step\b", re.IGNORECASE)
@@ -1456,7 +1463,6 @@ def _is_candidate(c: ConceptNode) -> bool:
 # second verb is that player's), or a new "you" follows ("you lose 1 life and
 # you draw an additional card"). A leading "you" is the instruction's own
 # subject.
-_SENTENCE_BREAK_RX = re.compile(r"[.:]\"?\s+")
 _CONJUNCTION_RX = re.compile(r",?\s+(?:and|then)\s+", re.IGNORECASE)
 _YOU_SUBJECT_RX = re.compile(r"^you\s+", re.IGNORECASE)
 
@@ -1502,7 +1508,7 @@ def _later_clauses(raw: str, table: dict[str, TokenRule]) -> list[tuple[int, str
     breaks = sorted(
         b
         for b in (
-            *((m.start(), m.end(), False) for m in _SENTENCE_BREAK_RX.finditer(text)),
+            *((m.start(), m.end(), False) for m in SENTENCE_BREAK_RX.finditer(text)),
             *((m.start(), m.end(), True) for m in _CONJUNCTION_RX.finditer(text)),
         )
         # inside an idiom sentence, short of the period that ends it

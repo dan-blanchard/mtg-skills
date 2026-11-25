@@ -64,8 +64,10 @@ def test_a_counted_combat_pump_is_a_combat_buff(name):
         # "Whenever ~ attacks or blocks, it gets +X/+X until end of turn" (the
         # pump itself rewritten from a where-X residue)
         "Freelance Muscle",
-        # "Whenever ~ attacks or blocks, other creatures you control get +1/+0"
+        # "Whenever ~ attacks or blocks, other Humans you control get +1/+1"
         "Hamlet Captain",
+        # "Whenever ~ attacks, it gets +1/-2 until end of turn": power goes up
+        "Cave People",
     ],
 )
 def test_an_attacks_or_blocks_pump_is_a_combat_buff(name):
@@ -81,6 +83,9 @@ def test_an_attacks_or_blocks_pump_is_a_combat_buff(name):
         "Dusk Urchins",
         # "target creature defending player controls gets -2/-0"
         "Fear of Falling",
+        # "it gets -1/-1 until end of turn for each creature blocking it beyond
+        # the first": a shrink by a count
+        "Jungle Wurm",
     ],
 )
 def test_a_combat_shrink_is_no_combat_buff(name):

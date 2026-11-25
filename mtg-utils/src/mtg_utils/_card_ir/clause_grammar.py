@@ -1368,7 +1368,28 @@ class ParkedPump:
 
 
 _PT_WORD_RX = re.compile(r"([+-](?:\d+|X))/([+-](?:\d+|X))[.,]?", re.IGNORECASE)
-_WHERE_X_BINDING_RX = re.compile(r",?\s*\bwhere X is\b", re.IGNORECASE)
+#: Where a sentence stops being instructions and binds its X ("…, where X is …").
+WHERE_X_BINDING_RX = re.compile(r",?\s*\bwhere X is\b", re.IGNORECASE)
+#: Where a sentence starts inside a description: after "." or ":" and a space.
+SENTENCE_BREAK_RX = re.compile(r"[.:]\"?\s+")
+
+
+def binding_sentence(residue: str, description: str) -> str | None:
+    """The sentence a ``where_x_binding`` residue was cut from: in the
+    description that holds it, the text from the last sentence break before the
+    residue's first verbatim occurrence through the residue's end — "Whenever
+    equipped creature deals combat damage to a player, it connives X, where X
+    is …" (Mask of the Schemer). ``None`` when the description doesn't hold the
+    residue verbatim."""
+    at = description.find(residue) if residue else -1
+    if at < 0:
+        return None
+    start = max(
+        (m.end() for m in SENTENCE_BREAK_RX.finditer(description, 0, at)), default=0
+    )
+    return description[start : at + len(residue)]
+
+
 _UNTIL_END_OF_TURN = comb.phrase({"until"}, {"end"}, {"of"}, {"turn"})
 _ATTACHED_CREATURE = comb.seq2(
     comb.keyword({"equipped", "enchanted"}), comb.keyword({"creature"})
@@ -1419,7 +1440,7 @@ def parked_pump(text: str) -> ParkedPump | None:
     grants ("… and gains haste") or is conditioned ("if …, ~ gets +1/+1"), or a
     subject this grammar doesn't read (CR 613.4c: an effect that modifies power
     and/or toughness)."""
-    binding = _WHERE_X_BINDING_RX.search(text)
+    binding = WHERE_X_BINDING_RX.search(text)
     words = (text[: binding.start()] if binding else text).split()
     verbs = [
         i

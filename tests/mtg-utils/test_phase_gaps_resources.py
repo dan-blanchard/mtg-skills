@@ -160,7 +160,9 @@ def test_a_binding_sentence_reads_the_verb_its_x_belongs_to():
 def test_a_binding_sentence_reads_no_verb_x_does_not_size():
     """The X of "Destroy all artifacts you don't control, then exile the top X
     cards of your library, where X is …" (Anzrag's Rampage) sizes the exile:
-    the sentence's first verb is not the binding's, and stays unread."""
+    the sentence's first verb is not the binding's, and stays unread. The exile
+    is read, though phase typed another move beside it ("put a creature card
+    exiled this way onto the battlefield"): that one goes somewhere else."""
     from mtg_utils._card_ir.recovery import _x_instruction
 
     anzrag = (
@@ -169,7 +171,7 @@ def test_a_binding_sentence_reads_no_verb_x_does_not_size():
         "graveyards from the battlefield this turn."
     )
     assert _x_instruction(anzrag, ALLOWLIST) == "exile the top X cards of your library"
-    assert "destroy" not in _recovered("Anzrag's Rampage")
+    assert list(_recovered("Anzrag's Rampage")) == ["exile"]
     # A sentence whose first instruction names X is read whole (its trigger and
     # its binding with it), and one that names no X is not read at all.
     mask = (
@@ -203,6 +205,16 @@ def test_foul_renewal_binding_recovers_as_a_debuff():
     """Foul Renewal's "Target creature gets -X/-X until end of turn, where X is …"
     — the ``debuff`` row reads its binding's sentence too (CR 613.4c)."""
     assert "debuff" in _recovered("Foul Renewal")
+
+
+def test_an_instruction_parked_with_its_binding_is_read_once():
+    """Commander Liara Portyr's "spells you cast from exile this turn cost {X}
+    less to cast, where X is …" is parked whole, and its binding once more by
+    itself. The second residue is the first's own binding, and reads nothing."""
+    liara = _recovered("Commander Liara Portyr")
+    assert {token: len(nodes) for token, nodes in liara.items()} == {
+        "cast_from_zone": 1
+    }
 
 
 def test_a_parked_scry_x_reads_its_own_clause():
