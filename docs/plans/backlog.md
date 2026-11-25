@@ -101,12 +101,18 @@ are already known to it (each draft says where).
   predicts that Arena never fired (a condition or limit phase misses: Nadu, Winged
   Wisdom's "only twice each turn" is `Unimplemented`) needs every permanent's
   triggers walked against the logged events. Also not checked yet: amounts phase
-  writes as variable (X, "equal to the number of …") evaluated against the logged
-  board, continuous effects (an object's P/T and abilities before and after its
-  resolution), and the costs and alternative costs in Arena's legal-action lists.
-  Unscored today: keyword abilities phase writes no ability for (warp's delayed exile,
-  ninjutsu, persist) and a saga chapter phase writes with no text ("Chapter 3"),
-  which Arena's chapter order could pair.
+  writes as a count ("equal to the number of …") evaluated against the logged
+  board, continuous effects other than a pump's size (an object's abilities before
+  and after its resolution; a pump beside a base-P/T set or a keyword grant:
+  Tyvar's Stand), and the costs and
+  alternative costs in Arena's legal-action lists. Measured on the 33 archived
+  games, 2026-11-25, after saga chapters, keyword instances, pump sizes and the
+  chosen X went in: 7 pairings still unsure, all of two shapes — a modal
+  "choose one —" trigger Arena writes whole and phase writes per mode (Divining
+  Duelist, Archive Arbiter, Monument to Endurance), and "enters or dies" as one
+  Arena ability phase writes as two triggers the split rule misses (Apex
+  Witchstalker). The chosen X was checked in 6 resolutions (it is rare in play);
+  X doubled, halved or offset is not read.
 - **Two `misparsed_shapes` rows still check phase's own ability text with a
   regex (2026-11-09).** Unwanted Remake's "Its controller manifests dread" and
   Mirko's "power less than ~'s".

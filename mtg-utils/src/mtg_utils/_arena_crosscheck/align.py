@@ -6,9 +6,14 @@ pairing is **confident** only when the texts are near-identical (:data:`CONFIDEN
 or the same but for a cost one writes in front (a loyalty ability), by a keyword
 rule (an
 Arena keyword instance, "Fading 5", pairs with the ability phase writes for that
-keyword), by a grant ("~ gains "…"" is the granting ability), or as one Arena ability
+keyword; a Saga's chapter pairs by its number with phase's "Chapter N"), by a
+grant ("~ gains "…"" is the granting ability), or as one Arena ability
 phase writes as two triggers. Anything weaker is reported as unsure and never scored,
-since a wrong pairing turns into a false finding or, worse, a false pass.
+since a wrong pairing turns into a false finding or, worse, a false pass. An
+instance of a keyword phase lists on the card with no ability to compare it to
+(prowess, ward, warp's delayed exile, ninjutsu's untexted activation) is
+``keyword-only`` rather than unsure, and only once nothing else pairs and the
+card has no keyword ability phase wrote out ("CR 702.…: …") that it could be.
 
 Only abilities that can resolve are candidates: a static ability never goes on the
 stack (CR 405.6b), though an ability it grants can.
@@ -31,7 +36,15 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils.arena_card_db import strip_markup
 
-__all__ = ["CONFIDENT", "Pairing", "PhaseAbility", "abilities_of", "norm", "pair"]
+__all__ = [
+    "CONFIDENT",
+    "SAGA_CHAPTER",
+    "Pairing",
+    "PhaseAbility",
+    "abilities_of",
+    "norm",
+    "pair",
+]
 
 #: The text similarity a pairing needs to be scored.
 CONFIDENT = 0.9
@@ -148,9 +161,12 @@ KEYWORD_ABILITIES: dict[str, str] = {
     "vanishing": "time counter",
     "impending": "impending",
     "evoke": "evoke",
-    "persist": "persist",
+    # CR 702.79a, as phase writes persist's own trigger
+    "persist": "if it had no -1/-1 counters on it",
     "for mirrodin!": "for mirrodin!",
 }
+#: Arena's ``BaseId`` text for a Saga's chapter ability; its numeral is the chapter.
+SAGA_CHAPTER = "sagachapter"
 #: Arena text of a keyword's ability that has no ``BaseId`` (warp's delayed exile).
 KEYWORD_TEXTS: dict[str, str] = {
     "exile this at the beginning of the next end step": "warp",
@@ -160,8 +176,8 @@ KEYWORD_TEXTS: dict[str, str] = {
 @dataclass(frozen=True)
 class Pairing:
     ability: PhaseAbility | None
-    #: ``text`` / ``cost-prefix`` / ``keyword`` / ``grant`` / ``split`` / ``unsure`` /
-    #: ``none``.
+    #: ``text`` / ``cost-prefix`` / ``keyword`` / ``chapter`` / ``grant`` /
+    #: ``split``, or with no ability ``keyword-only`` / ``unsure`` / ``none``.
     method: str
     score: float
     #: The best phase text, for an unsure pairing.
@@ -209,18 +225,26 @@ def pair(
     abilities: Sequence[PhaseAbility],
     *,
     keyword: str | None = None,
+    numeral: int | None = None,
+    card_keywords: frozenset[str] = frozenset(),
     keep: Callable[[PhaseAbility], bool] = _keep_all,
 ) -> Pairing:
     """The phase ability ``arena_text`` is, among ``abilities`` that ``keep``;
-    ``keyword`` is the Arena keyword it is an instance of, if any."""
+    ``keyword`` is the Arena keyword it is an instance of, if any, ``numeral``
+    that instance's number, and ``card_keywords`` the keywords phase lists on
+    the card (lower case)."""
     text = norm(arena_text)
     candidates = [a for a in abilities if keep(a)]
-    if not text or not candidates:
+    if not text:
         return Pairing(None, "none", 0.0)
+    named = norm(keyword)
+    if named == SAGA_CHAPTER and numeral:
+        chapter = [a for a in candidates if a.normed == f"chapter {numeral}"]
+        if chapter:
+            return Pairing(chapter[0], "chapter", 1.0)
     # an instance of a keyword (its BaseId), or the keyword written bare
-    word = KEYWORD_ABILITIES.get(norm(keyword) or text) or next(
-        (w for k, w in KEYWORD_TEXTS.items() if text.startswith(k)), None
-    )
+    bare = next((w for k, w in KEYWORD_TEXTS.items() if text.startswith(k)), None)
+    word = KEYWORD_ABILITIES.get(named or text) or bare
     if word is not None:
         own = sorted(
             (a for a in candidates if word in a.normed),
@@ -228,6 +252,13 @@ def pair(
         )
         if own:
             return Pairing(own[0], "keyword", 1.0)
+    # a keyword phase lists on the card: nothing to compare when nothing pairs
+    # and no ability phase wrote out for a keyword could be this one
+    listed = (named or bare or text) in card_keywords and not any(
+        a.desc.startswith("CR ") for a in abilities
+    )
+    if not candidates:
+        return Pairing(None, "keyword-only" if listed else "none", 0.0)
     if (granted := _GRANT.search(text)) is not None:
         # the quoted ability is the granted body's own text
         best = _best(
@@ -244,6 +275,8 @@ def pair(
             return Pairing(one[1], "split", min(one[0], two[0]), also=(two[1],))
     best = _best(text, candidates)
     if best is None or best[0] < CONFIDENT:
+        if listed:
+            return Pairing(None, "keyword-only", 0.0)
         score, nearest = best or (0.0, None)
         return Pairing(None, "unsure", score, nearest.desc if nearest else "")
     score, ability = best

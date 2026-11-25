@@ -25,8 +25,11 @@ import json
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NamedTuple
 
 __all__ = [
+    "NO_X",
+    "ChosenX",
     "Effect",
     "Resolution",
     "TriggerFired",
@@ -42,6 +45,13 @@ _LOOKBACK = 3
 #: An object's combat state while attackers / blockers are declared and after.
 _ATTACKING = frozenset({"AttackState_Declared", "AttackState_Attacking"})
 _BLOCKING = frozenset({"BlockState_Declared", "BlockState_Blocking"})
+#: The ``type`` of a ``CastingTimeOption`` persistent annotation that records a
+#: chosen X in its ``value``. Arena's database names no such enum; over the
+#: archived and live logs read on 2026-11-25, all 17 X spells paid for with mana
+#: alone show mana paid = the fixed cost + this value, and the four others have
+#: a named cost changer (March of Otherworldly Light's exiled cards) or pay X
+#: in life (Fire Covenant).
+_CHOSE_X = 2
 #: A move's ``category`` → the events it is.
 _MOVE_EVENTS = {
     "CastSpell": ("cast_spell",),
@@ -66,6 +76,21 @@ class Effect:
     zone_dest_owner: int | None = None
 
 
+class ChosenX(NamedTuple):
+    """The X Arena logged for a resolution: ``own``, the X the resolving spell
+    or ability was itself cast or activated with, and ``spell``, the X the
+    spell that became an ability's permanent was cast with — what that
+    permanent's enters ability reads (CR 107.3m; for the permanent itself X is
+    0, so nothing later in its life reads it)."""
+
+    own: int | None = None
+    spell: int | None = None
+
+
+#: No X logged.
+NO_X = ChosenX()
+
+
 @dataclass(frozen=True)
 class Resolution:
     game: tuple[str, int]
@@ -84,6 +109,8 @@ class Resolution:
     battlefield: tuple[tuple[int, int | None], ...]
     #: The game's player seats: an annotation they source is the game's own.
     seats: frozenset[int] = frozenset()
+    #: The X Arena logged for it (:class:`ChosenX`).
+    x: ChosenX = NO_X
 
 
 @dataclass(frozen=True)
@@ -242,6 +269,8 @@ class _Reader:
         self.triggered_by: dict[int, int] = {}
         #: object id → the ids it had before (``ObjectIdChanged``)
         self.earlier: dict[int, set[int]] = collections.defaultdict(set)
+        #: object id → the X it was cast or activated with
+        self.x_of: dict[int, int] = {}
         self.recent: collections.deque[list[dict]] = collections.deque(maxlen=_LOOKBACK)
 
     def _message(self, state: dict, game: tuple[str, int]) -> None:
@@ -271,6 +300,12 @@ class _Reader:
         for ann in state.get("persistentAnnotations", []):
             if "TriggeringObject" in _types(ann) and ann.get("affectedIds"):
                 self.triggered_by[ann.get("affectorId")] = ann["affectedIds"][0]
+            if "CastingTimeOption" in _types(ann):
+                d = _details(ann)
+                value = num(d, "value", None)
+                if num(d, "type", None) == _CHOSE_X and value is not None:
+                    for chooser in ann.get("affectedIds", []):
+                        self.x_of[chooser] = value
         anns = sorted(state.get("annotations", []), key=lambda a: a.get("id", 0))
         for ann in anns:
             if "ObjectIdChanged" in _types(ann):
@@ -317,6 +352,9 @@ class _Reader:
                 if i in self.objs and self.objs[i]["type"] == "Card"
             ),
             "seats": frozenset(self.seats),
+            # a permanent keeps its spell's id as it resolves, and gets a new one
+            # when it leaves: one that came back was no X spell on the way in
+            "x": ChosenX(self.x_of.get(inst), self.x_of.get(o.get("parent"))),
         }
 
     def _effect(self, ann: dict) -> Effect:

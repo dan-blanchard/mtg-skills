@@ -24,9 +24,16 @@ resolution and fired trigger against phase's parse of the same ability.
 - **Only an ability's own effects count.** An annotation whose source is another object
   (a replacement another permanent applies, a graveyard-hate exile) is set aside.
 - **Kinds, then strict checks** (`_arena_crosscheck.effects`). Arena's annotations and
-  phase's effects in one vocabulary; then each fact phase states as fixed (an amount; who
-  drew, gained life, controls the tokens; a token's, counter's, damaged or moved object's
-  type; whose object moved) against what Arena logged. A count Arena exceeded passes when
+  phase's effects in one vocabulary; then each fact phase states as fixed (an amount; a
+  pump's power and toughness change; who drew, gained life, controls the tokens; a
+  token's, counter's, damaged or moved object's type; whose object moved) against what
+  Arena logged. An amount that is the X the spell or ability was cast with is fixed
+  too: Arena logs the chosen X (a persistent `CastingTimeOption` of type 2) on the
+  object, and a permanent keeps its spell's id as it resolves, so an enters ability
+  reads its permanent's (CR 107.3m; only an amount phase writes as the X paid, and
+  never after the permanent left and came back under a new id). An effect of a
+  delayed trigger the ability sets up (`effect_is_delayed`) belongs to that
+  trigger's own resolution and is left out. A count Arena exceeded passes when
   a permanent on that side has a replacement phase types for that event (Elspeth, Storm
   Slayer's doubler). Whether an effect may not happen is read per effect off the tree,
   never the text: optional (`effect_owner_optional`), conditional (`effect_conditional`:
@@ -38,7 +45,10 @@ resolution and fired trigger against phase's parse of the same ability.
   permission, "can't block") is one Arena logs nothing for. Every tree read goes through
   `crosswalk`; a concept's `scope` is not "whose object"
   (`filter_controller_side(effect_filter(...))` is), and `effect_player_reach`'s `None`
-  is "you" for a draw but unrestricted for damage.
+  is "you" for a draw but unrestricted for damage. It is "you" only when the effect
+  names no other player: "its controller draws a card" (a recipient read through
+  another object) can be either side. An object's type is not checked when one of
+  the effects that could have moved or damaged it takes an object of any type.
 - **Triggers** (`check.shown_by`). Each trigger Arena fired is checked one way against
   `crosswalk.trigger_def_event`: the events of the object Arena names as having set it
   off (its `TriggeringObject`, under any id it had), over its message and the three
@@ -49,10 +59,17 @@ resolution and fired trigger against phase's parse of the same ability.
 - **Confident pairings only** (`_arena_crosscheck.align`). An Arena ability pairs with
   phase's at near-identical text (0.9, after reading Arena's mana symbols, `CARDNAME` and
   "this permanent" as phase's), by containment, by a keyword rule (an instance of an Arena
-  keyword, its `BaseId`: Fading, Evoke, paired with phase's own ability for it), by a grant ("~ gains "…"" is the granting ability), or as
+  keyword, its `BaseId`: Fading, Evoke, paired with phase's own ability for it), by a
+  Saga chapter's number (Arena files a chapter under `SagaChapter` with its
+  `BaseIdNumeral`; phase calls the trigger "Chapter N"), by a grant ("~ gains "…"" is the
+  granting ability), or as
   one ability phase writes as two triggers (Ivora, Insatiable Heir). Anything weaker is
   listed as unsure and never scored: a wrong pairing is a false finding, or worse, a false
-  pass. A static ability never resolves (CR 405.6b) and is never a candidate.
+  pass. An instance of a keyword phase lists on the card with no ability to
+  compare it to (prowess, ward, warp's delayed exile, ninjutsu's untexted
+  activation) is `keyword-only`. That is the last resort: only once nothing else
+  pairs, and only on a card with no keyword ability phase wrote out ("CR 702.…: …")
+  that the instance could be. A static ability never resolves (CR 405.6b) and is never a candidate.
 - **Rebalanced cards** are compared against the paper card's parse with a warning (Arena
   no longer plays them as rebalanced); a digital-only card only when phase parses it.
 - **The logs are kept.** Arena overwrites `Player-prev.log` each launch, so each account

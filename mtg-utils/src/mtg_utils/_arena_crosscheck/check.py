@@ -11,8 +11,10 @@ Rows, one per resolution or trigger, each with a ``status``:
   ``phase-extra`` / ``arena-extra`` (see ``effects``), or why it wasn't scored:
   ``permanent-spell`` (a permanent spell only resolves onto the battlefield),
   ``no-card``, ``token`` (a token's ability has no card to look up),
-  ``no-phase-parse``, ``unsure-pairing``, ``reflexive`` (a "When you do" or delayed
-  trigger, which phase keeps inside its parent);
+  ``no-phase-parse``, ``unsure-pairing``, ``keyword-only`` (an instance of a
+  keyword phase lists on the card with no ability to compare it to: prowess,
+  ward, warp's delayed exile, ninjutsu's untexted activation), ``reflexive`` (a
+  "When you do" or delayed trigger, which phase keeps inside its parent);
 * triggers: ``match`` / ``mismatch`` (the events of what set it off aren't the event
   phase's trigger watches), ``not-logged`` (Arena logs no event for it, e.g. a
   library search), ``unchecked`` (phase's event has no Arena counterpart),
@@ -30,6 +32,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict
 from importlib import resources
 from pathlib import Path
+from typing import NamedTuple
 
 from mtg_utils._arena_crosscheck.align import Pairing, PhaseAbility, abilities_of, pair
 from mtg_utils._arena_crosscheck.effects import (
@@ -106,7 +109,20 @@ def load_ignores() -> list[dict]:
     return tomllib.loads(text.read_text(encoding="utf-8")).get("ignore", [])
 
 
-def _unsure(row: dict, pairing: Pairing) -> dict:
+class _Parsed(NamedTuple):
+    """Phase's parse of one card: its abilities, and the keywords it lists on
+    the card (lower case)."""
+
+    abilities: tuple[PhaseAbility, ...]
+    keywords: frozenset[str]
+
+
+def _unpaired(row: dict, pairing: Pairing, parsed: _Parsed) -> dict:
+    """The row for an Arena ability with no phase ability to compare."""
+    if pairing.method == "keyword-only":
+        return {**row, "status": "keyword-only"}
+    if not parsed.abilities:
+        return {**row, "status": "no-phase-parse"}
     return {
         **row,
         "status": "unsure-pairing",
@@ -131,10 +147,11 @@ class Checker:
         self._card_of = card_of
         self._trees_of = trees_of
         self._ignores = list(ignores)
-        self._abilities: dict[str, tuple[PhaseAbility, ...] | None] = {}
+        #: Per card name, phase's parse; ``None`` for a card phase has no tree for.
+        self._parsed: dict[str, _Parsed | None] = {}
 
-    def _lookup(self, grp: int | None, row: dict) -> tuple[PhaseAbility, ...] | dict:
-        """The card's phase abilities, or ``row`` with why there are none. Fills
+    def _lookup(self, grp: int | None, row: dict) -> _Parsed | dict:
+        """Phase's parse of the card, or ``row`` with why there is none. Fills
         the row's ``card`` and ``warnings``."""
         card = self.text.card(grp)
         name = card.paper_name if card else None
@@ -145,12 +162,18 @@ class Checker:
             return {**row, "status": "no-card"}
         if card and card.token:
             return {**row, "status": "token"}
-        if name not in self._abilities:
+        if name not in self._parsed:
             record = self._card_of(name)
             trees = self._trees_of(record) if record else ()
-            self._abilities[name] = tuple(abilities_of(trees)) if trees else None
-        abilities = self._abilities[name]
-        return abilities or {**row, "status": "no-phase-parse"}
+            self._parsed[name] = (
+                _Parsed(
+                    tuple(abilities_of(trees)),
+                    frozenset(kw.lower() for t in trees for kw in t.card_keywords),
+                )
+                if trees
+                else None
+            )
+        return self._parsed[name] or {**row, "status": "no-phase-parse"}
 
     def _replacements(
         self, battlefield: Sequence[tuple[int, int | None]], seat: int | None
@@ -193,6 +216,10 @@ class Checker:
             "other_source": sorted({t for e in rest for t in e.types}),
             "warnings": [],
         }
+        if res.x.own is not None:
+            row["x"] = res.x.own  # the X it was cast or activated with
+        if res.x.spell is not None:
+            row["spell_x"] = res.x.spell  # the X its permanent's spell was cast with
         permanent = set(res.card_types) & PERMANENT_CARD_TYPES
         found = self._lookup(res.source_grpid if is_ability else res.grpid, row)
         if not is_ability and permanent and not observed:
@@ -205,16 +232,28 @@ class Checker:
             # a "When you do" or delayed trigger: phase keeps it inside its parent
             return {**row, "status": "reflexive"}
         if ability is not None:
-            pairing = pair(ability.text, found, keyword=ability.keyword)
+            pairing = pair(
+                ability.text,
+                found.abilities,
+                keyword=ability.keyword,
+                numeral=ability.numeral,
+                card_keywords=found.keywords,
+            )
             if pairing.ability is None:
-                return _unsure(row, pairing)
+                return _unpaired(row, pairing, found)
             chosen = [pairing.ability]
             row["pairing"] = pairing.method
+        elif not found.abilities:
+            return {**row, "status": "no-phase-parse"}
         else:
-            chosen = [a for a in found if a.origin == "ability" and a.kind == "Spell"]
-        kinds = compare_kinds(observed, chosen)
+            chosen = [
+                a
+                for a in found.abilities
+                if a.origin == "ability" and a.kind == "Spell"
+            ]
+        kinds = compare_kinds(observed, chosen, res.x)
         checks = strict_checks(
-            chosen, mine, res.controller, counter_name=self.text.counter
+            chosen, mine, res.controller, counter_name=self.text.counter, x=res.x
         )
         explain_excess(checks, self._replacements(res.battlefield, res.controller))
         row.update(
@@ -270,12 +309,14 @@ class Checker:
             return {**row, "status": "reflexive"}
         pairing = pair(
             ability.text,
-            found,
+            found.abilities,
             keyword=ability.keyword,
+            numeral=ability.numeral,
+            card_keywords=found.keywords,
             keep=lambda a: a.trigger_event is not None,
         )
         if pairing.ability is None:
-            return _unsure(row, pairing)
+            return _unpaired(row, pairing, found)
         events = [a.trigger_event for a in pairing.abilities]
         row.update(
             phase_text=" / ".join(a.desc for a in pairing.abilities),

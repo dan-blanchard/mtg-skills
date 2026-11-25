@@ -220,13 +220,16 @@ class ArenaCard:
 @dataclass(frozen=True)
 class ArenaAbility:
     """One Arena ability: its category, its text (``CARDNAME`` for the card), the
-    keyword it is an instance of (``BaseId``: "Fading 5" is Fading), and the ability
-    a reflexive "When you do" or delayed trigger belongs to (``HiddenByAbilityIds``)."""
+    keyword it is an instance of (``BaseId``: "Fading 5" is Fading) with that
+    instance's number (``BaseIdNumeral``: the 5; a Saga's chapter, whose
+    ``BaseId`` reads ``SagaChapter``), and the ability a reflexive "When you do"
+    or delayed trigger belongs to (``HiddenByAbilityIds``)."""
 
     category: int | None
     text: str | None
     keyword: str | None = None
     parent: int | None = None
+    numeral: int | None = None
 
 
 class CardText:
@@ -256,17 +259,19 @@ class CardText:
                 )
             }
             rows = con.execute(
-                "SELECT Id, Category, TextId, BaseId, HiddenByAbilityIds FROM Abilities"
+                "SELECT Id, Category, TextId, BaseId, HiddenByAbilityIds,"
+                " BaseIdNumeral FROM Abilities"
             ).fetchall()
-            texts = {ab_id: text(text_id) for ab_id, _, text_id, _, _ in rows}
+            texts = {ab_id: text(text_id) for ab_id, _, text_id, *_ in rows}
             self._abilities = {
                 ab_id: ArenaAbility(
                     category,
                     texts[ab_id],
                     texts.get(base) if base else None,
                     int(str(hidden).split(",")[0]) if hidden else None,
+                    numeral or None,
                 )
-                for ab_id, category, _, base, hidden in rows
+                for ab_id, category, _, base, hidden, numeral in rows
             }
             self._counters = {
                 value: text(loc_id)

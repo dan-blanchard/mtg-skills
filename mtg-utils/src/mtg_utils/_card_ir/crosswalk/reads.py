@@ -2779,6 +2779,30 @@ def counter_kind(node: TypedMirrorNode) -> str:
     return ck if isinstance(ck, str) else ""
 
 
+def chosen_x_sign(node: TypedMirrorNode, field: str = "amount") -> int | None:
+    """``1`` / ``-1`` when an effect's ``field`` is the X its own spell or
+    ability was cast or activated with, as phase leaves it — an amount or count
+    that refers to the variable X ("~ deals X damage"), a power or toughness of
+    "X" or "-X" ("gets -X/+X") — else ``None``: a fixed number, a count of
+    something, X doubled or halved. CR 107.3a: the controller chooses X as they
+    cast or activate. An X the card's own text defines ("where X is …") is a
+    different quantity where phase resolves it; a caller holds this read to a
+    spell whose X was announced. The X paid for a permanent's spell, which its
+    enters ability reads (CR 107.3m), is ``ref_qty_tag``'s ``CostXPaid``."""
+    amount = getattr(node, field, MISSING)
+    if not _present(amount):
+        return None
+    if tag_of(amount) == "Quantity":  # a power / toughness wrapping a quantity
+        amount = getattr(amount, "value", None)
+    if tag_of(amount) == "Ref":
+        qty = getattr(amount, "qty", None)
+        named_x = tag_of(qty) == "Variable" and getattr(qty, "name", None) == "X"
+        return 1 if named_x else None
+    if tag_of(amount) == "Variable":
+        return {"X": 1, "-X": -1}.get(getattr(amount, "value", None))
+    return None
+
+
 def amount_is_scaling(node: TypedMirrorNode, field: str = "amount") -> bool:
     """Whether an effect's ``field`` (``amount`` / ``count``) is a DYNAMIC quantity.
 
@@ -6102,14 +6126,40 @@ def effect_conditional(root: object, effect_node: object) -> bool:
     )
 
 
+def _delayed_effect_ids(root: object) -> frozenset[int]:
+    return frozenset(
+        id(inner)
+        for delayed in iter_typed_nodes(root)
+        if tag_of(delayed) == "CreateDelayedTrigger"
+        for inner in iter_typed_nodes(delayed)
+        if inner is not delayed
+    )
+
+
+def effect_is_delayed(root: object, effect_node: object) -> bool:
+    """Whether ``effect_node`` belongs to a delayed trigger ``root`` sets up
+    ("when you next cast a creature spell this turn, …", "at the beginning of
+    the next end step, …"): it happens when that trigger resolves, if it ever
+    fires, not as ``root`` does (CR 603.7). The delayed nodes are walked once
+    per ``root``."""
+    if not isinstance(root, TypedMirrorNode):
+        return id(effect_node) in _delayed_effect_ids(root)
+    return id(effect_node) in memo_on(
+        root, "_xw_delayed_effect_ids", _delayed_effect_ids
+    )
+
+
 def effect_targets_optional(root: object, effect_node: object) -> bool:
     """Whether ``effect_node`` may have no target: "up to one target creature"
-    (the effect's own ``up_to``) or a wrapper whose targeting is optional, so the
-    effect can do nothing at all."""
+    (the effect's own ``up_to``, or its wrapper's ``multi_target`` range starting
+    at zero: Summon: Bahamut's "destroy up to one target nonland permanent") or
+    a wrapper whose targeting is optional, so the effect can do nothing at all."""
     if getattr(effect_node, "up_to", None) is True:
         return True
     owner = _find_owner_wrapper(root, effect_node)
-    return getattr(owner, "optional_targeting", None) is True
+    if getattr(owner, "optional_targeting", None) is True:
+        return True
+    return getattr(getattr(owner, "multi_target", None), "min", None) == 0
 
 
 def sacrifice_names_no_player(root: object, node: TypedMirrorNode) -> bool:

@@ -13,8 +13,10 @@ set aside, not scored):
   ``conditional`` when it doesn't.
 * **Strict checks** (:func:`strict_checks`): the facts phase states as fixed, checked
   against the amounts and objects Arena logged: a fixed damage, life, draw, token or
-  counter amount; who drew, gained life, or controls the tokens; a token's, counter's,
-  damaged object's or moved object's type; whose object moved. An amount from an
+  counter amount, or one that is the X the spell or ability was cast with (Arena
+  logs the X chosen); a pump's power and toughness change; who drew, gained life,
+  or controls the tokens; a token's, counter's, damaged object's or moved
+  object's type; whose object moved. An amount from an
   effect that may not happen is a ceiling. A count Arena exceeded passes when a
   permanent on the board has a replacement phase types for that event
   (:func:`explain_excess`: a token doubler, Quantum Riddler's extra draw).
@@ -30,15 +32,24 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 
 from mtg_utils._arena_crosscheck.align import PhaseAbility
-from mtg_utils._arena_crosscheck.log import Effect, Resolution, num, word
+from mtg_utils._arena_crosscheck.log import (
+    NO_X,
+    ChosenX,
+    Effect,
+    Resolution,
+    num,
+    word,
+)
 from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     amount_factor,
     amount_is_scaling,
     change_zone_dirs,
+    chosen_x_sign,
     counter_kind,
     effect_conditional,
     effect_filter,
+    effect_is_delayed,
     effect_owner_optional,
     effect_player_reach,
     effect_targets_optional,
@@ -49,6 +60,8 @@ from mtg_utils._card_ir.crosswalk import (
     has_fixed_count,
     in_uncertain_branch,
     iter_typed_nodes,
+    recipient_tag,
+    ref_qty_tag,
     tag_of,
     token_creator_side,
 )
@@ -247,10 +260,27 @@ def phase_kind(c: ConceptNode) -> tuple[str, frozenset[str]]:
     return f"other:{tag or con}", frozenset()
 
 
-def uncertain(ability: PhaseAbility, c: ConceptNode) -> bool:
+def _x_amount(c: ConceptNode, fld: str, x: ChosenX) -> int | None:
+    """An effect's ``fld`` when it is an X Arena logged: the X its own spell or
+    ability was cast with, or — for an amount phase reads off the X paid for a
+    permanent's spell, its enters ability's (CR 107.3m) — that spell's."""
+    paid = ref_qty_tag(c.node, fld) == "CostXPaid"
+    sign = 1 if paid else chosen_x_sign(c.node, fld)
+    if x.own is not None and sign is not None:
+        return sign * x.own
+    return x.spell if paid else None
+
+
+def _may_be_zero(c: ConceptNode, fld: str, x: ChosenX) -> bool:
+    """Whether an effect's amount can be nothing: one that scales, unless it is
+    an X Arena logged (:func:`_x_amount`) and that X isn't zero."""
+    return amount_is_scaling(c.node, fld) and not _x_amount(c, fld, x)
+
+
+def uncertain(ability: PhaseAbility, c: ConceptNode, x: ChosenX = NO_X) -> bool:
     """Whether an effect may not happen: optional, conditional, in a branch its
     controller doesn't decide, one of two alternatives, with no target required,
-    or of an amount that can be zero."""
+    or of an amount that can be zero (``x`` is the X Arena logged, if any)."""
     root, node = ability.root, c.node
     return (
         effect_owner_optional(root, node)
@@ -262,8 +292,8 @@ def uncertain(ability: PhaseAbility, c: ConceptNode) -> bool:
             for other in ability.effects
             if other is not c
         )
-        or amount_is_scaling(node, "amount")
-        or amount_is_scaling(node, "count")
+        or _may_be_zero(c, "amount", x)
+        or _may_be_zero(c, "count", x)
     )
 
 
@@ -271,16 +301,21 @@ def uncertain(ability: PhaseAbility, c: ConceptNode) -> bool:
 _Eff = tuple[PhaseAbility, ConceptNode, bool]
 
 
-def _effects(chosen: Sequence[PhaseAbility]) -> list[_Eff]:
+def _effects(chosen: Sequence[PhaseAbility], x: ChosenX = NO_X) -> list[_Eff]:
     """Each effect of the chosen abilities, with whether it may not happen: any
     effect of one of several modes may not, nor any that follows one that may
-    not in its ability (Bilbo's exile of the spell it may cast)."""
+    not in its ability (Bilbo's exile of the spell it may cast). An effect of a
+    delayed trigger the ability sets up is left out: it is that trigger's
+    resolution, which Arena logs by itself (Summon: Fenrir's "when you next cast
+    a creature spell this turn, …")."""
     several = len(chosen) > 1
     out: list[_Eff] = []
     for a in chosen:
         before = False
         for c in a.effects:
-            before = before or several or uncertain(a, c)
+            if effect_is_delayed(a.root, c.node):
+                continue
+            before = before or several or uncertain(a, c, x)
             out.append((a, c, before))
     return out
 
@@ -294,8 +329,10 @@ class KindResult:
     unseen: tuple[str, ...]
 
 
-def compare_kinds(observed: set[str], chosen: Sequence[PhaseAbility]) -> KindResult:
-    kinds = [(*phase_kind(c), maybe) for _, c, maybe in _effects(chosen)]
+def compare_kinds(
+    observed: set[str], chosen: Sequence[PhaseAbility], x: ChosenX = NO_X
+) -> KindResult:
+    kinds = [(*phase_kind(c), maybe) for _, c, maybe in _effects(chosen, x)]
     covered: set[str] = set()
     for _, shown, _ in kinds:
         covered |= shown & observed
@@ -324,13 +361,19 @@ class Check:
     explained_by: tuple[str, ...] = ()
 
 
-def _fixed_all(nodes: Iterable[ConceptNode], fld: str) -> list[int] | None:
-    """Each node's fixed ``fld``, or ``None`` when any isn't fixed."""
+def _fixed_all(
+    nodes: Iterable[ConceptNode], fld: str, x: ChosenX = NO_X
+) -> list[int] | None:
+    """Each node's known ``fld``: a fixed number, or an X Arena logged
+    (:func:`_x_amount`). ``None`` when any is neither."""
     out = []
     for c in nodes:
-        if not has_fixed_count(c.node, fld):
+        if has_fixed_count(c.node, fld):
+            out.append(amount_factor(c.node, fld))
+        elif (amount := _x_amount(c, fld, x)) is not None:
+            out.append(amount)
+        else:
             return None
-        out.append(amount_factor(c.node, fld))
     return out
 
 
@@ -341,6 +384,10 @@ _REACH_SIDES = {
     "each": frozenset({"you", "opponent"}),
 }
 _ANY_SIDE = frozenset({"you", "opponent"})
+#: An effect's recipient that is its controller: none written, or ``Controller``.
+_YOUR_RECIPIENTS = frozenset({None, "Controller"})
+
+
 #: A filter's or token creator's side (``crosswalk``) → the side of the board it is.
 _SIDE_WORD = {"you": "you", "opponents": "opponent"}
 _GENERIC = frozenset({"Permanent", "Card"})
@@ -351,6 +398,26 @@ def _filter_types(c: ConceptNode) -> set[str]:
     if filt is None:
         return set()
     return {*filter_core_types(filt), *filter_subtypes(filt)} - _GENERIC
+
+
+#: A filter that names objects by what they are; any other (``ParentTarget``,
+#: ``SelfRef``, ``TrackedSet`` …) names an object another effect picked out.
+_OPEN_FILTER_TAGS = frozenset({"Typed", "Any"})
+
+
+def _named_types(nodes: Iterable[ConceptNode]) -> set[str]:
+    """The types the effects' objects can have, or none when one of them takes an
+    object of any type (Heritage Reclamation's "destroy target artifact" beside
+    its "exile up to one target card from a graveyard"). An effect on an object
+    an earlier one named ("then return that card", "it deals 2 damage to that
+    creature") adds no type of its own."""
+    types: set[str] = set()
+    for c in nodes:
+        named = _filter_types(c)
+        if not named and tag_of(effect_filter(c.node)) in _OPEN_FILTER_TAGS:
+            return set()
+        types |= named
+    return types
 
 
 def _counter_norm(name: str | None) -> str:
@@ -369,6 +436,8 @@ class _Checks:
     mine: Sequence[Effect]
     controller: int | None
     counter_name: Callable[[int | None], str | None]
+    #: The X Arena logged for the resolution, if any.
+    x: ChosenX = NO_X
     out: list[Check] = field(default_factory=list)
 
     def add(self, name: str, expected: object, observed: object, ok: object) -> None:
@@ -380,9 +449,17 @@ class _Checks:
         return "you" if seat == self.controller else "opponent"
 
     def sides(self, effects: Sequence[_Eff]) -> frozenset[str]:
-        """The sides the effects' player reach allows (``you`` when unmarked)."""
-        reaches = [effect_player_reach(a.root, c.node) for a, c, _ in effects]
-        return frozenset().union(*(_REACH_SIDES.get(r, _ANY_SIDE) for r in reaches))
+        """The sides the effects' player reach allows: ``you`` when unmarked and
+        the effect names no other player. A player named through another object
+        ("its controller draws a card": Prophesied End) can be either side."""
+        out: frozenset[str] = frozenset()
+        for a, c, _ in effects:
+            reach = effect_player_reach(a.root, c.node)
+            named = recipient_tag(c.node) not in _YOUR_RECIPIENTS
+            if reach is None and named:
+                return _ANY_SIDE
+            out |= _REACH_SIDES.get(reach, _ANY_SIDE)
+        return out
 
     def check_sides(self, name: str, effects: Sequence[_Eff], seats: Iterable) -> None:
         sides = self.sides(effects)
@@ -409,7 +486,7 @@ def _damage(ctx: _Checks, effects: list[_Eff]) -> list[int]:
     values = [d for d, _ in damage]
     if not nodes or not damage:
         return values
-    amounts = _fixed_all((c for _, c, _ in nodes), "amount")
+    amounts = _fixed_all((c for _, c, _ in nodes), "amount", ctx.x)
     if amounts is not None:
         ceiling = any(maybe for _, _, maybe in nodes)
         ok = (
@@ -418,7 +495,7 @@ def _damage(ctx: _Checks, effects: list[_Eff]) -> list[int]:
             or (ceiling and sum(values) <= sum(amounts))
         )
         ctx.add("damage amount", amounts, values, ok)
-    subject = set().union(*(_filter_types(c) for _, c, _ in nodes))
+    subject = _named_types(c for _, c, _ in nodes)
     for _, w in damage:
         if subject and "player" in w:
             ctx.add("damage target type", sorted(subject), "player", ok=False)
@@ -447,7 +524,7 @@ def _life(ctx: _Checks, effects: list[_Eff], damage: list[int]) -> None:
         if not nodes or not observed:
             continue
         values = sorted(abs(v) for v, _ in observed)
-        amounts = _fixed_all((c for _, c, _ in nodes), "amount")
+        amounts = _fixed_all((c for _, c, _ in nodes), "amount", ctx.x)
         if amounts is not None:
             ceiling = any(maybe for _, _, maybe in nodes)
             lifelink = concept == "gain_life" and sum(values) == sum(amounts) + sum(
@@ -471,7 +548,7 @@ def _draws(ctx: _Checks, effects: list[_Eff]) -> None:
     ]
     if not nodes or not draws:
         return
-    amounts = _fixed_all((c for _, c, _ in nodes), "count")
+    amounts = _fixed_all((c for _, c, _ in nodes), "count", ctx.x)
     if amounts is not None:
         ceiling = any(maybe for _, _, maybe in nodes)
         total = sum(amounts)
@@ -486,7 +563,7 @@ def _tokens(ctx: _Checks, effects: list[_Eff]) -> None:
     tokens = [w for e in ctx.logged("TokenCreated") for w in e.who]
     if not nodes or not tokens:
         return
-    amounts = _fixed_all((c for _, c, _ in nodes), "count")
+    amounts = _fixed_all((c for _, c, _ in nodes), "count", ctx.x)
     if amounts is not None:
         ceiling = any(maybe for _, _, maybe in nodes)
         ok = _fits(sum(amounts), len(tokens), ceiling=ceiling)
@@ -528,10 +605,36 @@ def _counters(ctx: _Checks, effects: list[_Eff]) -> None:
         ctx.add("counter type", sorted(kinds), kind, kind in kinds)
         if kind in kinds:
             c, maybe = kinds[kind]
-            expected = _fixed_all([c], "count")
+            expected = _fixed_all([c], "count", ctx.x)
             if expected is not None and n is not None:
                 ok = _fits(expected[0], n, ceiling=maybe)
                 ctx.add("counter amount", expected[0], n, ok)
+
+
+#: Phase's effects that change power and toughness by an amount.
+_PUMP_TAGS = frozenset({"Pump", "PumpAll"})
+
+
+def _pumps(ctx: _Checks, effects: list[_Eff]) -> None:
+    """A pump's size against the power / toughness change Arena logged for each
+    object it reached (CR 613.4c). Only where every continuous effect of the
+    ability is a pump of a known size: a base-P/T set or an animation logs its
+    own change beside it."""
+    logged = [
+        (num(e.details, "power") or 0, num(e.details, "toughness") or 0)
+        for e in ctx.logged("PowerToughnessModCreated")
+    ]
+    continuous = [c for _, c, _ in effects if phase_kind(c)[0] == "continuous"]
+    pumps = [c for c in continuous if tag_of(c.node) in _PUMP_TAGS]
+    if not logged or not pumps or len(pumps) != len(continuous):
+        return
+    power = _fixed_all(pumps, "power", ctx.x)
+    toughness = _fixed_all(pumps, "toughness", ctx.x)
+    if power is None or toughness is None:
+        return
+    sizes = sorted(set(zip(power, toughness, strict=True)))
+    for change in logged:
+        ctx.add("pump amount", [list(s) for s in sizes], list(change), change in sizes)
 
 
 _MOVERS = ("change_zone", "bounce", "destroy", "sacrifice")
@@ -547,7 +650,7 @@ def _moved(ctx: _Checks, effects: list[_Eff]) -> None:
         for e in ctx.logged("ObjectIdChanged")
         if e.who
     }
-    subject = set().union(*(_filter_types(c) for c in nodes))
+    subject = _named_types(nodes)
     sides = {filter_controller_side(effect_filter(c.node)) for c in nodes}
     want = (
         {"opponents": "opponent", "you": "you"}.get(next(iter(sides)))
@@ -575,15 +678,18 @@ def strict_checks(
     controller: int | None,
     *,
     counter_name: Callable[[int | None], str | None],
+    x: ChosenX = NO_X,
 ) -> list[Check]:
-    """Phase's fixed facts against Arena's amounts and objects (module docstring)."""
-    ctx = _Checks(mine, controller, counter_name)
-    effects = _effects(chosen)
+    """Phase's fixed facts against Arena's amounts and objects (module docstring).
+    ``x`` is the X Arena logged for the resolution, if any."""
+    ctx = _Checks(mine, controller, counter_name, x)
+    effects = _effects(chosen, x)
     damage = _damage(ctx, effects)
     _life(ctx, effects, damage)
     _draws(ctx, effects)
     _tokens(ctx, effects)
     _counters(ctx, effects)
+    _pumps(ctx, effects)
     _moved(ctx, effects)
     return ctx.out
 
