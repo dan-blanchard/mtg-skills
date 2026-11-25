@@ -7,11 +7,32 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 ## Open
 
 The phase-rs parse reports below are packaged as ready-to-post issue files in
-`docs/plans/phase-upstream-issues/` (46, re-verified against v0.118.0; 2026-11-01, issues 25-26 2026-11-09).
-Posting them is Dan's. **Re-verify them against v0.131.0 before posting**: the bump of
-2026-11-24 found several fixed upstream (`docs/plans/phase-upstream-reports.md`, "Fixed at
-v0.131.0") and did not re-read the rest. Phase also publishes a `metadata.confirmed_misparse`
-category on about 2,500 records now, so many of these are already known to it.
+`docs/plans/phase-upstream-issues/` (53, each re-verified card by card against
+v0.131.0 on 2026-11-24). Posting them is Dan's; its README has the posting order,
+ranked by the workaround code each retires. Phase also publishes a
+`metadata.confirmed_misparse` category on about 2,500 records now, so some of these
+are already known to it (each draft says where).
+
+**From ranking the upstream drafts (2026-11-25; `docs/plans/phase-upstream-issues/ranking.md`)**
+
+- **Workarounds with no draft.** 102 of the 201 bridge-ledger rows record a phase
+  bug that no draft names (the drafts left the report's Appendix A out on
+  purpose; two rows, `energy_gain_replacement_parked` and `wither_grant_unparsed`,
+  are in no report either), and so do 29 of the 87 canary tests: five of the
+  eight `misparsed_shapes` rows (Solar Blaze, Season of Gathering, Unwanted
+  Remake, Umbra Mystic, Mirko), three `overlay_corrections` arms (Athreos,
+  Territorial Gorger, Venser's Diffusion), the `debuff` and `blight` tokens,
+  Tell Me What You See. `ranking.md` §D lists them for the next drafting pass.
+- **A canary that can never fire.** `test_lose_the_game_player_dropped_canary`
+  (Angel of Destiny; Nicol Bolas, Dragon-God) asserts the `LoseTheGame` node has
+  no `target`. Phase types the loser on the ability's `player_scope` since
+  v0.118.0, so the assertion stays true for good. The gap is ours:
+  `crosswalk.ends_the_game` doesn't read `player_scope`. Read it there, then
+  delete the canary.
+- **Stale lines in `phase-upstream-reports.md`**: §1, §10, §12b and §24 name
+  retired canaries as current; Appendix A says 202 rows and lists 188 (the
+  ledger has 201, ten added since); "all 166 `retirement_canary` tests" counts
+  parametrized cases (87 functions).
 
 **From the phase v0.131.0 pin bump (2026-11-24)**
 
@@ -285,8 +306,8 @@ category on about 2,500 records now, so many of these are already known to it.
   mayhem are dropped, so the `self-recurring` preset and the "Self-recurring
   fodder" serve read them by keyword (`theme_presets.SELF_RECURRING_KEYWORD_GAPS`,
   `test_self_recurring_keyword_gap_canary`); Nether Shadow's graveyard return is an
-  `unparsed_condition` residue since v0.104.0 (ledger row
-  `nether_shadow_graveyard_return_parked`); Bumi's Feast
+  `unparsed_condition` residue since v0.104.0 (the recovery reads it:
+  `card_advantage._recovered_returns_self`; its ledger row is retired); Bumi's Feast
   Lecture's earthbend return binds to the Food token (`LastCreated`) instead of the
   land (`test_earthbend_last_created_binding_canary`).
 - **Phase misparses behind the "Self-recurring fodder" serve** (found 2026-10-09,

@@ -4,6 +4,27 @@ Ready-to-post issue bodies generated from `docs/plans/phase-upstream-reports.md`
 
 Numbering: `NN` is the report section; issues found after the report (25 on: the Arena game-log comparison, the graveyard-mirror follow-up, and 27 to 36 from the v0.131.0 pin bump) take the next number, and the table's last column names their source. Sections 12, 15, 16 and 24 hold several unrelated shapes, so they are split into letter-suffixed files (12a-d, 15a-i, 16a-b, 24a-j). Files are never renumbered: a number whose issue phase fixed is retired, not reused. Cards the report names only as "also" / "ledger" / "backlog, not re-checked" are mentioned in an issue's text as "the same shape appears on these cards, not re-quoted here"; Appendix A (ledger rows) and the "Not drafted" list are out of scope here.
 
+## Posting order
+
+Ranked 2026-11-25 by the workaround code each draft retires on our side when phase fixes it: bridge-ledger rows, `retirement_canary` tests, and correction-layer rows or recovery tokens (`ranking.md` has every draft's count, what each attribution rests on, and which were verified in the code). "Strict" counts only a workaround whose card or exact shape the draft names. Where two drafts were close, the one phase does not already flag `confirmed_misparse` goes first. Drafts in parentheses are the same upstream fix: post them together.
+
+| Order | Draft | Strict | What we delete when it is fixed |
+|---|---|---|---|
+| 1 | 11 (+ 24e) prevention and redirection parked | 6 | the `damage_redirect` and `counter_bonus` recovery tokens and their two canaries; ledger rows `prevention_shield_parse_failure`, `gated_prevention_parked`, `granted_unattach_prevention_parse_failure`; part of `reads.PARKED_PREVENTION_RESIDUES` |
+| 2 | 02 (+ 30, 24i) trigger events parked as `mode.Unknown` | 6 | six ledger rows (Hero of Bretagard / Ranar, Nicanzil, Dream Devourer, The Fourth Doctor, Sacred Ground, Thrasher Brute); if phase types Unknown modes generally, also the `misparsed_shapes` Akiri row and its canary |
+| 3 | 13 `affected` stamped `SelfRef` | 7 | `overlay_corrections`' can't-untap, self-animation and animated-object arms and their three canaries; ledger row `equipped_defender_attack_misread`. Lead with Hidden Guerrillas and Warmonger's Chariot: phase already flags the other four records |
+| 4 | 08 (+ 07) `where X` bindings and the returns they swallow | 4 + 3 | the where-X recovery of connive / amass / investigate, the `devour` token, four cases of the resource canary; 07's three reanimation ledger rows |
+| 5 | 15h a clause swallowed beside a typed effect | 4 | ledger rows for the ice-counter defender, Wakanda Forever!'s indestructible counter, and the two cloak rows |
+| 6 | 14 (+ 24c, 28) anaphora bound to the wrong object | 5 | `overlay_corrections`' anaphoric-pump and fresh-tap-target arms, the Fatespinner skip, and their three canaries; 24c's flip `SelfRef` arm; 28's spell-`SelfRef` guards |
+| 7 | 16a keyworded self-recursion, **split in two first** | 2 | the keyword half: `theme_presets.SELF_RECURRING_KEYWORD_GAPS` and its canary, `energy_unearth_parked`. The aftermath half ("Dawn has no face record") is a different fix worth its own issue: seven `missing_face` ledger rows and their canary |
+| 8 | 15c (+ 15a, 15b, 15d) a keyword dropped from a typed body | 4 + 2 | everything in `dropped_keywords` but the Role arm, `recovery._partly_read_grant`, five canaries. 15b retires nothing without 15a |
+| 9 | 15f a Role token has no ability | 4 | `dropped_keywords._role_grants` and its canary; ledger rows `role_attach_parked`, `monster_role_trample_parked` |
+| 10 | 25 (+ 26) "exile it instead" of the graveyard | 3 + 2 | the `misparsed_shapes` exile-instead row and its two canaries (23 cards); 26's `exile_instead` token and its canary |
+
+Next: 09 with 36 (they share `recovery._peeled_subject`), 15e, 19, 18 with 32 (the `self_discount` token), 03 with 35 and 27 (the "this way" tracked set), then 12a, 12c, 12d and 17 (two strict each), and 12b with 20 (both Variable Solutions).
+
+Pure reports, which retire nothing on our side: 16b, 20, 21, 23, 24f, 24h, 24i, 27, 29, 30, 34 (and 15b alone).
+
 ## Issues
 
 | File | Title | Cards | Report section |
