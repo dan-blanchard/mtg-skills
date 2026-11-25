@@ -1080811,6 +1080811,236 @@
     "type_line": "Legendary Creature — Angel"
    }
   },
+  "Sigardian Zealot": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Cleric"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6779afb6-fe7c-4723-a265-ea7a1cc42537",
+       "98adcc86-debd-4aa8-86e5-c51ec08dab5a"
+      ]
+     },
+     "name": "Sigardian Zealot",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of combat on your turn, choose any number of creatures with different powers. Each of them gets +X/+X and gains vigilance until end of turn, where X is this creature's power.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "MIC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-09-24",
+       "text": "A set of creatures has different powers if every creature's power is a different value. For example, a 1/1 creature, a 2/1 creature, and a 3/1 creature all have different powers."
+      },
+      {
+       "date": "2021-09-24",
+       "text": "No creatures are targeted by Sigardian Zealot's ability. The set of creatures is chosen as the ability resolves. You may choose a single creature as a valid set. If you do, that creature will get +X/+X and gain vigilance until end of turn."
+      }
+     ],
+     "scryfall_oracle_id": "30aecffc-bbbf-44d0-8002-0ee5982f27b9",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, choose any number of creatures with different powers. Each of them gets +X/+X and gains vigilance until end of turn, where X is ~'s power.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "choose creatures with different powers",
+         "name": "unparsed_verb_arguments",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "multi_target": {
+         "max": null,
+         "min": 0
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "type": "ParentTarget"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": "get +X/+X and gains vigilance",
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "type": "AddDynamicPower",
+              "value": {
+               "inner": {
+                "qty": {
+                 "scope": {
+                  "type": "Source"
+                 },
+                 "type": "Power"
+                },
+                "type": "Ref"
+               },
+               "minimum": 0,
+               "type": "ClampMin"
+              }
+             },
+             {
+              "type": "AddDynamicToughness",
+              "value": {
+               "inner": {
+                "qty": {
+                 "scope": {
+                  "type": "Source"
+                 },
+                 "type": "Power"
+                },
+                "type": "Ref"
+               },
+               "minimum": 0,
+               "type": "ClampMin"
+              }
+             },
+             {
+              "keyword": "Vigilance",
+              "type": "AddKeyword"
+             }
+            ]
+           }
+          ],
+          "target": null,
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G}",
+    "name": "Sigardian Zealot",
+    "oracle_id": "30aecffc-bbbf-44d0-8002-0ee5982f27b9",
+    "oracle_text": "At the beginning of combat on your turn, choose any number of creatures with different powers. Each of them gets +X/+X and gains vigilance until end of turn, where X is this creature's power.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Human Cleric"
+   }
+  },
   "Sight of the Scalelords": {
    "phase_records": [
     {
@@ -1224853,6 +1225083,181 @@
     "oracle_id": "dae4815e-9025-4993-ab46-52a3f1a7219e",
     "oracle_text": "Equipped creature has \"{2}, {T}: This creature deals 1 damage to any target\" and \"Whenever a creature dies, untap this creature.\"\nWhenever a Shaman creature enters, you may attach this Equipment to it.\nEquip {4}",
     "type_line": "Kindred Artifact — Shaman Equipment"
+   }
+  },
+  "Thornbow Archer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Archer"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3290c60a-f9a0-464d-a15e-8473a6d50d96",
+       "d28ca3ab-9e44-489d-9882-3deccd41f390"
+      ]
+     },
+     "name": "Thornbow Archer",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks, each opponent who doesn't control an Elf loses 1 life.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "ORI",
+      "PLST"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a9b35457-0f1c-495c-a508-6f6693835051",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, each opponent who doesn't control an Elf loses 1 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "comparator": "EQ",
+         "count": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Elf"
+           }
+          ]
+         },
+         "relation": {
+          "type": "Opponent"
+         },
+         "type": "ControlsCount"
+        },
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Thornbow Archer",
+    "oracle_id": "a9b35457-0f1c-495c-a508-6f6693835051",
+    "oracle_text": "Whenever this creature attacks, each opponent who doesn't control an Elf loses 1 life.",
+    "power": "1",
+    "toughness": "2",
+    "type_line": "Creature — Elf Archer"
    }
   },
   "Thornwood Falls": {

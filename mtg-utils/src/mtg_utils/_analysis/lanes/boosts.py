@@ -359,9 +359,7 @@ def boosts_others_signals(tree: ConceptTree, out: Iterable[Signal]) -> list[Sign
         add(signal_keys.BOOST_ANTHEM)
     subtypes = {s.lower() for s in tree.card_subtypes}
     aura = "aura" in subtypes or any(k.lower() == "bestow" for k in tree.card_keywords)
-    if set(gear_pump_subjects(tree, either_arm=True)) & _ATTACHED_GEAR_SUBJECTS and (
-        not _attaches_to_opponents_only(tree)
-    ):
+    if set(gear_pump_subjects(tree, either_arm=True)) & _ATTACHED_GEAR_SUBJECTS:
         add(signal_keys.BOOST_ATTACHED)
         _attached_delivery(add, aura=aura, equipment="equipment" in subtypes)
     if not is_creature_body(tree):
@@ -372,27 +370,6 @@ def boosts_others_signals(tree: ConceptTree, out: Iterable[Signal]) -> list[Sign
             elif controller_reach(filter_controller(affected)) == "yours":
                 add(signal_keys.BOOST_COUNTERS)
     return [Signal(_BOOSTS_OTHERS, "you", s, "", tree.name, "high") for s in found]
-
-
-def _attaches_to_opponents_only(tree: ConceptTree) -> bool:
-    """Gear with no equip whose every attach targets an opponent's creature
-    (Bloodthirsty Blade's "{1}: Attach this Equipment to target creature an
-    opponent controls"): its boost is never yours (the coordinator's call,
-    2026-11-25)."""
-    if "equipment" not in {s.lower() for s in tree.card_subtypes} or any(
-        k.lower() == "equip" for k in tree.card_keywords
-    ):
-        return False
-    attaches = [
-        getattr(node, "target", None)
-        for unit in tree.units
-        for node in iter_typed_nodes(unit.node)
-        if tag_of(node) == "Attach"
-    ]
-    return bool(attaches) and all(
-        controller_reach(filter_controller(target)) == "opponents"
-        for target in attaches
-    )
 
 
 def _attached_delivery(

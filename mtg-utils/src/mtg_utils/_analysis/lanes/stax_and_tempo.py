@@ -2107,7 +2107,10 @@ def _etb_pump_unit(unit: AbilityUnit) -> bool:
     hastes the creature that entered (Primal Forcemage, Ogre Battledriver) or
     your whole team (Goldnight Commander, Valor in Akros) — a freshly-entered
     creature attacks bigger the turn it arrives (CR 302.6 is what haste lifts).
-    A self-pump (Herd Gnarr) is not."""
+    A self-pump (Herd Gnarr) is not. Read off the unit's effect concepts, so a
+    perpetual raise of the creature that entered is its pump view
+    (``crosswalk.perpetual``: Leaf-Leap Guide's "~ and that creature
+    perpetually get +1/+1")."""
     if unit.origin != "trigger" or unit.trigger_event != "enters":
         return False
     watched = getattr(unit.node, "valid_card", None)
@@ -2115,7 +2118,8 @@ def _etb_pump_unit(unit: AbilityUnit) -> bool:
         return False
     if "Creature" not in filter_core_types(watched):
         return False
-    for n in iter_typed_nodes(getattr(unit.node, "execute", None)):
+    for c in unit.effects:
+        n = c.node
         tag = tag_of(n)
         target = getattr(n, "target", None)
         if tag in ("Pump", "GenericEffect") and tag_of(target) == "TriggeringSource":

@@ -590,3 +590,16 @@ def test_no_bridge_fires_where_a_structural_read_already_serves(monkeypatch):
             if (b.key, b.scope, b.subject) in idents:
                 served.append(f"{b.bridge_id}: {pin!r} ({b.key}/{b.scope})")
     assert not served, "structural reads already serve: " + "; ".join(served)
+
+
+def test_a_parked_choice_grants_only_the_keyword_its_typed_grant_names():
+    """Sigarda's Vanguard and Sigardian Zealot park the same "choose any number
+    of creatures with different powers"; Vanguard's chosen creatures gain double
+    strike, Zealot's vigilance. Row ``chosen_creatures_double_strike_parked``
+    reads the keyword off the typed grant, so only Vanguard is served it."""
+
+    def grants(name: str) -> set[str]:
+        return {s.subject for s in test_signals(name) if s.key == "team_boost_or_grant"}
+
+    assert "double strike" in grants("Sigarda's Vanguard")
+    assert "double strike" not in grants("Sigardian Zealot")

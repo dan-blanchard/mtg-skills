@@ -181,6 +181,21 @@ def test_modes_that_each_come_up_in_turn_keep_the_drawback():
     assert ("self_drawback", "you", "harm") in _idents("Demonic Pact")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "each player Angel of Destiny attacked this turn loses the game": a
+        # target-less ``LoseTheGame`` under ``player_scope: OpponentAttacked``.
+        "Angel of Destiny",
+        # "each opponent who doesn't control an Elf loses 1 life": a
+        # ``ControlsCount`` scope whose ``relation`` is the opponents.
+        "Thornbow Archer",
+    ],
+)
+def test_a_loss_the_ability_scopes_to_opponents_is_no_drawback(name):
+    assert not {i for i in _idents(name) if i[0] == "self_drawback"}
+
+
 # ── A cast copy of a named card can be a permanent ──────────────────────────────
 
 

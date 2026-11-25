@@ -114,7 +114,10 @@ first build); and **the builder's choices** where both were silent.
   spell's, its cycling trigger's an ability's (`crosswalk.keyword_grant_deliveries`).
 - **Gear that attaches only to an opponent's creature is no boost of yours**
   (Bloodthirsty Blade's "{1}: Attach this Equipment to target creature an opponent
-  controls", with no equip): no `boosts_others|attached`, no target subject.
+  controls", with no equip): no `boosts_others|attached`, no target subject, and
+  no `voltron_makers` either (`counters_voltron.gear_pump_subjects`, the read both
+  share, skips it; Dan's ruling, 2026-11-25: a boost that can only land on
+  opponents' creatures is never yours).
 - **Tribal and "cards you own" team pumps stay off `team_boost_or_grant|you|pump`**,
   as their typed peers are: Coalition Construct's chosen type and Stalwart Speartail's
   Dinosaurs read as History of Benalia's Knights and Goblin General's Goblins do, and

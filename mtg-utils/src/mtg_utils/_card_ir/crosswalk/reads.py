@@ -5605,13 +5605,27 @@ def _owner_scope_tag(ps: object, root: object) -> str | None:
     each other player loses that much life" as ``AllExcept{exclude:
     ParentObjectTargetOwner}`` on the card's own dies trigger, whose parent
     object is the card itself; on any other trigger that object is a target
-    (Fractured Identity), so it stays ``AllExcept``."""
+    (Fractured Identity), so it stays ``AllExcept``.
+
+    Two relational scopes that name only opponents read as ``"Opponent"``: the
+    players the source attacked this turn (``OpponentAttacked`` — Angel of
+    Destiny; a player attacked is a defending player, one of the attacking
+    player's opponents — CR 506.2, 506.2a) and "each
+    opponent who controls / doesn't control …" (``ControlsCount`` over the
+    opponents — Nicol Bolas, Dragon-God; Thornbow Archer). ``ControlsCount``
+    over every player keeps its tag ("each player who controls the most lands"
+    — Tectonic Hellion), which the edict read takes for each player."""
     if isinstance(ps, str):  # an actor the owner walk resolved (a choice, a label)
         return None if ps == "You" else ps
     members = _any_of_members(ps)
     if len(members) == 2 and any(m in _SELF_EXCLUDE_TAGS for m in members):
         return YOU_AND_OPPONENT_SCOPE  # "you and that player each draw two cards"
     tag = _player_scope_tag(ps)
+    if tag == "OpponentAttacked" or (
+        tag == "ControlsCount"
+        and _player_scope_tag(getattr(ps, "relation", None)) in OPPONENT_ACTOR_TAGS
+    ):
+        return "Opponent"
     if tag == "VotedFor":
         # the players who chose a vote's outcome, outside friend-or-foe (whose
         # side the owner walk reads off its label).
@@ -7783,23 +7797,40 @@ def ends_the_game(tree: ConceptTree) -> bool:
     payment, Phage's own enters trigger), and "can't win / can't lose" statics
     (Platinum Angel) are protection, not effects.
 
-    A win with no player is yours ("You win the game"). A loss with no player is
-    another player's: phase drops the losers of "each player Angel of Destiny
-    attacked this turn loses the game" and Nicol Bolas, Dragon-God's "each
-    opponent who doesn't control a legendary creature or planeswalker", and
-    every self-loss in the pool carries ``Controller`` (2026-11-01: those two are
-    the only target-less losses). A ``retirement_canary``
-    (``test_lose_the_game_player_dropped_canary``) fails once phase names them."""
-    for n in tree.iter_typed():
-        tag = tag_of(n)
-        if tag not in ("WinTheGame", "LoseTheGame"):
-            continue
-        target = getattr(n, "target", MISSING)
-        if not _present(target):
-            return True
-        if (tag == "WinTheGame") == (_scope_from_player_node(target) == "you"):
-            return True
+    The player is the node's ``target``, else the ``player_scope`` of the ability
+    that owns it (:func:`_game_end_player`): "each player Angel of Destiny
+    attacked this turn loses the game" (``OpponentAttacked``; a player attacked
+    is a defending player, one of the attacking player's opponents — CR 506.2,
+    506.2a) and Nicol Bolas, Dragon-God's "each
+    opponent who doesn't control a legendary creature or planeswalker"
+    (``ControlsCount`` over the opponents). A node with neither names its
+    controller ("You win the game")."""
+    for unit in tree.units:
+        for n in unit.iter_typed():
+            tag = tag_of(n)
+            if tag not in ("WinTheGame", "LoseTheGame"):
+                continue
+            target = getattr(n, "target", MISSING)
+            if _present(target):
+                yours = _scope_from_player_node(target) == "you"
+                if (tag == "WinTheGame") == yours:
+                    return True
+            elif _game_end_player(unit.node, n) == (
+                "you" if tag == "WinTheGame" else "opponents"
+            ):
+                return True
     return False
+
+
+def _game_end_player(root: object, node: object) -> str:
+    """Who a target-less win / loss names, off the ``player_scope`` of the
+    ability that owns it (:func:`effect_owner_player_scope`): ``"you"`` (none
+    named: the controller), ``"opponents"`` (:data:`OPPONENT_WRAPPER_ACTORS`),
+    else ``"each"``."""
+    actor = effect_owner_player_scope(root, node)
+    if actor is None:
+        return "you"
+    return "opponents" if actor in OPPONENT_WRAPPER_ACTORS else "each"
 
 
 def _hits_one_other_player(node: TypedMirrorNode) -> bool:
@@ -13087,12 +13118,20 @@ def _harms_you(
 
 def _loses_you_the_game(root: object) -> bool:
     """A "you lose the game" anywhere under ``root`` (a modal arm — Demonic
-    Pact's last mode — included), never inside a token the ability makes."""
+    Pact's last mode — included), never inside a token the ability makes. A
+    target-less loss names its player on the owning ability's ``player_scope``
+    (:func:`_game_end_player`: Angel of Destiny's attacked players)."""
     losses = [
         n
         for n in iter_typed_nodes(root)
         if tag_of(n) == "LoseTheGame"
-        and tag_of(getattr(n, "target", None)) in ("Controller", None)
+        and (
+            tag_of(getattr(n, "target", None)) == "Controller"
+            or (
+                not _present(getattr(n, "target", MISSING))
+                and _game_end_player(root, n) == "you"
+            )
+        )
     ]
     if not losses:
         return False

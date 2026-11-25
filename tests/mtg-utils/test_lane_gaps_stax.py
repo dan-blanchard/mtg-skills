@@ -225,6 +225,9 @@ def test_enter_trigger_pump_on_the_entering_creature():
     assert ("entered_attacker", "you", "etb_pump") in _idents("Primal Forcemage")
     # Herd Gnarr pumps only itself.
     assert ("entered_attacker", "you", "etb_pump") not in _idents("Herd Gnarr")
+    # "~ and that creature perpetually get +1/+1": the perpetual change's pump
+    # view (``crosswalk.perpetual``) on the creature that entered.
+    assert ("entered_attacker", "you", "etb_pump") in _idents("Leaf-Leap Guide")
 
 
 @pytest.mark.parametrize("name", ["Terra Eternal", "Marwyn, the Preserver"])

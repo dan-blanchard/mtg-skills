@@ -148,12 +148,13 @@ def _win_lose_game(tree: ConceptTree) -> list[Signal]:
     The card must end the game in your favour: you win or another player
     loses (:func:`ends_the_game`, which also reads a loss granted to a
     creature, an Equipment's wielder or an emblem — Vorpal Sword, Vraska,
-    Golgari Queen — and a loss whose player phase drops — Angel of Destiny,
-    Nicol Bolas, Dragon-God). A loss aimed at you is a drawback, never a win
-    condition: the Pacts' unpaid upkeep, Final Fortune / Last Chance's
-    extra-turn end step, Lich's Mastery leaving the battlefield. One more
-    shape: a lose / win concept the clause grammar recovered onto an untyped
-    node (Hidetsugu Consumes All's "they lose the game").
+    Golgari Queen — and a loss whose losers the ability's ``player_scope``
+    names — Angel of Destiny, Nicol Bolas, Dragon-God). A loss aimed at you is
+    a drawback, never a win condition: the Pacts' unpaid upkeep, Final
+    Fortune / Last Chance's extra-turn end step, Lich's Mastery leaving the
+    battlefield. One more shape: a lose / win concept the clause grammar
+    recovered onto an untyped node (Hidetsugu Consumes All's "they lose the
+    game").
     """
     if ends_the_game(tree):
         return [Signal("win_lose_game", "any", "", "", tree.name, "high")]

@@ -3762,6 +3762,11 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
     # (Anikthea's), twelve are the plan.
     assert dead("Hardened Scales", keys=counters)
     assert not dead("Hardened Scales", keys=Counter({"plus_one_makers": 12}))
+    # Its own static size is what the card is, no doing: Akki Underling's "as
+    # long as you have seven or more cards in hand, ~ gets +2/+1" is dead with
+    # no draw engines, alive with five (``metrics.NEUTRAL_IDENTS``).
+    assert dead("Akki Underling")
+    assert not dead("Akki Underling", keys=Counter({"card_draw_engine": 5}))
     for name in (
         "Etali, Primal Conqueror // Etali, Primal Sickness",
         "Myr Battlesphere",

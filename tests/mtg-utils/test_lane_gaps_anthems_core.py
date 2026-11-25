@@ -14,7 +14,7 @@ import pytest
 
 from mtg_utils._card_ir.crosswalk.reads import Choice, choice_of
 from mtg_utils._card_ir.trees import trees_for
-from mtg_utils.testkit import test_card, test_phase_records, test_signals
+from mtg_utils.testkit import test_card, test_signals
 
 
 def _idents(name: str) -> set[tuple[str, str, str]]:
@@ -90,43 +90,18 @@ def test_win_lose_game_skips_a_loss_aimed_at_you(name):
 @pytest.mark.parametrize(
     ("name", "ends"),
     [
-        ("Angel of Destiny", True),  # the dropped losing player is another's
-        ("Nicol Bolas, Dragon-God", True),
+        ("Angel of Destiny", True),  # player_scope: OpponentAttacked
+        ("Nicol Bolas, Dragon-God", True),  # ControlsCount over the opponents
         ("Pact of Negation", False),  # your own unpaid upkeep
     ],
 )
-def test_ends_the_game_reads_a_dropped_loser_as_another_player(name, ends):
+def test_ends_the_game_reads_the_losers_player_scope(name, ends):
     """The shared read every closer read asks (``_tuner.metrics.is_wincon_card``
-    too), not only the win_lose_game lane."""
+    too), not only the win_lose_game lane. A target-less loss takes its player
+    from the owning ability's ``player_scope``; with none it is your own."""
     from mtg_utils._card_ir.crosswalk import ends_the_game
 
     assert any(ends_the_game(t) for t in trees_for(test_card(name))) is ends
-
-
-@pytest.mark.retirement_canary
-@pytest.mark.parametrize(
-    ("name", "path"),
-    [
-        ("Angel of Destiny", (0, "triggers", 1, "execute", "effect")),
-        ("Nicol Bolas, Dragon-God", (0, "abilities", 3, "effect")),
-    ],
-)
-def test_lose_the_game_player_dropped_canary(name, path):
-    """Retirement canary for ``crosswalk.ends_the_game``'s untargeted-loss arm
-    (a loss with no player is another player's): phase v0.104.0 drops the
-    losing player of "each player Angel of Destiny attacked this turn loses the
-    game" and "each opponent who doesn't control a legendary creature or
-    planeswalker loses the game"."""
-    node: object = test_phase_records(name)
-    for step in path:
-        node = node[step]  # type: ignore[index]
-    assert isinstance(node, dict)
-    assert node.get("type") == "LoseTheGame"
-    assert "target" not in node, (
-        f"{name}: RETIRE-READY — phase now names the losing player. Read a "
-        "target-less LoseTheGame as yours again in crosswalk.ends_the_game (and "
-        "drop this canary) once both cards still fire through it."
-    )
 
 
 # ── type_changers: a single target, the type of your choice ─────────────────

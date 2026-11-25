@@ -38,7 +38,12 @@ from mtg_utils._card_ir.crosswalk.reads import (
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.classify import CardClass
-from mtg_utils._tuner.metrics import NEUTRAL_KEYS, NO_FEEDER_READ, payoff_feeders
+from mtg_utils._tuner.metrics import (
+    NEUTRAL_IDENTS,
+    NEUTRAL_KEYS,
+    NO_FEEDER_READ,
+    payoff_feeders,
+)
 from mtg_utils.card_classify import (
     land_search_fixes,
 )
@@ -329,7 +334,8 @@ def dead_payoff(
     mechanic it cares about has fewer than :data:`_FEEDER_FLOOR` doers in the
     deck (``metrics.payoff_feeders``), the card feeds none of them itself, and
     it does nothing else on its own (no doer key beyond the structural ones,
-    :data:`metrics.NEUTRAL_KEYS`, and the feeders of its own multipliers —
+    :data:`metrics.NEUTRAL_KEYS` and :data:`metrics.NEUTRAL_IDENTS` — its own
+    static size —, and the feeders of its own multipliers —
     Hardened Scales' extra counter is tagged a counter maker). A
     choose-a-creature-type payoff with no tribe of ten in the deck (Banner of
     Kinship, Door of Destinies, Coat of Arms under Bello), a counter doubler
@@ -424,7 +430,8 @@ def dead_payoff(
     )
     # The umbrella payoffs (Door of Destinies' "whenever you cast a spell of
     # the chosen type" is ``spellcast_matters``) are no doing of their own.
-    doers = own_keys - cares - NEUTRAL_KEYS - NO_FEEDER_READ - multiplier_feeders
+    doing = {ident_key(i) for i in idents if i not in NEUTRAL_IDENTS}
+    doers = doing - cares - NEUTRAL_KEYS - NO_FEEDER_READ - multiplier_feeders
     return not doers
 
 

@@ -15,37 +15,18 @@ are already known to it (each draft says where).
 
 **From ranking the upstream drafts (2026-11-25; `docs/plans/phase-upstream-issues/ranking.md`)**
 
-- **Workarounds with no draft.** 102 of the 201 bridge-ledger rows record a phase
-  bug that no draft names (the drafts left the report's Appendix A out on
+- **Workarounds with no draft.** 101 of the 199 bridge-ledger rows record a phase
+  bug that no draft names (measured 2026-11-25: §D1's 102 of 201, less the two
+  perpetual-pump rows retired since, plus `self_pump_condition_parked`, split
+  from `pump_condition_parked`; the drafts left the report's Appendix A out on
   purpose; two rows, `energy_gain_replacement_parked` and `wither_grant_unparsed`,
-  are in no report either), and so do 29 of the 87 canary tests: five of the
-  eight `misparsed_shapes` rows (Solar Blaze, Season of Gathering, Unwanted
-  Remake, Umbra Mystic, Mirko), three `overlay_corrections` arms (Athreos,
-  Territorial Gorger, Venser's Diffusion), the `debuff` and `blight` tokens,
-  Tell Me What You See. `ranking.md` §D lists them for the next drafting pass.
-- **A canary that can never fire.** `test_lose_the_game_player_dropped_canary`
-  (Angel of Destiny; Nicol Bolas, Dragon-God) asserts the `LoseTheGame` node has
-  no `target`. Phase types the loser on the ability's `player_scope` since
-  v0.118.0, so the assertion stays true for good. The gap is ours:
-  `crosswalk.ends_the_game` doesn't read `player_scope`. Read it there, then
-  delete the canary.
-- **Stale lines in `phase-upstream-reports.md`**: §1, §10, §12b and §24 name
-  retired canaries as current; Appendix A says 202 rows and lists 188 (the
-  ledger has 201, ten added since); "all 166 `retirement_canary` tests" counts
-  parametrized cases (87 functions).
+  are in no report either). Of the 100 `retirement_canary` tests, 29 guard a bug
+  no draft names (§D2, counted over 87), and none of the 14 added since (the
+  parked-pump and "it" rows of `misparsed_shapes`, `test_parked_card_boost_canary`)
+  is named in a draft. `ranking.md` §D lists them for the next drafting pass.
 
 **From the phase v0.131.0 pin bump (2026-11-24)**
 
-- **Reads the bump left as they were** (each a decision, not a regression):
-  - "Those creatures gain [keyword]" after a mass effect over creatures you
-    control is the team's now (`crosswalk.group_grant_statics`). Left out by
-    Dan's rule (2026-11-24): a group you take (Mob Rule, Call for Aid,
-    Insurrection) and one with no controller ("each attacking creature" —
-    Captain America, Skybound; "all attacking creatures" — Najeela, the
-    Blade-Blossom).
-  - Gains kept (Dan, 2026-11-24; don't re-suggest): Din of the Fireherd
-    `mass_land_denial|each|sacrifice`, Sunset Revelry `cantrip`, Mirror-Mad
-    Phantasm `permanent_etb|put`, Words of Wind `bounce_tempo`.
 - **Phase gaps the bump found** (report upstream, Dan posts; none worked around
   unless a canary is named): Danse Macabre's non-targeting "return up to two
   creature cards" carries a `multi_target` (reads `per_target_payoff|variable`);
@@ -64,29 +45,9 @@ are already known to it (each draft says where).
 - **Phase now leaves "When you attack enchanted opponent" an `Unknown` trigger
   mode**: Tenuous Truce lost `attack_matters` (upstream draft 30; no read can
   recover it without matching phase's text).
-- **Losses at v0.131.0 examined after the bump, which stand** (don't
-  re-suggest): Those Old Scientists `sacrifice_outlets` (a Saga's own "Sacrifice
-  after III", parked junk before), Plunderer's Prize and Teferi's Contingency
-  `stax_taxes` / `symmetric_stax` (a perpetual "costs {2} more" on one spell's
-  namesakes, misread as a static tax on every card), Campfire `graveyard_makers`
-  (it empties the graveyard), Nahiri, Storm of Stone's `equip` subject (an
-  equip discount misread as a keyword grant), Trenzalore Clocktower
-  `activated_draw` (it exiles itself as a cost, typed now), Peace in Our Time
-  `stax_taxes` (it keeps `pillowfort`), Soundwave, Sonic Spy's `spellcast_matters`
-  subject (`any` to `other`: the watched spell has a mana-value qualifier).
-  Thought Dissector's `cheat_into_play|Artifact` waits on phase (upstream draft
-  34): its reveal parks as `compound_reveal_until`, and the `dig_until` recovery
-  token reads only "your library".
-- **A spell's `SelfRef` bound to the object it acted on stays guarded
-  read-side** (`protection._filter_recipient`, `attack_deterrent`,
-  `has_structural_self_counter_grow`, each with its canary). One
-  `misparsed_shapes` row rebinding it was tried on paper and dropped
-  (2026-11-24): at v0.131.0 the instants and sorceries carry 72 nested statics
-  with `affected: SelfRef` and 45 `PutCounter`s on `SelfRef`. Some are the card
-  itself (suspend's time counters — Ancestral Vision), and the rest need three
-  different rebinds (`ParentTarget` — Blizzard Brawl; `TrackedSet` — Promise of
-  Loyalty; the token just made), which the structure alone doesn't tell apart.
-  Upstream draft 28 reports the shape.
+- **Thought Dissector's `cheat_into_play|Artifact` waits on phase** (upstream
+  draft 34): its reveal parks as `compound_reveal_until`, and the `dig_until`
+  recovery token reads only "your library".
 
 **From the where-X promotion (2026-11-25)**
 
@@ -102,7 +63,7 @@ are already known to it (each draft says where).
     the battlefield (18 the card itself, 10 another creature), 24 off it, and 2
     unread: Darigaaz's Whelp's "Whenever you draw a Dragon card, it perpetually
     gets +1/+1" (a trigger mode phase leaves `Unknown`; the drawn card, so off
-    anyway) and Penregon Besieged's "choose a creature with the least toughness
+    anyway; its seek trigger reads `card_boost|you|hand`) and Penregon Besieged's "choose a creature with the least toughness
     among creatures your opponents control. It perpetually gets -1/-1" (the
     choice is a residue; a real shrink of an opponent's creature). Rewritten: 10
     of the 36 `perpetual_modify_pt` clauses (Chaos Balor ×2, By Elspeth's
@@ -143,17 +104,11 @@ are already known to it (each draft says where).
     Scour the Scene's "choose a creature card in your hand or a creature you
     control. It perpetually gets +1/+0" reads as `hand` only; the battlefield
     option gets no pump (phase's choice is a `ChooseFromZone` of the hand).
-    Darigaaz's Whelp's draw trigger ("Whenever you draw a Dragon card, it …")
-    stays unread (phase's `Unknown` mode); its seek trigger gives `hand`.
     Tawnos Endures's granted "if this card is exiled, it perpetually gets
     +1/+1" is none: the exiled creature can be anyone's. A change to the card
     itself is the card growing (Tomakul Phoenix). Soul Shredder holds no
     boost: phase types its "~ perpetually gets +1/+1" on `Any`, and parks its
-    "also triggers if ~ is in your graveyard". Veteran
-    Charger, Coalition Construct and Lae'zel lose the voltron floor's
-    `voltron_matters|you|carrier`: the floor's commander-damage fallback is
-    silenced by any signal that opens an avenue, and a hand boost or a team
-    pump does.
+    "also triggers if ~ is in your graveyard".
   - *A pump behind a parked condition*: Sickle Dancer, Alex Wilder, Trail of
     Mystery (`unparsed_condition` / `unparsed_verb_arguments`; each on a ledger
     row — Sickle Dancer's self-pump on `self_pump_condition_parked` since
@@ -161,23 +116,16 @@ are already known to it (each draft says where).
     make it unconditional.
   - *A static line*: Archangel of Strife's two ("Creatures controlled by
     players who chose war get +3/+0": no phase filter for the choice),
-    Tyrannical Pitlord's "The chosen creature gets +3/+3 and has flying", The
-    Muckslinger Gang's (cards outside the battlefield), and two where-X ones,
-    Death's Approach and Disturbing Conversion ("Enchanted creature gets
-    -X/-X, where X is …"). (Heartseeker's "Equipped creature gets +2/+1 and
-    has \"…\"" is typed now.)
-  - *A pump as a clause's second instruction*: done for all six (Spry and
-    Mighty, Heartseeker, Benalish Partisan, Managorger Phoenix, Hurkyl's
-    Prodigy, and Defiling Tears 2026-11-25: its subject read from the
-    description, `misparsed_shapes`' verb-list row, typed as Lash of Malice's
-    "+2/-2" is and read the same — a pump with a chosen target and a shrink,
-    Dan's ruling). Its colour change and granted ability stay in the residue.
+    Tyrannical Pitlord's "The chosen creature gets +3/+3 and has flying", and
+    The Muckslinger Gang's (cards outside the battlefield; its battlefield
+    anthem is read). (Death's Approach's and Disturbing Conversion's "-X/-X"
+    are shrinks, read as `debuff_makers`; Heartseeker's "Equipped creature gets
+    +2/+1 and has \"…\"" is typed now.)
   - *Known limits of the pump view* (`crosswalk.perpetual`, no fix yet): a
-    walk over the typed tree doesn't see it — `_etb_pump_unit`
-    (`lanes/stax_and_tempo.py`) reads typed `Pump` nodes, so Leaf-Leap Guide
-    gets no `entered_attacker|you|etb_pump`, and `walk_effect_chain` rebuilds
-    its decorations from the tree, so a lane that walks a unit itself sees the
-    `ApplyPerpetual`, not the pump.
+    walk over the typed tree doesn't see it — `walk_effect_chain` rebuilds its
+    decorations from the tree, so a lane that walks a unit itself sees the
+    `ApplyPerpetual`, not the pump. (`_etb_pump_unit` reads the unit's effect
+    concepts since 2026-11-25: Leaf-Leap Guide is `entered_attacker|you|etb_pump`.)
 - **Left open by the boost lines (ADR-0065, 2026-11-25)**:
   - *"It"s left unread* (`boost_recipient` says `unknown`): Mirkwood Trapper's
     "that player chooses an attacking creature. It gets +2/+0"; Sigardian
@@ -185,14 +133,12 @@ are already known to it (each draft says where).
     Apex Predator's emblem ("Whenever a creature attacks you, it gets +5/+5");
     Curse of Stalked Prey's "put a +1/+1 counter on that creature" (a damage
     trigger naming no source); Tusk and Whiskers's sticker trigger (phase's
-    `Unknown` mode, "Whenever you put an ability sticker on a creature").
-  - *Combat counters a static turns into power, not read*: Beorn the Fierce's
-    trample counter (the +2/+2 is its Bear lord's, reached by the type change,
-    not by the counter) and Sephiroth, Fallen Hero's cell counter (a base-P/T
-    setting, CR 613.4b, not a raise) stay out of `combat_trigger_boost` by Dan's
-    counter-to-static ruling (`crosswalk.feeds_own_static`).
-  - Granted firebreathing (Shiv's Embrace, Kusari-Gama) and a granted prowess are
-    read by neither `self_boost` nor `boosts_others`.
+    `Unknown` mode, "Whenever you put an ability sticker on a creature"). An
+    unknown recipient counts as yours meanwhile (Dan's ruling, under Settled).
+  - A granted prowess (Wizard's Staff's "Equipped creature has prowess"; Bria,
+    Riptide Rogue's to your other creatures) is read by neither `self_boost` nor
+    `boosts_others`. (Granted firebreathing is: Kusari-Gama reads
+    `boosts_others|you|attached`.)
   - *Targeting payoffs the residue arm reads* name no source since the oracle-text
     read of their clause was removed (2026-11-25), so they read as either (`""`)
     and are offered both the spell and the ability pages: Agrus Kos, Eternal
@@ -206,17 +152,10 @@ are already known to it (each draft says where).
     and `targeting_trigger_source` extended to a cast trigger on your creatures.
   - Earthbend's "put N +1/+1 counters on it" (a land it animates, which it
     targets) is `boosts_others|target_ability`.
-  - `self_boost|you|static` is a rider in the commander-need read but not in the
-    tuner's dead-payoff read (`NEUTRAL_KEYS` is key-level).
-  - Speedball, New Warrior's typed "a player casts a spell that targets ~" is
-    `targeting_matters|any|spell`, a payoff subject that silences its voltron
-    carrier floor (it held only the `you` side before).
   - Meatsqueak, Hoard Lord's "For every seven Foods you control, Squirrels you
     control get +3/+3" is typed as a static on `SelfRef` with the count dropped,
     so it reads as `self_boost|you|static` and not as a team pump; an upstream
     phase misparse (worth a phase issue), not ledgered.
-  - Bloodthirsty Blade keeps `voltron_makers|you|pump` though it attaches only to
-    an opponent's creature (`boosts_others` drops it).
 - **Where-X clauses the recovery reads as the wrong thing** (each to settle
   per card; none moves a signal today unless said): Commander Liara Portyr's
   "spells you cast from exile this turn cost {X} less" recovers as
@@ -226,10 +165,11 @@ are already known to it (each draft says where).
   instruction alone, never the "where X is …" half (Dan's ruling on Bound //
   Determined, 2026-11-25); a residue of another kind that holds its own
   binding (Liara's `unparsed_quantity`) is still read whole.
-- **Not recovered**: the five `where_x_binding` residues left: a verb the
-  allowlist doesn't hold (Florian's and Surveyor's Scope's look / search), and
-  Niv-Mizzet, Guildpact's two and Concert Kaboomist's face-up twin (the
-  "combat damage" / "turned face up" veto).
+- **Not recovered**: 6 of the 31 `where_x_binding` residues on legal cards
+  (census 2026-11-25; 25 recovered): Commander Liara Portyr's "cost {X} less"
+  binding, a verb the allowlist doesn't hold (Florian's and Surveyor's Scope's
+  look / search), and Niv-Mizzet, Guildpact's two and Concert Kaboomist's
+  face-up twin (the "combat damage" / "turned face up" veto).
 
 **From comparing Arena game logs with phase (2026-11-09)**
 
@@ -250,19 +190,7 @@ are already known to it (each draft says where).
   Arena ability phase writes as two triggers the split rule misses (Apex
   Witchstalker). The chosen X was checked in 6 resolutions (it is rare in play);
   X doubled, halved or offset is not read.
-- **Three `misparsed_shapes` rows still check phase's own ability text
-  (2026-11-09; the third 2026-11-25).** Unwanted Remake's "Its controller
-  manifests dread", Mirko's "power less than ~'s", and the flattened boon's
-  "boon with \"When you cast your next creature spell, it perpetually gets"
-  (Flaming Fist Duskguard, Valiant Farewell; Dark Salvation is the look-alike).
-  Each fixes a node phase typed but left a player or filter out of, and the text
-  only tells the misread apart from look-alike structures (each row's docstring has
-  the census). There is no parked clause for the recovery grammar, so they stay
-  as they are; Dan's call, 2026-11-09. If one is redone, parse the description with
-  `clause_grammar` the way `subtype_keyword_grant` reads Umbra Mystic's parked
-  line. (Akiri's row was the third until phase v0.131.0 left her trigger an
-  `Unknown` mode holding the clause; `clause_grammar.attached_attackers_kind`
-  reads it now.)
+
 **From a powered-cube draft tune (2026-11-02; the three problems fixed 2026-11-25, ADR-0055's amendment)**
 
 - **The cube deck's one remaining swap is a closer for True-Name Nemesis.** With
@@ -274,26 +202,9 @@ are already known to it (each draft says where).
 
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 
-- **Graveyard arrivals "from anywhere" (2026-10-31; Disa the Restless typed at
-  phase v0.131.0).** Phase now types Disa's "from anywhere other than the
-  battlefield" trigger (`ChangesZone` → Graveyard, the watched card and a
-  `NotEquals: Battlefield` origin on its one `zone_change_clauses` entry);
-  `shape_compat` copies the watched card onto the trigger
-  (`test_single_clause_arrival_canary`), and the `misparsed_shapes` row is gone.
-  The crosswalk's `trigger_def_event` doesn't read every null-origin graveyard
-  arrival as a death: the "from anywhere" watchers (Gitrog, Titania, Sefris,
-  Yuma) are told from the permanent watchers by their filter (an owner, no
-  controller — CR 108.4; a controller or an attached object is a permanent — CR
-  110.1). Patron of the Nezumi's "a permanent is put into an opponent's
-  graveyard" carries a battlefield origin since v0.131.0.
-- **Pass D: the serves still on a regex** (2026-10-23;
-  `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment
-  names its remainder). Regex-only, measured over the legal corpus:
-  `ability_strip_payoff` (the
-  crippling-drawback text beside a power floor; no lane reads a drawback a strip
-  turns off). Every lane follow-up the pass found shipped or was settled by
-  2026-11-01 (the lane passes of that day, the audit's "The fourth lane pass");
-  what remains here is phase's. Phase gaps
+- **Pass D's phase gaps** (2026-10-23;
+  `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; every serve the
+  pass named reads signal idents now). Phase gaps
   to report upstream (Dan posts): Mask of the Schemer's connive X (phase parks
   "where X is the amount of damage it dealt" as `where_x_binding`, so
   `card_draw_engine` can't read it); (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
@@ -335,8 +246,9 @@ are already known to it (each draft says where).
   Schemer's connive X, Thromok's devour X, Fall of Cair Andros's amass X,
   Officious Interrogation's investigate X — since 2026-11-25 the recovery reads
   a `where_x_binding` residue's sentence for whatever allowlisted verb its X
-  belongs to (25 of the 41 such residues on legal cards), and `misparsed_shapes`
-  rewrites the ten pumps among them); energy residues (`gain_energy` / `energy_payment`
+  belongs to (25 of the 31 such residues left on legal cards, census
+  2026-11-25), and `misparsed_shapes` rewrote the ten pumps among them, which
+  are residues no more); energy residues (`gain_energy` / `energy_payment`
   tokens: Overclocked Electromancer, Robobrain War Mind, The Motherlode,
   Reiterating Bolt, Salvation Colossus, Izzet Generatorium's condition);
   foretell residues (Ethereal Valkyrie, Karfell Harbinger, Ranar); Osteomancer
@@ -396,15 +308,6 @@ are already known to it (each draft says where).
   that share a card type" (`unknown`); Guardian of the Ages' "it loses defender
   and gains trample" parks as `unparsed_condition` (ledger row
   `loses_defender_trigger_parked` keeps it a voltron carrier).
-  A phase gap behind one false positive (report upstream, Dan posts; drafted in
-  `docs/plans/phase-upstream-reports.md` §24): Skyclave Apparition's "the exiled
-  card's owner creates" token reads as yours — phase stamps the Token's `owner`
-  `Controller` and the exiled card `Owned{You}`, so no structure tells it from
-  your own token; nothing on our side can read it. Not a false positive (2026-10-31, don't
-  re-suggest): Investigator's Journal's LOW `proliferate_matters` — its suspect
-  counters are counters (CR 122.1, not the suspected designation of CR
-  701.60a), proliferate adds one of each kind already there (CR 701.34a), and
-  removing one is its draw cost, the remove-counter-cost read's own case.
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
@@ -420,12 +323,9 @@ are already known to it (each draft says where).
 - **Phase gaps behind the closer, alternative-cost and mass-land-denial reads**
   (found moving `_tuner/` and `deck_stats` onto the trees, phase v0.94.0; report
   upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §9, §19, §22, App. A). Each is a card the old regexes read and the trees don't:
-  - Reach: `unparsed_quantity` residues park "loses life / deals damage equal to …"
-    (Within Range, Soulblast, Final Punishment, Mjölnir; ~28 such residues name
-    damage or life loss). (Underbridge Warlock's boon, once a self loss, is a
-    typed ``CreateBoon`` since v0.118.0.) (The
-    `where_x_binding` X effects — Insatiable Hemophage, Zenith Flare — are read by
-    `reads.unbound_x_reach`, canary `test_unbound_x_reach_canary`.)
+  - Reach: the `where_x_binding` X effects (Insatiable Hemophage, Zenith Flare)
+    are read by `reads.unbound_x_reach`, canary `test_unbound_x_reach_canary`.
+    (The `unparsed_quantity` reach residues are recovered now.)
   - Game wins: Frodo, Sauron's Bane's Rogue clause is dropped (its second ability
     parses as the Ring tempting you); Celestial Convergence's win is an
     `unbound_subject` residue.
@@ -688,23 +588,62 @@ are already known to it (each draft says where).
 **Discovery ranking:** see ADR-0043's terminal-state amendment for the unclaimed
 headroom and parked items.
 
-**From the 25-precon deckbuilder pass (2026-11-01; Dan's call: read each
-proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
-
-- **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
-  a fix in the tree, verified card by card on the latest run
-  (`docs/plans/precon-audit/verify_symptoms.py` over the three `misses.json`
-  files: 64 checks, one per flaw, all passing) and on the fresh 10-deck set
-  never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
-  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 294 / 126 / 49;
-  every batch's proposals re-read deck by deck on all three sets — batches
-  12 and 13 are those re-reads' own findings, batches 14 and 15 three
-  pairs of deckbuilder reviews' of every proposal). The approaches
-  measured and rejected along the way (under Settled with their numbers) were
-  alternative routes to flaws fixed by other means; each entry names the fix
-  that covers its flaw.
-
 ## Settled: don't re-suggest
+
+**From the backlog survey (2026-11-25: Dan's rulings, and verdicts moved here
+from Open)**
+
+- **The voltron carrier floor going quiet is by design** (Dan, 2026-11-25). The
+  floor's commander-damage fallback (`voltron_matters|you|carrier`) is silenced
+  once a card has a signal that opens an avenue: a hand boost (Veteran Charger,
+  Coalition Construct, Lae'zel, Primal Warrior: `card_boost|you|hand`) or a
+  targeting payoff (Speedball, New Warrior: `targeting_matters|any|spell`).
+- **A boost that can land on your creature is yours** (Dan, 2026-11-25): Chaos
+  Balor's "each creature target player controls" (the player can be you)
+  counts. Only one that can land on nothing but opponents' creatures is out. A
+  recipient `boost_recipient` can't resolve (`unknown`) stays counted, and
+  listed under Open (the boost lines' unread "it"s).
+- **"Those creatures gain [keyword]" after a mass effect over creatures you
+  control is the team's** (Dan, 2026-11-24; `crosswalk.group_grant_statics`),
+  except a group you take (Mob Rule, Call for Aid, Insurrection) or one with no
+  controller (Captain America, Skybound; Najeela, the Blade-Blossom).
+- **Gains kept at the v0.131.0 bump** (Dan, 2026-11-24): Din of the Fireherd
+  `mass_land_denial|each|sacrifice`, Sunset Revelry `cantrip`, Mirror-Mad
+  Phantasm `permanent_etb|put`, Words of Wind `bounce_tempo`.
+- **Losses at the v0.131.0 bump that stand** (2026-11-24): Those Old Scientists
+  `sacrifice_outlets` (a Saga's own "Sacrifice after III", parked junk before),
+  Plunderer's Prize and Teferi's Contingency `stax_taxes` / `symmetric_stax` (a
+  perpetual "costs {2} more" on one spell's namesakes, misread as a static tax
+  on every card), Campfire `graveyard_makers` (it empties the graveyard),
+  Nahiri, Storm of Stone's `equip` subject (an equip discount misread as a
+  keyword grant), Trenzalore Clocktower `activated_draw` (it exiles itself as a
+  cost, typed now), Peace in Our Time `stax_taxes` (it keeps `pillowfort`),
+  Soundwave, Sonic Spy's `spellcast_matters` subject (`any` to `other`: the
+  watched spell has a mana-value qualifier).
+- **A spell's `SelfRef` bound to the object it acted on stays guarded
+  read-side** (2026-11-24; `protection._filter_recipient`, `attack_deterrent`,
+  `has_structural_self_counter_grow`, each with its canary). A `misparsed_shapes`
+  rebind was tried and dropped: the 72 nested statics and 45 `PutCounter`s on
+  `SelfRef` need three different rebinds (`ParentTarget`, `TrackedSet`, the token
+  just made) or none (suspend's time counters), which the structure doesn't tell
+  apart. Upstream draft 28 reports the shape.
+- **Combat counters a static turns into power are no combat boost** (Dan's
+  counter-to-static ruling, ADR-0065; `crosswalk.feeds_own_static`): Beorn the
+  Fierce's trample counter (its +2/+2 is the Bear lord's) and Sephiroth, Fallen
+  Hero's cell counter (a base-P/T setting, CR 613.4b) stay out of
+  `combat_trigger_boost`.
+- **Three `misparsed_shapes` rows keep checking phase's ability text** (Dan,
+  2026-11-09; the third 2026-11-25): Unwanted Remake's "Its controller manifests
+  dread", Mirko's "power less than ~'s", and the flattened boon (Flaming Fist
+  Duskguard, Valiant Farewell; Dark Salvation is the look-alike). Each fixes a
+  typed node, there is no parked clause for the recovery grammar, and the text
+  only tells the misread from look-alikes (each row's docstring has the census).
+  If one is redone, parse the description with `clause_grammar` as
+  `subtype_keyword_grant` reads Umbra Mystic.
+- **Investigator's Journal's LOW `proliferate_matters` is no false positive**
+  (2026-10-31): its suspect counters are counters (CR 122.1, not the suspected
+  designation of CR 701.60a), proliferate adds one of each kind already there
+  (CR 701.34a), and removing one is its draw cost.
 
 **From the phase v0.131.0 follow-up cleanups (2026-11-25)**
 

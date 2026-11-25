@@ -372,6 +372,16 @@ NEUTRAL_KEYS: frozenset[str] = frozenset(
         "legends_matter",
     }
 )
+#: Idents of a doer key that say what the card IS all the same: its own static
+#: size ("~ gets +2/+2 as long as you control a Dinosaur", ADR-0065's
+#: ``self_boost|you|static``), the body as ``variable_pt`` and ``anthem_static``
+#: are. The key's other subjects stay doers: an activated self-pump is a mana
+#: sink that works in any deck, and a triggered one or its own counters grow
+#: it off an event the trigger names, which can be one any deck makes (an
+#: attack, its own entering).
+NEUTRAL_IDENTS: frozenset[str] = frozenset(
+    {f"{signal_keys.SELF_BOOST}|you|{signal_keys.SELF_BOOST_STATIC}"}
+)
 #: The feeders the cares map does not name: a counter doubler is fed by the
 #: counter makers (CR 122.1: a counter the deck places), a token doubler by
 #: the token makers (a token the deck creates, CR 111.1), a hand-size payoff

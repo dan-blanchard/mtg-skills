@@ -30,6 +30,7 @@ from mtg_utils._card_ir.crosswalk import (
     blight_placements,
     cast_with_keyword_name,
     controller_paid_cost_leaves,
+    controller_reach,
     cost_reduction_count_filters,
     cost_reduction_counters,
     count_operand_filter,
@@ -1999,7 +2000,7 @@ def gear_pump_subjects(
         tag_of(n) == "AddSubtype" and getattr(n, "subtype", None) == "Aura"
         for n in tree.iter_typed()
     )
-    if not (gear or bestow or becomes_aura):
+    if not (gear or bestow or becomes_aura) or _attaches_to_opponents_only(tree):
         return found
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
@@ -2043,6 +2044,30 @@ def gear_pump_subjects(
                 elif not negative_pt_field(c.node, "power"):
                     found.setdefault(VOLTRON_GEAR_POWER, "")
     return found
+
+
+def _attaches_to_opponents_only(tree: ConceptTree) -> bool:
+    """Equipment with no equip whose every attach targets an opponent's
+    creature (Bloodthirsty Blade's "{1}: Attach this Equipment to target
+    creature an opponent controls"; its ruling: "There's normally no way to
+    have it attached to your own creature"): what it gives its creature is
+    never a boost of yours, so :func:`gear_pump_subjects` reads none (Dan's
+    ruling, 2026-11-25: a boost that can only land on opponents' creatures is
+    never yours)."""
+    if "equipment" not in {s.lower() for s in tree.card_subtypes} or any(
+        k.lower() == "equip" for k in tree.card_keywords
+    ):
+        return False
+    attaches = [
+        getattr(node, "target", None)
+        for unit in tree.units
+        for node in iter_typed_nodes(unit.node)
+        if tag_of(node) == "Attach"
+    ]
+    return bool(attaches) and all(
+        controller_reach(filter_controller(target)) == "opponents"
+        for target in attaches
+    )
 
 
 #: The subject of ``voltron_makers`` on a mixed power-up Aura (+N/-M —

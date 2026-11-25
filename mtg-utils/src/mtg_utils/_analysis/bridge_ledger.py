@@ -5909,7 +5909,14 @@ _FACE_EACH_PLAYER_DRAW_RX = re.compile(
 
 
 def _chosen_creatures_parked(tree: ConceptTree) -> bool:
-    return _parked_says(tree, _CHOSEN_CREATURES_RX)
+    """The parked "choose any number of creatures with different powers" whose
+    typed follow-up grants double strike (Sigarda's Vanguard's "Those creatures
+    gain double strike"). The choice parks alike on Sigardian Zealot, whose
+    chosen creatures gain vigilance: the keyword is read off the typed grant,
+    never assumed from the choice."""
+    return _parked_says(tree, _CHOSEN_CREATURES_RX) and not _no_double_strike_grant(
+        tree
+    )
 
 
 def _no_double_strike_grant(tree: ConceptTree) -> bool:
@@ -6140,7 +6147,12 @@ BRIDGES.update(
                     "strike' has no target. Retires on the bump that types the "
                     "choice"
                 ),
-                census=_item_o_census("Sigarda's Vanguard", "Sigardian Zealot"),
+                # Sigardian Zealot parks the same choice but grants vigilance:
+                # out since 2026-11-25 (it read double strike before).
+                census=(
+                    "1 hit / the legal corpus (Sigarda's Vanguard), MTGJSON "
+                    "2026-11-17 @ phase v0.131.0, 2026-11-25"
+                ),
                 pins=("Sigarda's Vanguard",),
                 gap=_chosen_creatures_parked,
                 match=_chosen_creatures_parked,

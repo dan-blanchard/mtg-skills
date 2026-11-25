@@ -490,9 +490,14 @@ def test_a_counted_counter_on_the_card_is_its_own():
 
 def test_gear_that_attaches_only_to_an_opponents_creature_is_no_boost():
     """Bloodthirsty Blade's "{1}: Attach this Equipment to target creature an
-    opponent controls" (the coordinator's call): Bonesplitter still is."""
+    opponent controls" (the coordinator's call; its ruling: "There's normally no
+    way to have it attached to your own creature"): no voltron gear either, the
+    read ``counters_voltron.gear_pump_subjects`` both keys share. Bonesplitter
+    still is."""
     assert not _subjects("Bloodthirsty Blade", "boosts_others")
+    assert not _subjects("Bloodthirsty Blade", "voltron_makers")
     assert _subjects("Bonesplitter", "boosts_others") == {"attached", "target_ability"}
+    assert "pump" in _subjects("Bonesplitter", "voltron_makers")
 
 
 @pytest.mark.parametrize(
