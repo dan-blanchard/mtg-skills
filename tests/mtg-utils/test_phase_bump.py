@@ -3,6 +3,7 @@ over a fake repo with fake subprocess / HTTP seams."""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import pickle
 import re
@@ -756,6 +757,59 @@ def test_tree_coverage_step_regression_fails_and_still_writes_the_report(tmp_pat
         "(Doran, Besieged by Time) — fewer trees than at the old pin (v0.66.0)"
     ) in text
     assert "Viscera Seer" not in text
+
+
+def test_a_run_resumed_past_the_step_still_reports_what_it_found(tmp_path):
+    """``--from-step`` past a failed tree-coverage step is the escape hatch: the
+    final report keeps the section the failed run wrote, read back from the
+    coverage that run kept, and says where it came from."""
+    (seer,) = testkit.test_phase_records("Viscera Seer")
+    doran = _drifting("Doran, Besieged by Time")
+    ctx = _tree_ctx(tmp_path, {"seer": seer, "doran": doran})
+    here = phase_bump._step_number("tree-coverage")
+    with pytest.raises(phase_bump.StepFailed):
+        run(ctx, from_step=here, echo=lambda _s: None)
+    section = "- FAILS: Doran, Besieged by Time: 1 of 1 face(s) without a tree"
+    assert section in (ctx.report_dir / "report.md").read_text()
+
+    resumed = dataclasses.replace(ctx)  # a new process: a fresh report
+    assert resumed.report.tree_losses is None
+    phase_bump._recall_tree_coverage(resumed)
+    text = phase_bump._write_report(resumed).read_text()
+    assert "## Face records with no tree (over 2 cards)" in text
+    assert section in text
+    assert "as the tree-coverage step last found it" in text
+    # With no finding kept (the step never ran), there is nothing to recall.
+    fresh = dataclasses.replace(ctx, report_dir=tmp_path / "other-report")
+    phase_bump._recall_tree_coverage(fresh)
+    assert fresh.report.tree_losses is None
+
+
+def test_the_signal_diff_reads_the_record_ids_an_earlier_parse_noted(
+    tmp_path, monkeypatch
+):
+    """Any step's parse of a pin's card-data notes the oracle ids its records
+    carry, so the signal diff's "which cards have a record at this pin" never
+    parses a pin a step already has."""
+    (seer,) = testkit.test_phase_records("Viscera Seer")
+    ctx = _tree_ctx(tmp_path, {"seer": seer})
+    phase_bump.step_tree_coverage(ctx)
+    parse = phase_bump._parse_card_data
+    monkeypatch.setattr(
+        phase_bump, "_parse_card_data", lambda *_a: pytest.fail("parsed again")
+    )
+    oids = phase_bump._card_data_oids(ctx, ctx.new_tag, ctx.card_data_path())
+    assert oids == {seer["scryfall_oracle_id"]}
+    # A pin no step has parsed is parsed now, and noted.
+    monkeypatch.setattr(phase_bump, "_parse_card_data", parse)
+    old = tmp_path / "card-data-v0.66.0.json"
+    old.write_text(json.dumps({"seer": seer}))
+    assert phase_bump._card_data_oids(ctx, ctx.old_tag, old) == oids
+    assert (ctx.report_dir / "records-v0.66.0.json").is_file()
+    # ...but never as a tree baseline: only step 1, holding the old pin's mirror
+    # and correction layers, can take the old pin's tree coverage.
+    assert not (ctx.report_dir / "trees-v0.66.0.json").exists()
+    assert phase_bump._card_data_oids(ctx, "v0.1.0", tmp_path / "absent.json") == set()
 
 
 def test_tree_coverage_step_passes_a_healthy_corpus(tmp_path):

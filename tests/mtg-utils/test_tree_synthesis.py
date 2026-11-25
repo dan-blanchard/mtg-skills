@@ -99,7 +99,6 @@ from mtg_utils._analysis.tree_synthesis import (
     has_structural_counter_distribute,
     has_structural_creature_cast_trigger,
     has_structural_crimes_matter,
-    has_structural_curse_matters,
     has_structural_dice_makers,
     has_structural_extra_land_drop,
     has_structural_fight_makers,
@@ -4024,30 +4023,6 @@ def test_land_creatures_animate_synth_registered():
     # landed upstream and its re-census emptied; only the dynamic arm stays.
     assert "land_creatures_subtype_animate" not in SYNTHESIS_ARM_IDS
     assert "land_creatures_dynamic_animate" in SYNTHESIS_ARM_IDS
-
-
-# ── batch T4-mechanic-kw (ADR-0036/0037 Stage 5): curse_matters ──────────────
-
-
-def test_curse_matters_structural_gate_true_on_existing_arm():
-    """Bitterheart Witch's Curse-subtype search filter — one of the lane's two
-    genuinely structural arms. (Witchbane Orb's Curse-subtype DestroyAll was the
-    pin until phase v0.104.0 parked it as a residue; a ledger bridge serves it.)"""
-    assert has_structural_curse_matters(_fixture_tree("Bitterheart Witch"))
-
-
-def test_curse_matters_reads_the_typed_search():
-    """Curse of Misfortunes' search for "a Curse card": its SearchLibrary filter
-    was empty through v0.118.0 (a text arm served it); since phase v0.131.0 the
-    filter carries the Curse subtype, the structural effect-target arm reads
-    it, and the text arm is gone."""
-    assert has_structural_curse_matters(_fixture_tree("Curse of Misfortunes")) is True
-
-
-def test_curse_matters_no_fire_on_membership_only():
-    """Cruel Reality IS an Aura — Curse; BEING one never fires."""
-    tree = _fixture_tree("Cruel Reality")
-    assert has_structural_curse_matters(tree) is False
 
 
 # ── batch T4-mechanic-kw: suspend_matters ────────────────────────────────────

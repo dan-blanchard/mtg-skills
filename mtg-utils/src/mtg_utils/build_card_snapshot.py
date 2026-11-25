@@ -45,7 +45,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from mtg_utils._analysis.signals import extract_signals
-from mtg_utils._card_ir.build import _group_by_oracle_id
+from mtg_utils._card_ir.build import group_by_oracle_id
 from mtg_utils._card_ir.load import CROSSWALK_SIDECAR_VERSION
 from mtg_utils._card_ir.trees import build_trees, seed_trees
 from mtg_utils._phase import PHASE_TAG, ensure_card_data
@@ -454,7 +454,7 @@ def _index_by_name(bulk: list[dict], groups: dict[str, list[dict]]) -> dict[str,
 def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path, dict]:
     cdp = ensure_card_data()
     phase_data = json.loads(cdp.read_text())
-    groups = _group_by_oracle_id(phase_data)
+    groups = group_by_oracle_id(phase_data)
 
     bulk_path = default_bulk_path()
     if bulk_path is None:

@@ -4705,17 +4705,12 @@ def iter_granted_triggers(unit: AbilityUnit) -> Iterator[GrantedTrigger]:
     ("Creatures you control gain '…'" — Showstopper; "Enchanted creature has
     '…'" — Infernal Scarring; a soulbond pair — Doom Weaver), or, for "It gains
     '…'" / "those creatures gain '…'", the chosen target the chain threads to it
-    (:func:`iter_threaded_target_statics` — Clavileño's attacking Vampire, Rabid
+    (:func:`threaded_grantees` — Clavileño's attacking Vampire, Rabid
     Attack's "target creatures you control"; ``chosen`` marks those). A
     back-reference the thread can't follow stays its tag. The deep mod-site walk
     (:func:`iter_mod_sites`), so a modal arm's or a created token's grant is
     read too (a Pest token's own "When this creature dies" — ``SelfRef``)."""
-    chosen: dict[int, object] = {}
-    for tag, resets in (("ParentTarget", None), ("TrackedSet", ends_target_thread)):
-        for tgt, sdef in iter_threaded_target_statics(
-            unit.node, affected_tag=tag, resets_thread=resets
-        ):
-            chosen.setdefault(id(sdef), tgt)
+    chosen = threaded_grantees(unit.node)
     for sdef, mod in iter_mod_sites(unit.node, deep=True):
         if tag_of(mod) not in _GRANTED_TRIGGER_TAGS:
             continue
@@ -5042,6 +5037,49 @@ def iter_threaded_target_statics(
             queue.append(sub)
 
 
+def _chosen_target_statics(
+    ability_like: object,
+) -> tuple[tuple[object, TypedMirrorNode], ...]:
+    """The ``(chosen target, static def)`` pairs behind :func:`threaded_grantees`,
+    walked once per ability node: "it" (``ParentTarget`` — Snakeskin Veil,
+    Jump), then "those creatures" over the chain's own targets (``TrackedSet``:
+    phase v0.94.0 parses Arm the Cathars' "target creature gets +3/+3, up to
+    one other target creature gets +2/+2, … Those creatures gain vigilance" as
+    a Pump chain ending in a ``GenericEffect`` whose static is
+    ``TrackedSet``-affected). A token producer or a mass effect ends that
+    second thread (:func:`ends_target_thread`): "create a token. It gains
+    haste" tracks the made token, and "put a +1/+1 counter on each creature
+    you control. Those creatures gain vigilance" (Ajani Goldmane, a
+    ``PutCounterAll``) tracks a board filter, never a chosen target. CR 115.1 /
+    613.1f."""
+    if not isinstance(ability_like, TypedMirrorNode):
+        return ()
+    return memo_on(
+        ability_like,
+        "_xw_chosen_target_statics",
+        lambda node: (
+            *iter_threaded_target_statics(node),
+            *iter_threaded_target_statics(
+                node, affected_tag="TrackedSet", resets_thread=ends_target_thread
+            ),
+        ),
+    )
+
+
+def threaded_grantees(ability_like: object) -> dict[int, object]:
+    """The chosen target each back-referencing static of one ability lands on,
+    as ``{id(static def): target filter}``: "Untap target creature. It gains
+    reach" (Aim High), "Those creatures gain vigilance" after two targeted pumps
+    (Arm the Cathars). A static with its own ``affected`` filter, or one whose
+    back-reference the thread can't follow, has no entry: the caller falls back
+    to the def's ``affected``. The mass-effect half ("each creature you control
+    … those creatures gain") is :func:`group_grant_statics`."""
+    out: dict[int, object] = {}
+    for target, static_def in _chosen_target_statics(ability_like):
+        out.setdefault(id(static_def), target)
+    return out
+
+
 #: The modifications that hand an object a quoted ability (CR 613.1f: layer 6,
 #: ability-adding effects): a triggered one (Feign Death's "When this creature
 #: dies, return it …") or an activated / static one ("{T}: Return target nonland
@@ -5049,23 +5087,6 @@ def iter_threaded_target_statics(
 #: a quoted ability rather than a keyword.
 ABILITY_GRANT_MOD_TAGS: frozenset[str] = _GRANTED_TRIGGER_TAGS | _GRANTED_ABILITY_TAGS
 _ADD_KEYWORD: frozenset[str] = frozenset({"AddKeyword"})
-
-
-def iter_single_target_grants(
-    ability_like: object, *, mod_tags: frozenset[str] = _ADD_KEYWORD
-) -> Iterator[tuple[object, TypedMirrorNode]]:
-    """``(resolved_target_filter, AddKeyword_mod)`` pairs for the SINGLE-TARGET
-    keyword grants of one SPELL/ability node (CR 700.2) — the AddKeyword
-    projection of :func:`iter_threaded_target_statics`, mirroring the live v14
-    ``_single_target_keyword_grant_markers`` emit. The caller applies the live
-    gates (Creature core on the resolved filter; abilities only — the
-    trigger-conferred grants ride the DEEP local-target arm).
-    """
-    for tracked, st in iter_threaded_target_statics(ability_like):
-        mods = getattr(st, "modifications", MISSING)
-        for mod in mods if _present(mods) and isinstance(mods, list) else []:
-            if tag_of(mod) in mod_tags:
-                yield tracked, mod
 
 
 def iter_deep_target_grants(
@@ -5080,7 +5101,7 @@ def iter_deep_target_grants(
     ("target artifact creature you control … gains indestructible" —
     Aethershield Artificer), a modal arm, a Saga chapter, or a quoted
     GrantAbility definition — the flat threaded walk
-    (:func:`iter_single_target_grants`) never descends there. LOCAL target
+    (:func:`threaded_grantees`) never descends there. LOCAL target
     only (the "It gains X" tracked idiom stays with the flat walk, exactly
     the live split). CR 700.2.
     """
@@ -8099,7 +8120,7 @@ def group_grant_statics(ability_like: object) -> dict[int, object]:
     static after a mass effect ("Put a +1/+1 counter on each creature you
     control. Those creatures gain vigilance" — Ajani Goldmane; "Untap all
     creatures you control. They gain hexproof and indestructible" — Join
-    Shields). The chosen-target half is :func:`iter_tracked_set_target_grants`."""
+    Shields). The chosen-target half is :func:`threaded_grantees`."""
     return {id(st): group for group, st in _group_statics(ability_like)}
 
 
@@ -8119,50 +8140,27 @@ def _group_statics(ability_like: object) -> tuple[tuple[object, TypedMirrorNode]
     )
 
 
-def iter_tracked_set_target_grants(
-    ability_like: object, *, mod_tags: frozenset[str] = _ADD_KEYWORD
-) -> Iterator[tuple[object, TypedMirrorNode]]:
-    """``(threaded_target_filter, AddKeyword_mod)`` pairs for a keyword grant
-    whose nested static's ``affected`` is ``TrackedSet`` — "those creatures
-    gain X" back-referencing the chain's own TARGETS.
-
-    phase v0.94.0 parses Arm the Cathars ("target creature gets +3/+3, up to
-    one other target creature gets +2/+2, … Those creatures gain vigilance")
-    as a Pump chain ending in a ``GenericEffect`` whose static is
-    ``TrackedSet``-affected; v0.86.0 wrote ``ParentTarget``, which
-    :func:`iter_single_target_grants` threads. Same thread
-    (:func:`iter_threaded_target_statics`), but a token producer or a mass
-    effect ends it (:func:`ends_target_thread`) — "create a token. It gains
-    haste" tracks the made token, and "put a +1/+1 counter on each creature
-    you control. Those creatures gain vigilance" (Ajani Goldmane, a
-    ``PutCounterAll``) tracks a board filter, never a chosen target.
-    CR 115.1 / 613.1f.
-    """
-    for tracked, st in iter_threaded_target_statics(
-        ability_like, affected_tag="TrackedSet", resets_thread=ends_target_thread
-    ):
-        for mod in getattr(st, "modifications", None) or ():
-            if tag_of(mod) in mod_tags:
-                yield tracked, mod
-
-
 def unit_keyword_grants(
     unit: AbilityUnit, *, mod_tags: frozenset[str] = _ADD_KEYWORD
 ) -> list[tuple[object, TypedMirrorNode]]:
     """``(chosen_target_filter, AddKeyword_mod)`` for every keyword grant to a
     chosen target in one unit: the DEEP local-target leaf on any unit (a
     trigger, a modal arm, a Saga chapter — :func:`iter_deep_target_grants`),
-    plus, on an ability or trigger, the threaded "It gains X" walk
-    (:func:`iter_single_target_grants`) and the "those creatures" walk
-    (:func:`iter_tracked_set_target_grants`). The ``keyword_grant_target`` /
+    plus, on an ability or trigger, the threaded "It gains X" and "those
+    creatures gain X" grants (:func:`threaded_grantees`'s pairs). The
+    ``keyword_grant_target`` /
     ``protection_grant`` lane and ``crosswalk.protection`` read this one walk;
     ``mod_tags`` projects it to another grant (:data:`ABILITY_GRANT_MOD_TAGS`:
     a quoted ability — Feign Death, Retraction Helix). CR 613.1f (layer 6,
     ability-adding effects)."""
     grants = list(iter_deep_target_grants(unit.node, mod_tags=mod_tags))
     if unit.origin in ("ability", "trigger"):
-        grants.extend(iter_single_target_grants(unit.node, mod_tags=mod_tags))
-        grants.extend(iter_tracked_set_target_grants(unit.node, mod_tags=mod_tags))
+        grants.extend(
+            (target, mod)
+            for target, static_def in _chosen_target_statics(unit.node)
+            for mod in getattr(static_def, "modifications", None) or ()
+            if tag_of(mod) in mod_tags
+        )
     return grants
 
 
@@ -9222,8 +9220,8 @@ def animates(static_def: object, root: object, *, retype: bool = True) -> bool:
 
     The objects are the def's ``affected`` filter, or — for a back-reference
     (``ParentTarget`` / ``TrackedSet``) — the target threaded through ``root``'s
-    effect chain (:func:`iter_threaded_target_statics`); ``root`` is the unit
-    node holding the def."""
+    effect chain (:func:`threaded_grantees`); ``root`` is the unit node holding
+    the def."""
     mods = getattr(static_def, "modifications", None) or ()
     if retype and any(
         tag_of(mod) == "SetCardTypes"
@@ -9236,23 +9234,9 @@ def animates(static_def: object, root: object, *, retype: bool = True) -> bool:
         for mod in mods
     ):
         return False
-    objects = getattr(static_def, "affected", None)
-    back_ref = tag_of(objects)
-    if back_ref in ("ParentTarget", "TrackedSet"):
-        objects = next(
-            (
-                target
-                for target, st in iter_threaded_target_statics(
-                    root,
-                    affected_tag=back_ref,
-                    resets_thread=(
-                        ends_target_thread if back_ref == "TrackedSet" else None
-                    ),
-                )
-                if st is static_def
-            ),
-            objects,
-        )
+    objects = threaded_grantees(root).get(
+        id(static_def), getattr(static_def, "affected", None)
+    )
     return "Creature" not in filter_core_types(objects)
 
 

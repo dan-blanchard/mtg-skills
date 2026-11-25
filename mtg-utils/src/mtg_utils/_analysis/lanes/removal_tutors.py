@@ -33,7 +33,6 @@ from mtg_utils._analysis.tree_synthesis import (
     has_self_etb_payload,
     has_self_etb_value,
     has_structural_crimes_matter,
-    has_structural_curse_matters,
     has_structural_outlaw,
     has_structural_proliferate,
     has_structural_pump_makers,
@@ -373,10 +372,13 @@ def _curse_matters(tree: ConceptTree) -> list[Signal]:
     """curse_matters (§C) — CR 205.3h: a card that REFERENCES the Curse
     subtype — a trigger watching Curses (Lynde's dies filter), an effect
     acting on a Curse subject (Curse of Misfortunes' and Bitterheart Witch's
-    search for a Curse card): :func:`has_structural_curse_matters`.
-    MEMBERSHIP stays OUT: BEING an Aura — Curse (Cruel Reality) never fires."""
-    if has_structural_curse_matters(tree):
-        return [Signal("curse_matters", "you", "", "", tree.name, "high")]
+    search for a Curse card). MEMBERSHIP stays OUT: BEING an Aura — Curse
+    (Cruel Reality) never fires."""
+    for unit in tree.units:
+        watched = getattr(unit.node, "valid_card", None)
+        subjects = [watched, *(effect_filter(c.node) for c in unit.effects)]
+        if any(f is not None and "Curse" in filter_subtypes(f) for f in subjects):
+            return [Signal("curse_matters", "you", "", "", tree.name, "high")]
     return []
 
 

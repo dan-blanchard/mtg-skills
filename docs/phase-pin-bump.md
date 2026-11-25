@@ -34,7 +34,8 @@ uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtes
   then, or one new at this pin that is short. Cards that were as short at the old
   pin are listed without failing. With no baseline (no old card-data at step 1),
   every short card fails. The report is still written. Fix the correction and resume with
-  `--from-step 7`; `--from-step 8` goes on without the check. Healthy is an empty
+  `--from-step 7`; `--from-step 8` goes on without the check, and the final report still
+  carries what step 7 last found (kept as `trees-<new>.json`). Healthy is an empty
   list: at v0.131.0 all 36,391 face records load.
 - **Signal diff.** The "old" side is the signals index already on disk, so it is only
   a clean baseline if it was built at the commit you are bumping from. Signal-changing
@@ -150,7 +151,7 @@ Each has a comment at the read that learned it.
 - **v0.104.0:** `AdditionalPhase.phase` / `target` → a tagged `segment`
   (`Phase{Combat|Beginning|Ending}` / `Step{…}` / `CreatedPhase{…}`) + `recipient`
   (`reads.additional_phase_kind`); each meld result copied under every half's oracle
-  id (`layout: meld`, `face_index: 1` — dropped in `build._group_by_oracle_id`);
+  id (`layout: meld`, `face_index: 1` — dropped in `build.group_by_oracle_id`);
   Thranduil's zone grant → `GrantAllActivatedAbilitiesOf` (`multipliers._grant_of`);
   Siege Behemoth's grant → an `AssignDamageAsThoughUnblocked` modification; "you
   and defending player each draw" → a `Draw{DefendingPlayer}`; an each-player

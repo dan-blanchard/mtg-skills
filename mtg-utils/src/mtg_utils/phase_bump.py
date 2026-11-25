@@ -65,6 +65,7 @@ import click
 
 from mtg_utils import _phase
 from mtg_utils._analysis.signal_base import ident_key
+from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.deck_cli import bulk_data_option
 
 if TYPE_CHECKING:
@@ -867,13 +868,13 @@ class TreeCoverage:
 
 def tree_coverage(card_data: object, schema: MirrorSchema) -> TreeCoverage:
     """The tree coverage of ``card_data`` (phase's card-data document): its records
-    grouped by oracle id as every reader groups them (``build._group_by_oracle_id``,
+    grouped by oracle id as every reader groups them (``build.group_by_oracle_id``,
     impostors and meld copies dropped), each group's faces checked against the
     committed mirror ``schema`` after the record-level corrections."""
-    from mtg_utils._card_ir.build import _group_by_oracle_id
+    from mtg_utils._card_ir.build import group_by_oracle_id
     from mtg_utils._card_ir.trees import drifted_faces
 
-    groups = _group_by_oracle_id(card_data)
+    groups = group_by_oracle_id(card_data)
     short = {}
     for oid, recs in groups.items():
         drifted = drifted_faces(recs, schema)
@@ -964,7 +965,8 @@ class ReportData:
     census: tuple[ImpostorRow, ...] = ()
     dead_impostors: tuple[tuple[str, str], ...] = ()
     #: The short cards at the new pin (``tree_losses``), ``None`` when the
-    #: tree-coverage step did not run; ``tree_cards`` is the cards it checked.
+    #: tree-coverage step did not run (and no earlier run's finding was
+    #: recalled); ``tree_cards`` is the cards it checked.
     tree_losses: tuple[TreeLoss, ...] | None = None
     tree_cards: int = 0
     diff: tuple[KeyDiff, ...] = ()
@@ -1059,15 +1061,49 @@ class StepFailed(click.ClickException):
     :func:`run` writes the report first, so the step's section shows what it found."""
 
 
-def _tree_baseline_path(ctx: BumpContext) -> Path:
-    return ctx.report_dir / f"trees-{ctx.old_tag}.json"
+def _coverage_path(ctx: BumpContext, tag: str) -> Path:
+    return ctx.report_dir / f"trees-{tag}.json"
 
 
-def _card_data_coverage(path: Path) -> TreeCoverage:
+def _record_oids_path(ctx: BumpContext, tag: str) -> Path:
+    return ctx.report_dir / f"records-{tag}.json"
+
+
+def _parse_card_data(ctx: BumpContext, tag: str, path: Path) -> object:
+    """*tag*'s card-data document, parsed. Every parse also notes, in the report
+    dir, the oracle ids its records carry (:func:`_card_data_oids`): they are
+    the file's own, whatever mirror and correction layers this process holds,
+    so the signal diff never parses a pin an earlier step already has."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    oids = sorted(
+        {
+            r["scryfall_oracle_id"]
+            for r in card_data_records(data)
+            if r.get("scryfall_oracle_id")
+        }
+    )
+    # Read back by a later step, or a resumed process: never left half-written.
+    atomic_write_json(_record_oids_path(ctx, tag), oids)
+    return data
+
+
+def _card_data_coverage(ctx: BumpContext, tag: str, path: Path) -> TreeCoverage:
+    """*tag*'s tree coverage as THIS process builds trees (its mirror, its
+    correction layers), kept in the report dir."""
     from mtg_utils._card_ir.mirror.build import load_committed_schema
 
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return tree_coverage(data, load_committed_schema())
+    coverage = tree_coverage(_parse_card_data(ctx, tag, path), load_committed_schema())
+    atomic_write_json(_coverage_path(ctx, tag), coverage.to_json())
+    return coverage
+
+
+def _saved_coverage(ctx: BumpContext, tag: str) -> TreeCoverage | None:
+    """The report dir's copy of *tag*'s coverage, or ``None`` when no step of
+    this bump has taken it."""
+    path = _coverage_path(ctx, tag)
+    if not path.is_file():
+        return None
+    return TreeCoverage.from_json(json.loads(path.read_text(encoding="utf-8")))
 
 
 def capture_tree_baseline(ctx: BumpContext) -> None:
@@ -1085,10 +1121,7 @@ def capture_tree_baseline(ctx: BumpContext) -> None:
             "tree-coverage step fails on any card with a face that builds no tree"
         )
         return
-    ctx.report_dir.mkdir(parents=True, exist_ok=True)
-    _tree_baseline_path(ctx).write_text(
-        json.dumps(_card_data_coverage(old).to_json()), encoding="utf-8"
-    )
+    _card_data_coverage(ctx, ctx.old_tag, old)
 
 
 def step_pin(ctx: BumpContext) -> None:
@@ -1172,22 +1205,23 @@ def _bulk_records(ctx: BumpContext) -> list[dict]:
 
 
 def step_impostor_census(ctx: BumpContext) -> None:
-    card_data = json.loads(ctx.card_data_path().read_text(encoding="utf-8"))
+    card_data = _parse_card_data(ctx, ctx.new_tag, ctx.card_data_path())
     # The table the census exists to maintain — read, never written, here.
     rows = _phase._IMPOSTOR_RECORDS  # noqa: SLF001
     ctx.report.census = tuple(impostor_census(card_data, _bulk_records(ctx), rows))
     ctx.report.dead_impostors = dead_impostor_rows(card_data, rows)
 
 
-def _card_data_oids(path: Path) -> set[str]:
-    if not path.exists():
-        return set()
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return {
-        r["scryfall_oracle_id"]
-        for r in card_data_records(data)
-        if r.get("scryfall_oracle_id")
-    }
+def _card_data_oids(ctx: BumpContext, tag: str, path: Path) -> frozenset[str]:
+    """Every oracle id *tag*'s card-data has a record for: the note an earlier
+    parse of it left in the report dir (:func:`_parse_card_data`), else parsed
+    from *path* now."""
+    noted = _record_oids_path(ctx, tag)
+    if not noted.is_file():
+        if not path.exists():
+            return frozenset()
+        _parse_card_data(ctx, tag, path)
+    return frozenset(json.loads(noted.read_text(encoding="utf-8")))
 
 
 def _signals_pkl(ctx: BumpContext) -> Path | None:
@@ -1231,14 +1265,9 @@ def step_tree_coverage(ctx: BumpContext) -> None:
     load that fails after a correction drops the card's tree silently, and the
     signal diff shows it only as one more lost card (Doran, Besieged by Time at
     v0.131.0). The escape hatch is resuming at the next step."""
-    baseline = _tree_baseline_path(ctx)
-    old = None
-    if baseline.is_file():
-        old = TreeCoverage.from_json(json.loads(baseline.read_text(encoding="utf-8")))
-    new = _card_data_coverage(ctx.card_data_path())
-    losses = tree_losses(old, new)
-    ctx.report.tree_losses = losses
-    ctx.report.tree_cards = len(new.cards)
+    # Always taken afresh: a resume here follows a fix to a correction layer.
+    new = _card_data_coverage(ctx, ctx.new_tag, ctx.card_data_path())
+    losses = _report_tree_coverage(ctx, new)
     failing = [t.card.name for t in losses if t.kind.fails]
     if failing:
         here = _step_number("tree-coverage")
@@ -1250,6 +1279,15 @@ def step_tree_coverage(ctx: BumpContext) -> None:
             f"--from-step {here}, or go on without the check with --from-step "
             f"{here + 1}."
         )
+
+
+def _report_tree_coverage(ctx: BumpContext, new: TreeCoverage) -> tuple[TreeLoss, ...]:
+    """Put the new pin's short cards, judged against the old pin's saved
+    coverage, in the report; returns them."""
+    losses = tree_losses(_saved_coverage(ctx, ctx.old_tag), new)
+    ctx.report.tree_losses = losses
+    ctx.report.tree_cards = len(new.cards)
+    return losses
 
 
 def _load_index(path: Path) -> dict[str, tuple[str, ...]]:
@@ -1269,8 +1307,8 @@ def step_signal_diff(ctx: BumpContext) -> None:
     ctx.report.diff = tuple(diff)
     ctx.report.facts = card_facts(
         names,
-        _card_data_oids(ctx.old_card_data_path()),
-        _card_data_oids(ctx.card_data_path()),
+        _card_data_oids(ctx, ctx.old_tag, ctx.old_card_data_path()),
+        _card_data_oids(ctx, ctx.new_tag, ctx.card_data_path()),
     )
     from mtg_utils.build_card_snapshot import scan_test_usage
 
@@ -1465,7 +1503,21 @@ def run(ctx: BumpContext, *, from_step: int = 1, echo: Callable[[str], None]) ->
         except StepFailed as exc:
             exc.message += f"\nreport: {_write_report(ctx)}"
             raise
+    if from_step > _step_number(IN_PROCESS_TREE_STEP):
+        _recall_tree_coverage(ctx)
     return _write_report(ctx)
+
+
+def _recall_tree_coverage(ctx: BumpContext) -> None:
+    """A run resumed past the tree-coverage step (its escape hatch) still reports
+    what that step last found, read back from the coverage it kept."""
+    found = _saved_coverage(ctx, ctx.new_tag)
+    if found is not None:
+        _report_tree_coverage(ctx, found)
+        ctx.report.notes.append(
+            "tree coverage: as the tree-coverage step last found it (this run "
+            "resumed past the step)"
+        )
 
 
 def _write_report(ctx: BumpContext) -> Path:

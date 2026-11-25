@@ -1,7 +1,7 @@
-"""Tests for the shared phase-record grouping seam (``_card_ir.build._group_by_oracle_id``
+"""Tests for the shared phase-record grouping seam (``_card_ir.build.group_by_oracle_id``
 + ``_phase.is_impostor_record``).
 
-``_group_by_oracle_id`` is the ONE grouping seam every sidecar consumer shares —
+``group_by_oracle_id`` is the ONE grouping seam every sidecar consumer shares —
 ``build_crosswalk_sidecar`` (the legacy ``build_sidecar`` died in step 7) and
 ``_card_ir.trees._phase_record_index`` (production ``trees_for``) call it,
 and ``build_card_snapshot`` calls it too to capture the raw records the committed
@@ -19,7 +19,7 @@ ported — see the ADR-0039 step 5 report for the full accounting.
 
 from __future__ import annotations
 
-from mtg_utils._card_ir.build import _group_by_oracle_id
+from mtg_utils._card_ir.build import group_by_oracle_id
 from mtg_utils._phase import is_impostor_record
 
 
@@ -38,7 +38,7 @@ def test_dfc_faces_grouped_by_oracle_id():
         "card_type": {},
         "keywords": ["Haste"],
     }
-    groups = _group_by_oracle_id({"front": front, "back": back})
+    groups = group_by_oracle_id({"front": front, "back": back})
     assert [r["name"] for r in groups["dfc-1"]] == ["Front", "Back"]
 
 
@@ -50,7 +50,7 @@ def test_impostor_record_dropped_at_the_grouping_seam():
     ``_phase._IMPOSTOR_RECORDS``); at v0.94.0 the legal card's own "Fast"
     record is correct and a SECOND record stamped with the legal oracle_id
     carries the PLAYTEST card's text. A naive oracle_id join would serve the
-    playtest parse off the legal card. ``_group_by_oracle_id`` must drop the
+    playtest parse off the legal card. ``group_by_oracle_id`` must drop the
     known impostor (keyed by oracle_id + exact oracle_text, so the entry
     self-retires when upstream fixes the join) while keeping the real half
     untouched. The texts are the impostor KEY itself — a fact about phase's
@@ -75,7 +75,7 @@ def test_impostor_record_dropped_at_the_grouping_seam():
             "from your hand.)"
         ),
     }
-    groups = _group_by_oracle_id(
+    groups = group_by_oracle_id(
         {"fast": real, "fast [62411ced-843e-4b63-bdf6-dafb2ac27047]": impostor}
     )
     assert [r["oracle_text"] for r in groups[legal]] == [real["oracle_text"]]

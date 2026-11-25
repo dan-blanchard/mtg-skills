@@ -66,17 +66,6 @@ category on about 2,500 records now, so many of these are already known to it.
   - `opponent_exile_makers`' owner test repeats part of `graveyard_exile_kind`,
     which treats a chosen player's graveyard as an opponent's too: calling it
     would change signals.
-  - The "resolve a static's back-referenced grantee through the thread" map is
-    built in five places (`iter_granted_triggers`, the animate read,
-    `team_buff_sites`, the keyword-grant lane, `iter_named_object_statics`); one
-    `threaded_grantees` would serve them.
-  - `has_structural_curse_matters` still lives in `tree_synthesis` though its
-    synth arm is gone and only `removal_tutors._curse_matters` reads it.
-  - `_card_ir.build._group_by_oracle_id` is private with three outside importers.
-  - `bump-phase-pin` parses each pin's card-data JSON twice (tree coverage, then
-    the signal diff's oracle ids).
-  - Resuming `bump-phase-pin` with `--from-step 8` (past a failed tree-coverage
-    step) leaves the "Face records with no tree" section out of the final report.
 - **A spell's `SelfRef` bound to the object it acted on stays guarded
   read-side** (`protection._filter_recipient`, `attack_deterrent`,
   `has_structural_self_counter_grow`, each with its canary). One
@@ -565,6 +554,18 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   that covers its flaw.
 
 ## Settled: don't re-suggest
+
+**From the phase v0.131.0 follow-up cleanups (2026-11-25)**
+
+- **One chosen-target map, one group map: don't merge them.** `crosswalk.
+  threaded_grantees` is the target a static's back-reference names ("it",
+  "those creatures" over the chain's own targets) and serves
+  `iter_granted_triggers`, the animate read and `unit_keyword_grants`.
+  `team_buff_sites` and the keyword-grant lane stay on `group_grant_statics`
+  (the group a mass effect acted on), and `iter_named_object_statics` on the
+  "it" thread plus the group half: through the chosen-target map a single
+  target ("target creature you control") would read as a team, and the lane's
+  `ParentTarget` skip would count a grant twice.
 
 **From the 25-precon deckbuilder pass (2026-11-01 to 2026-11-03)**
 

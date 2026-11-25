@@ -75,7 +75,7 @@ class PhaseRecordIndex:
 
 def _records_sidecar_key() -> int:
     """What the records sidecar was grouped by: the content of the grouping code
-    (``_card_ir.build._group_by_oracle_id``) and of ``_phase``, whose impostor
+    (``_card_ir.build.group_by_oracle_id``) and of ``_phase``, whose impostor
     records the grouping drops, and the phase tag — so an edit to either file
     rebuilds it, with no version to bump by hand."""
     import hashlib
@@ -131,16 +131,16 @@ def _record_blobs(card_data: Path) -> dict[str, bytes]:
 
 def _group_blobs(card_data: Path) -> dict[str, bytes]:
     """``card_data``'s records grouped by oracle_id
-    (``_card_ir.build._group_by_oracle_id``), each group as its own JSON."""
+    (``_card_ir.build.group_by_oracle_id``), each group as its own JSON."""
     from mtg_utils import _gc
-    from mtg_utils._card_ir.build import _group_by_oracle_id
+    from mtg_utils._card_ir.build import group_by_oracle_id
 
     # Decoding the ~100 MB file allocates millions of containers, which trip
     # full collections that each walk the whole heap (the bulk pool included);
     # JSON builds no reference cycles, so nothing collectable waits while the
     # collector is paused.
     with _gc.paused():
-        groups = _group_by_oracle_id(json.loads(card_data.read_bytes()))
+        groups = group_by_oracle_id(json.loads(card_data.read_bytes()))
         return {oid: json.dumps(recs).encode() for oid, recs in groups.items()}
 
 
@@ -149,7 +149,7 @@ def _phase_record_index() -> PhaseRecordIndex | None:
     """oracle_id → ALL phase ``card-data.json`` records sharing it (insertion
     order, so a DFC's front face precedes its back face), loaded once per
     process. ``None`` when phase card-data is unavailable so :func:`trees_for`
-    degrades. Reuses :func:`~mtg_utils._card_ir.build._group_by_oracle_id` — the
+    degrades. Reuses :func:`~mtg_utils._card_ir.build.group_by_oracle_id` — the
     same grouping the sidecar builders use — so a DFC / split card's faces are
     never silently dropped here (ADR-0035/0038 task #74; a first-record-wins
     index previously dropped whichever face iterated second, e.g. Avatar

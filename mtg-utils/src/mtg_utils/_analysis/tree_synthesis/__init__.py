@@ -166,7 +166,6 @@ from mtg_utils._analysis.tree_synthesis.mechanics_misc import (
     _arm_suspend_matters,
     _arm_token_subtype_own_ref,
     has_structural_crimes_matter,
-    has_structural_curse_matters,
     has_structural_outlaw,
     has_structural_suspend_matters,
 )
@@ -391,7 +390,6 @@ __all__ = [
     "has_structural_counter_distribute",
     "has_structural_creature_cast_trigger",
     "has_structural_crimes_matter",
-    "has_structural_curse_matters",
     "has_structural_dice_makers",
     "has_structural_exert_matters",
     "has_structural_extra_land_drop",

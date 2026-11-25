@@ -12,7 +12,7 @@ and build each group into one multi-face :class:`~mtg_utils.card_ir.Card`.
 ADR-0039 step 7: the legacy builder arm (``build_sidecar`` calling the deleted
 ``project.py``'s ``project_card``, plus its ``build-card-ir`` CLI) is gone; the
 crosswalk twin (``build_crosswalk_sidecar`` / ``build-card-ir-crosswalk``) is
-the only sidecar build. ``_group_by_oracle_id`` stays — it is the one grouping
+the only sidecar build. ``group_by_oracle_id`` stays — it is the one grouping
 seam every consumer shares (the sidecar build, ``build-card-snapshot``, and the
 production ``_ir_lookup._phase_record_index``).
 """
@@ -30,7 +30,7 @@ from mtg_utils._card_ir.load import (
 from mtg_utils._sidecar import atomic_write_json
 
 
-def _group_by_oracle_id(data: object) -> dict[str, list[dict]]:
+def group_by_oracle_id(data: object) -> dict[str, list[dict]]:
     """Group phase face-records by ``scryfall_oracle_id`` (insertion order kept,
     so a DFC's front face precedes its back face as listed in card-data.json).
 
@@ -95,7 +95,7 @@ def build_crosswalk_sidecar(
     else:
         cdp = _phase.ensure_card_data()
     data = json.loads(cdp.read_text())
-    groups = _group_by_oracle_id(data)
+    groups = group_by_oracle_id(data)
     schema = load_committed_schema()
 
     cov = CompatCoverage()

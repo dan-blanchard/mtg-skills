@@ -14241,16 +14241,15 @@ def test_convoke_matters_cast_trigger_anchor_only():
     assert "spell_keyword_grant" in cks
 
 
-def test_curse_matters_subtype_reads_and_mirror():
-    """CR 205.3h: the Curse trigger-subject read (Lynde), the Curse
-    effect-subject read (Witchbane Orb — typed again since phase v0.118.0;
-    the retired ``witchbane_orb_curses_attached_parked`` ledger bridge served
-    it while v0.104.0 parked the effect) and the kept mirror (Curse of
-    Misfortunes — search filter still dropped in v0.9.0, [P11] family)
-    fire; MEMBERSHIP stays out — Cruel Reality (an Aura Curse CARD)
-    never fires."""
+def test_curse_matters_reads_a_curse_subject():
+    """CR 205.3h: a trigger watching Curses (Lynde), an effect acting on Curses
+    (Witchbane Orb — typed again since phase v0.118.0) and a search for a Curse
+    card (Bitterheart Witch; Curse of Misfortunes, whose search filter carries
+    the subtype since phase v0.131.0) fire; MEMBERSHIP stays out — Cruel
+    Reality (an Aura Curse CARD) never fires."""
     assert ("curse_matters", "you", "") in _idents("Lynde, Cheerful Tormentor")
     assert ("curse_matters", "you", "") in _idents("Witchbane Orb")
+    assert ("curse_matters", "you", "") in _idents("Bitterheart Witch")
     assert ("curse_matters", "you", "") in _idents("Curse of Misfortunes")
     assert "curse_matters" not in _keys("Cruel Reality")
 

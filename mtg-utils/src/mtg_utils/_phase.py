@@ -433,7 +433,7 @@ def is_impostor_record(rec: dict) -> bool:
     :data:`_IMPOSTOR_RECORDS`) — a parse of a DIFFERENT card stamped with this
     oracle_id upstream. Every ingestion site that groups card-data records by
     ``scryfall_oracle_id`` must drop these (single seam:
-    ``_card_ir.build._group_by_oracle_id``)."""
+    ``_card_ir.build.group_by_oracle_id``)."""
     return (
         rec.get("scryfall_oracle_id") or "",
         rec.get("oracle_text") or "",

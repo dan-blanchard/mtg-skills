@@ -19,7 +19,6 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     counter_kind,
-    effect_filter,
     filter_subtypes,
     iter_condition_sites,
     iter_cost_leaves,
@@ -216,23 +215,6 @@ def _arm_outlaw_matters(tree: ConceptTree) -> ConceptNode | None:
         subject=(),
         desc="bucket-B outlaw group reference (CR 700.12) phase drops",
     )
-
-
-# ── curse_matters: the lane's two structural arms (CR 205.3h) ────────────────
-
-
-def has_structural_curse_matters(tree: ConceptTree) -> bool:
-    """Whether phase carries a typed Curse-subtype trigger-watch / effect-
-    target node — the curse_matters lane's two structural arms."""
-    for unit in tree.units:
-        vc = getattr(unit.node, "valid_card", None)
-        if vc is not None and "Curse" in filter_subtypes(vc):
-            return True
-        for c in unit.effects:
-            filt = effect_filter(c.node)
-            if filt is not None and "Curse" in filter_subtypes(filt):
-                return True
-    return False
 
 
 # ── arm: token_subtype_own_ref, the SHARED food/clue OWN-REF residual

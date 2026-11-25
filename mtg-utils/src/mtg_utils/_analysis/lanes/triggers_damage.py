@@ -1308,7 +1308,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
       (trigger / modal / Saga / quoted — Aethershield Artificer) via
       :func:`iter_deep_target_grants`, plus the flat threaded walk on
       abilities for the "It gains X" idiom via
-      :func:`iter_single_target_grants` (Snakeskin Veil, Jump). A PERMANENT
+      :func:`unit_keyword_grants` (Snakeskin Veil, Jump). A PERMANENT
       target (Aegis Angel) and a subtype-only target (a tribal grant) stay
       out on the creature-core gate, exactly as live. Scope "you".
     * ``protection_grant`` — a PROTECTIVE keyword (hexproof / shroud /
