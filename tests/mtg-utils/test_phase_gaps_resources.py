@@ -172,16 +172,27 @@ def test_a_binding_sentence_reads_no_verb_x_does_not_size():
     )
     assert _x_instruction(anzrag, ALLOWLIST) == "exile the top X cards of your library"
     assert list(_recovered("Anzrag's Rampage")) == ["exile"]
-    # A sentence whose first instruction names X is read whole (its trigger and
-    # its binding with it), and one that names no X is not read at all.
+    # A sentence whose first instruction names X is read with its trigger and
+    # without its binding, and one that names no X is not read at all.
     mask = (
         "Whenever equipped creature deals combat damage to a player, it connives "
         "X, where X is the amount of damage it dealt to that player."
     )
-    assert _x_instruction(mask, ALLOWLIST) == mask
+    assert _x_instruction(mask, ALLOWLIST) == (
+        "Whenever equipped creature deals combat damage to a player, it connives X"
+    )
     assert _x_instruction("Draw a card, where X is the number of Elves", ALLOWLIST) is (
         None
     )
+
+
+def test_a_bindings_own_words_are_no_detail_of_the_verb():
+    """Bound's "Return up to X cards from your graveyard to your hand, where X is
+    the number of colors that creature was": it returns cards. The "creature" is
+    what the binding counts, and the recovery never reads the binding."""
+    assert "graveyard_return" in _recovered("Bound // Determined")
+    idents = _idents("Bound // Determined")
+    assert not any(i.startswith("creature_recursion|") for i in idents)
 
 
 def test_a_binding_parked_twice_recovers_its_verb_once():

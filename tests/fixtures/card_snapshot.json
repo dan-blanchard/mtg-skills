@@ -188355,6 +188355,398 @@
     "type_line": "Instant"
    }
   },
+  "Bound // Determined": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Sacrifice a creature. Return up to X cards from your graveyard to your hand, where X is the number of colors that creature was. Exile this card.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Sacrifice"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "where X is the number of colors that creature was",
+         "name": "where_x_binding",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "multi_target": {
+         "max": {
+          "qty": {
+           "name": "X",
+           "type": "Variable"
+          },
+          "type": "Ref"
+         },
+         "min": 0
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Exile",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": null,
+          "owner_library": false,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "split",
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "9dc20e14-e304-4c14-a87b-322a76e214d5"
+      ]
+     },
+     "name": "Bound",
+     "non_ability_text": null,
+     "oracle_text": "Sacrifice a creature. Return up to X cards from your graveyard to your hand, where X is the number of colors that creature was. Exile this card.",
+     "power": null,
+     "printings": [
+      "DIS"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2006-05-01",
+       "text": "After Determined resolves, any spells or abilities that would counter a spell you control that turn will still resolve. They just won't counter that spell."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "Spells you control may be countered by spells or abilities while Determined is on the stack, waiting to resolve."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "The cards in the graveyard that you return as part of Bound's effect aren't targeted. They're chosen when the spell resolves. The creature you sacrificed may be one of them."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "The creature is sacrificed when Bound resolves. It's not an additional cost. It's not optional. If you can't sacrifice a creature or a colorless creature is sacrificed, no cards are returned."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "A split card's characteristics are a combination of its two halves while it is not on the stack. For example, Assault // Battery has a mana value of 5 while it is in your library. If an effect allows you to search your library for a card with mana value 4 or less, you can't find Assault // Battery."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "Each split card has two names. If an effect instructs you to choose a card name, you may choose one of those names, but not both."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "Each split card is a single card. For example, if you discard a split card, you've discarded one card, not two. If an effect counts the number of sorcery cards in your graveyard, Assault // Battery counts once, not twice."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "If an effect allows you to cast a spell with certain characteristics, consider only the characteristics of the half you're casting. For example, if an effect allows you to cast a sorcery spell with mana value 2 or less from among cards in your graveyard, you could cast Assault this way, but not Battery."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "If you copy a spell that's half of a split card, the copy copies that same half. For example, if you copy Assault, the copy is also Assault, not Battery."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "Split cards have two card faces on a single card. The characteristics of the half you didn't cast are ignored while the spell is on the stack."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "To cast a split card, choose one of its halves to cast. There's no way to cast both halves of this split card."
+      }
+     ],
+     "scryfall_oracle_id": "df39fbee-6ddc-4733-a32e-cdaf369ecccf",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    },
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Other spells you control can't be countered this turn.\nDraw a card.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "filters": [
+            {
+             "type": "StackSpell"
+            },
+            {
+             "controller": "You",
+             "properties": [
+              {
+               "type": "Another"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": []
+            }
+           ],
+           "type": "And"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "can't be countered",
+          "effect_zone": null,
+          "mode": "CantBeCountered",
+          "modifications": [
+           {
+            "mode": "CantBeCountered",
+            "type": "AddStaticMode"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Blue"
+     ],
+     "color_override": [
+      "Blue",
+      "Green"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "split",
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "wrong_object",
+      "source_printing_ids": [
+       "9dc20e14-e304-4c14-a87b-322a76e214d5"
+      ]
+     },
+     "name": "Determined",
+     "non_ability_text": null,
+     "oracle_text": "Other spells you control can't be countered this turn.\nDraw a card.",
+     "power": null,
+     "printings": [
+      "DIS"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "df39fbee-6ddc-4733-a32e-cdaf369ecccf",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "card_faces": [
+     {
+      "colors": [
+       "B",
+       "G"
+      ],
+      "keywords": [],
+      "mana_cost": "{3}{B}{G}",
+      "name": "Bound",
+      "oracle_text": "Sacrifice a creature. Return up to X cards from your graveyard to your hand, where X is the number of colors that creature was. Exile this card.",
+      "type_line": "Instant"
+     },
+     {
+      "colors": [
+       "U",
+       "G"
+      ],
+      "keywords": [],
+      "mana_cost": "{G}{U}",
+      "name": "Determined",
+      "oracle_text": "Other spells you control can't be countered this turn.\nDraw a card.",
+      "type_line": "Instant"
+     }
+    ],
+    "cmc": 7.0,
+    "color_identity": [
+     "B",
+     "G",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "split",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{G} // {G}{U}",
+    "name": "Bound // Determined",
+    "oracle_id": "df39fbee-6ddc-4733-a32e-cdaf369ecccf",
+    "type_line": "Instant // Instant"
+   }
+  },
   "Bound in Gold": {
    "phase_records": [
     {

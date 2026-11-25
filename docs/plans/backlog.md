@@ -165,13 +165,12 @@ are already known to it (each draft says where).
 - **Where-X clauses the recovery reads as the wrong thing** (each to settle
   per card; none moves a signal today unless said): Commander Liara Portyr's
   "spells you cast from exile this turn cost {X} less" recovers as
-  `cast_from_zone`, a cost reduction read as a cast permission; Bound //
-  Determined's "Return up to X cards from your graveyard to your hand" gains
-  `creature_recursion|you|hand` off the binding's "colors that creature was";
-  Magus of the Mind's "exile the top X cards" recovers as a plain exile, where
-  the card lets you play them. The recovery reads a clause's details over its
-  whole sentence, the "where X is …" text included (Dan's call, 2026-11-25:
-  leave it, fix per card).
+  `cast_from_zone`, a cost reduction read as a cast permission; Magus of the
+  Mind's "exile the top X cards" recovers as a plain exile, where the card
+  lets you play them. A `where_x_binding` residue is read from its
+  instruction alone, never the "where X is …" half (Dan's ruling on Bound //
+  Determined, 2026-11-25); a residue of another kind that holds its own
+  binding (Liara's `unparsed_quantity`) is still read whole.
 - **Not recovered**: the five `where_x_binding` residues left: a verb the
   allowlist doesn't hold (Florian's and Surveyor's Scope's look / search), and
   Niv-Mizzet, Guildpact's two and Concert Kaboomist's face-up twin (the

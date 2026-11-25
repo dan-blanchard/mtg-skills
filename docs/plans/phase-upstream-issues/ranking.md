@@ -2,6 +2,8 @@
 
 Counted 2026-11-25 at commit `ad9a499f`, phase pin v0.131.0. The posting order drawn from it is in `README.md`. 53 drafts in `docs/plans/phase-upstream-issues/`; 201 rows in `bridge_ledger.BRIDGES`; 87 `retirement_canary` test functions (several parametrized).
 
+Since the count: `mutate_count_team_pump_dropped` (draft 08) and `perpetual_combat_self_pump_parked` (Appendix A1) were retired on 2026-11-25 by `misparsed_shapes`' parked-pump rows, which carry their own canaries. The totals below are from before that.
+
 ## How it was counted
 
 - **Ledger rows**: every row id and its pins were dumped from `BRIDGES` itself; each row went to at most one draft. **Canary tests**: all 87 marked test functions were pulled out by AST (name, docstring, parametrize cases) and read; each went to at most one draft (its primary one). **Correction rows**: `misparsed_shapes` rows, `branches.BRANCH_MISREADS` rows, `overlay_corrections` field arms, `dropped_keywords` arms, recovery `ALLOWLIST` tokens with their `clause_grammar` STATIC/REPLACEMENT rows (counted once per token), and named recovery helpers that exist only for one shape. Lane-side constants a canary guards (`NARROWED_PERMANENT_SWEEPS`, `UNBOUND_CAST_TARGET`, ...) are counted through their canary, not twice.

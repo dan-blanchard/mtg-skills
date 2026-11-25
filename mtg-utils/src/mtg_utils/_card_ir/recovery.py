@@ -667,12 +667,16 @@ _THEN_RX = re.compile(r",?\s+then\s+", re.IGNORECASE)
 
 def _x_instruction(sentence: str, table: dict[str, TokenRule]) -> str | None:
     """The part of a binding's sentence to read for the verb X belongs to: the
-    whole sentence when its first instruction names X ("Whenever … deals combat
-    damage to a player, it connives X, where X is …"), else the later
-    instruction that does ("Destroy all artifacts you don't control, then exile
-    the top X cards of your library" — Anzrag's Rampage: the exile, never the
-    destroy). ``None`` when no instruction names X. An instruction starts at a
-    sentence break, at "then", or where :func:`_later_clauses` reads a verb."""
+    sentence up to its binding when its first instruction names X ("Whenever …
+    deals combat damage to a player, it connives X"), else the later instruction
+    that does ("Destroy all artifacts you don't control, then exile the top X
+    cards of your library" — Anzrag's Rampage: the exile, never the destroy).
+    The binding itself ("where X is …") is never part of it: what it counts is
+    no detail of the verb (Bound's "Return up to X cards from your graveyard to
+    your hand, where X is the number of colors that creature was" returns
+    cards, not creatures). ``None`` when no instruction names X. An instruction
+    starts at a sentence break, at "then", or where :func:`_later_clauses`
+    reads a verb."""
     binding = WHERE_X_BINDING_RX.search(sentence)
     head = sentence[: binding.start()] if binding else sentence
     named = _X_RX.search(head)
@@ -686,10 +690,9 @@ def _x_instruction(sentence: str, table: dict[str, TokenRule]) -> str | None:
         }
     )
     before = [start for start in starts if start <= named.start()]
-    if not before:
-        return sentence
     after = [start for start in starts if start > named.start()]
-    return head[before[-1] : after[0] if after else len(head)].rstrip(" ,.")
+    start = before[-1] if before else 0
+    return head[start : after[0] if after else len(head)].rstrip(" ,.")
 
 
 def _recover_binding_sentence(
