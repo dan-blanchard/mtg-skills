@@ -11,7 +11,12 @@ The phase-rs parse reports below are packaged as ready-to-post issue files in
 v0.131.0 on 2026-11-24). Posting them is Dan's; its README has the posting order,
 ranked by the workaround code each retires. Phase also publishes a
 `metadata.confirmed_misparse` category on about 2,500 records now, so some of these
-are already known to it (each draft says where).
+are already known to it (each draft says where). **Vetted 2026-11-25 against
+v0.133.0:** 5 issues filed the same day as phase-rs/phase #11359 to #11363 (the text
+as posted is in `docs/plans/phase-upstream-issues/filed/`). Every other draft and backlog row is recorded as not filed, with its reason, in
+`docs/plans/phase-upstream-issues/vetting-2026-11-25.md`: parked and not a regression,
+already in phase's confirmed-misparse census, ours, or a duplicate of an open
+phase-rs issue.
 
 **From ranking the upstream drafts (2026-11-25; `docs/plans/phase-upstream-issues/ranking.md`)**
 
@@ -429,8 +434,9 @@ are already known to it (each draft says where).
   whole as an `unbound_subject` residue instead.
 - **phase tags "each other player" as `Opponent`.** Grave Pact and Syphon Mind carry
   `player_scope: Opponent`, which only differs from "each opponent" in team formats
-  (it includes your teammate). phase doesn't support team formats yet, so this isn't
-  reported upstream for now. `twohg_scan` vetoes it with an oracle-text check guarded by
+  (it includes your teammate). phase now runs Two-Headed Giant (2026-11-25), so this is
+  filed upstream as phase-rs/phase #11359 (`filed/01`; 12 supported cards;
+  phase's census already flags Grave Pact). `twohg_scan` vetoes it with an oracle-text check guarded by
   a `retirement_canary` test; delete the veto when the canary fails.
 - **phase writes "target opponent may …" as each opponent** (found 2026-11-07,
   v0.118.0; not yet reported upstream). The punisher "target opponent may have you

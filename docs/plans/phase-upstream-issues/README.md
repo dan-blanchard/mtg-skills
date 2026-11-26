@@ -4,6 +4,59 @@ Ready-to-post issue bodies generated from `docs/plans/phase-upstream-reports.md`
 
 Numbering: `NN` is the report section; issues found after the report (25 on: the Arena game-log comparison, the graveyard-mirror follow-up, and 27 to 36 from the v0.131.0 pin bump) take the next number, and the table's last column names their source. Sections 12, 15, 16 and 24 hold several unrelated shapes, so they are split into letter-suffixed files (12a-d, 15a-i, 16a-b, 24a-j). Files are never renumbered: a number whose issue phase fixed is retired, not reused. Cards the report names only as "also" / "ledger" / "backlog, not re-checked" are mentioned in an issue's text as "the same shape appears on these cards, not re-quoted here"; Appendix A (ledger rows) and the "Not drafted" list are out of scope here.
 
+## Vetted for filing (2026-11-25, against v0.133.0)
+
+Every draft and every backlog-listed phase misparse without a draft was re-checked against phase v0.133.0 (commit 890e1ee, newest release that day). The bar was the owner's: file only a bug in phase's parser that changes how the card's rules are applied, not one about how this repo reads phase's output.
+
+Each card was checked in four places:
+
+- its v0.133.0 record;
+- phase's own support verdict, from the coverage export of the same build;
+- phase's confirmed-misparse census (`crates/phase-ast/data/confirmed-misparses.toml`);
+- its record at six older releases (v0.131.0 back to v0.66.0), for regressions.
+
+Phase holds a card unsupported when it has any coverage gap:
+
+- an `Unimplemented` node;
+- an `Unknown` trigger mode;
+- an `Unrecognized` or `Other` static;
+- a swallowed-clause warning;
+- an invalid `AddSubtype`;
+- an unhandled resolver feature;
+- a census stamp.
+
+So a parked clause was filed only as a regression. A typed misparse the census already quotes was not filed.
+
+**Outcome: 5 issues filed on 2026-11-25** as phase-rs/phase [#11359](https://github.com/phase-rs/phase/issues/11359) ("each other player" typed as each opponent), [#11360](https://github.com/phase-rs/phase/issues/11360) (type filters holding a non-subtype), [#11361](https://github.com/phase-rs/phase/issues/11361) (Variable Solutions), [#11362](https://github.com/phase-rs/phase/issues/11362) (Grim Reminder) and [#11363](https://github.com/phase-rs/phase/issues/11363) (Blood Lust); the text as posted is in `filed/` (after an independent verification pass that dropped two of the first seven; see below). The full table, with every card kept or dropped and the reason, is `vetting-2026-11-25.md`.
+
+| Draft | Verdict |
+|---|---|
+| 05 | SPLIT: Grim Reminder → `filed/04`; Chaos Mutation already in phase's census |
+| 07 | NOT FILED: already flagged by phase. Can't Stay Away and Necromancy were staged, then dropped after verification (see below); the rest parked |
+| 12b | FILE → `filed/03` (Variable Solutions, with draft 20's card) |
+| 14 | SPLIT: Blood Lust → `filed/05`; Bestial Fury ours (the engine resolves `ParentTarget` to the blocked creature); the rest census or parked |
+| 13 | NOT FILED: duplicate of phase-rs/phase#9648 (open) |
+| 16a | NOT FILED: duplicate of phase-rs/phase#9087 and #7366 (open). The aftermath layout isn't mapped, so all 27 aftermath cards lack their second half |
+| 15f, 20, 24h, 25 | NOT FILED: ours, not phase's. The engine builds Roles and the Vibranium mana ability from its token presets. Seek always uses its controller's library. A counterspell's "exile it instead" is applied as the counter's destination (CR 608.2c + 614.1a, issue #8762), so the spell never touches the graveyard |
+| 03, 06, 07, 12a, 12c, 12d, 15a, 15c, 15d, 15h, 15i, 16b, 17, 19, 23, 24c, 24d, 28 | NOT FILED: already flagged by phase (census, or a coverage gap on that clause) |
+| 02, 04, 08, 09, 11, 15b, 15e, 18, 21, 22, 24a, 24e, 24f, 24g, 24i, 24j, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36 | NOT FILED: parked, not a regression. Earlier typings were missing or wrong, and phase now fails closed on them |
+
+Two issues come from backlog rows with no draft:
+
+- `filed/01`: "each other player" typed as each opponent. Phase now runs Two-Headed Giant, so a teammate is skipped.
+- `filed/02`: type filters holding subtypes that don't exist (Depala, Broodwarden, On the Shoulders of Giants, Tetzin).
+
+The "target opponent may" row is a duplicate of phase-rs/phase#7755 and #7767 (both open).
+
+Dropped after verification, kept in `filed/not-filed/` with the reason at the top:
+
+- **Can't Stay Away.** Phase's coverage export already flags the clause: the replacement node whose `source_text` is the whole first line reports `supported: false`, with the gap inside it.
+- **Necromancy.** The demotion to `granter_reference_unreached` is deliberate and tested. `crates/engine/tests/integration/granted_ability_self_binding.rs`, test `self_grant_refused_name_demotes_its_grant`, asserts it. Open issue #7619 reports the typed version misbehaving. A tested fail-closed choice is not a regression.
+
+The verification also took Syphon Soul out of `filed/01`: its `DamageEachPlayer` already counts a teammate.
+
+The posting order below predates this vetting; the filing order is now `filed/01` to `filed/05`.
+
 ## Posting order
 
 Ranked 2026-11-25 by the workaround code each draft retires on our side when phase fixes it: bridge-ledger rows, `retirement_canary` tests, and correction-layer rows or recovery tokens (`ranking.md` has every draft's count, what each attribution rests on, and which were verified in the code). "Strict" counts only a workaround whose card or exact shape the draft names. Where two drafts were close, the one phase does not already flag `confirmed_misparse` goes first. Drafts in parentheses are the same upstream fix: post them together.
