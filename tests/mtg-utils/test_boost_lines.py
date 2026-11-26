@@ -357,13 +357,13 @@ def test_a_granted_targeting_trigger_names_its_source():
     assert _subjects("Livewire Lash", "targeting_matters") == {"spell"}
 
 
-def test_bill_potts_reads_only_its_typed_half():
+def test_bill_potts_reads_both_halves():
     """ "Whenever you cast an instant or sorcery spell that targets only Bill
     Potts or activate an ability that targets only Bill Potts": phase types the
-    cast half and leaves the activation an ``Unknown`` mode, which is not read
-    (a backlog gap), so only the spell half shows."""
-    assert "spell" in _subjects("Bill Potts", "targeting_matters")
-    assert "" not in _subjects("Bill Potts", "targeting_matters")
+    cast half and leaves the activation an ``Unknown`` mode, which the clause
+    grammar reads (``crosswalk.parked_targeting_payoffs``): spells and
+    abilities both, ``""``."""
+    assert _subjects("Bill Potts", "targeting_matters") == {"", "you"}
 
 
 def test_a_granted_lord_targeting_trigger_names_its_source():
@@ -551,3 +551,154 @@ def test_a_flattened_boon_is_a_stack_card_boost():
     assert "stack" in _subjects("Flaming Fist Duskguard", "card_boost")
     assert "stack" in _subjects("Valiant Farewell", "card_boost")
     assert not _subjects("Dark Salvation", "card_boost")
+
+
+# ── Phase v0.133.0's block: parked targeting payoffs, granted boost keywords ───
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        # "Whenever ~ becomes the target of an ability that targets only it"
+        ("Agrus Kos, Eternal Soldier", {"ability"}),
+        # "… becomes the target of an ability of a land you control named …"
+        ("Skophos Maze-Warden", {"ability"}),
+        # "Whenever you become the target of a spell"
+        ("Dormant Gomazoa", {"spell"}),
+        # "Whenever you cast a spell that targets a creature you control"
+        ("Iron Fist, Living Weapon", {"spell", "you"}),
+        ("Ms. Marvel, Kamala Khan", {"spell", "you"}),
+    ],
+)
+def test_parked_targeting_payoff_canary(name, subjects):
+    """A targeting payoff phase parks (an ``Unknown`` trigger mode, a whole-ability
+    residue) names its source through the clause grammar
+    (``crosswalk.parked_targeting_payoffs``), so it is offered only the cards
+    that fire it. Fails once phase types the trigger: then the typed read
+    (``targeting_trigger_source``) takes over and the parked one can go."""
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card
+
+    trees = trees_for(test_card(name))
+    assert any(
+        next(t.unknown_trigger_modes(), None) is not None
+        or next(t.residues("granter_reference_unreached"), None) is not None
+        for t in trees
+    ), (
+        f"parked targeting payoff: RETIRE-READY — phase types {name}'s trigger. "
+        "Delete its case here; once none is left, retire "
+        "crosswalk.parked_targeting_payoffs and clause_grammar.targeting_payoffs."
+    )
+    assert _subjects(name, "targeting_matters") == subjects
+
+
+def test_a_dropped_half_of_a_typed_trigger_names_its_source():
+    """Brine Comber's back face: "Whenever this Aura enters or enchanted creature
+    becomes the target of an Aura spell", typed as the enters trigger alone."""
+    assert _subjects("Brine Comber // Brinebound Gift", "targeting_matters") == {
+        "spell"
+    }
+
+
+@pytest.mark.parametrize(
+    ("text", "reads"),
+    [
+        ("Whenever ~ becomes the target of a spell or ability", {("", "any")}),
+        (
+            "Whenever ~ becomes the target of a spell or ability an opponent controls",
+            {("", "opponents")},
+        ),
+        ("Whenever you cast a spell that targets ~", {("spell", "you")}),
+        ("Whenever you activate an ability that targets only ~", {("ability", "you")}),
+        ("Whenever you attack", set()),
+    ],
+)
+def test_targeting_payoffs_grammar(text, reads):
+    from mtg_utils._card_ir.clause_grammar import targeting_payoffs
+
+    assert {(p.source, p.side) for p in targeting_payoffs(text)} == reads
+
+
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        # "Other creatures you control have prowess" (CR 702.108a)
+        ("Bria, Riptide Rogue", {"anthem"}),
+        ("Narset, Enlightened Exile", {"anthem"}),
+        # "Equipped creature has prowess": equip is an ability (CR 702.6a)
+        ("Wizard's Staff", {"attached", "target_ability"}),
+        # "Enchanted creature has prowess and ward {2}": an Aura spell targets
+        ("Taught by Narset", {"attached", "target_spell"}),
+        # exalted on any permanent of yours boosts your lone attacker (702.83a)
+        ("Merchant of Truth", {"anthem"}),
+        ("Rashel, Fist of Torm", {"anthem"}),
+        ("Zarda, the Power Princess", {"anthem"}),
+        # a group grant that lasts a turn is an effect, as a one-shot team pump
+        # is (the coordinator's choice): a trigger's, a sorcery's
+        ("Rammas Echor, Ancient Shield", {"effect"}),
+        ("Vivien's Stampede", {"effect"}),
+        # a standing grant, a static's, is an anthem
+        ("Sublime Archangel", {"anthem", "effect"}),  # its printed exalted: effect
+    ],
+)
+def test_a_granted_boost_keyword_boosts_your_other_creatures(name, subjects):
+    """Dan's ruling (2026-11-25): a grant of a keyword whose whole effect is a
+    power/toughness boost — prowess, exalted, bushido (CR 702.108a, 702.83a,
+    702.45a), rampage, melee — boosts your other creatures, filed by how it is
+    granted (ADR-0065)."""
+    assert _subjects(name, "boosts_others") == subjects
+
+
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        # battle cry granted to others (CR 702.91a): a team boost
+        ("Syr Joshua and Syr Saxon", {"anthem"}),
+        # battle cry given to itself boosts the other attackers, as printed
+        ("Reckless Pyrosurfer", {"effect"}),
+        # parked "~ perpetually gains battle cry"
+        ("Marshland Hordemaster", {"effect"}),
+        # one target creature of yours: the target flag, by delivery
+        ("Fang of the Pack", {"effect", "target_ability"}),
+        ("Rapid Fire", {"effect", "target_spell"}),
+        ("Sensei Golden-Tail", {"effect", "target_ability"}),
+    ],
+)
+def test_battle_cry_and_a_targeted_boost_keyword_boost_others(name, subjects):
+    """Dan's ruling (2026-11-25): battle cry counts too; the coordinator's
+    decision: a boost keyword granted to one target creature that isn't an
+    opponent's carries the target flag."""
+    assert _subjects(name, "boosts_others") == subjects
+
+
+@pytest.mark.parametrize("name", ["Fumiko the Lowblood", "Cavalry Master"])
+def test_a_boost_keyword_on_itself_or_flanking_is_no_grant_to_others(name):
+    """Fumiko's "has bushido X" grows itself; flanking shrinks the blocker
+    (CR 702.25a), so Cavalry Master's flanking grant is no boost."""
+    assert not _subjects(name, "boosts_others")
+
+
+def test_a_quoted_payoff_in_a_typed_triggers_description_is_not_its_own():
+    """Niambi, Beloved Protector's enters trigger hands the returned creature
+    "Whenever ~ becomes the target of a spell or ability, draw a card": the
+    description scan of ``parked_targeting_payoffs`` leaves quoted words out,
+    while Brine Comber's back face's unquoted dropped half is read."""
+    from mtg_utils._card_ir.clause_grammar import targeting_payoffs
+
+    niambi = (
+        "When ~ enters, if you cast it, choose target nonlegendary creature card "
+        "in your graveyard that was put there from the battlefield this turn. "
+        'Return it to the battlefield. It perpetually gains "Whenever ~ becomes '
+        'the target of a spell or ability, draw a card."'
+    )
+    assert targeting_payoffs(niambi, quoted=False) == frozenset()
+    assert targeting_payoffs(niambi)
+    from mtg_utils._card_ir.crosswalk import parked_targeting_payoffs
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card
+
+    assert not any(
+        parked_targeting_payoffs(t)
+        for t in trees_for(test_card("Niambi, Beloved Protector"))
+    )

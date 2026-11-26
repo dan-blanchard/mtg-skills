@@ -69,6 +69,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_keyword_name,
     modify_cost_mode,
     names_subtype_payoff,
+    parked_targeting_payoffs,
     protective_grant_recipients,
     protective_saves,
     protective_team_grants,
@@ -2142,6 +2143,11 @@ def _becomes_target_lanes(tree: ConceptTree) -> list[Signal]:
                     granted = targeting_trigger_source(trig)
                     if granted is not None:
                         sources.add(granted)
+    # A payoff phase parks, read by the clause grammar
+    # (:func:`crosswalk.parked_targeting_payoffs`): Agrus Kos's "an ability that
+    # targets only it", Iron Fist's "you cast a spell that targets a creature
+    # you control". The residue arm's text match names no source.
+    sources |= {p.source for p in parked_targeting_payoffs(tree)}
     if not sources and any(
         c.concept == "synth_targeting_matters" for c in tree.iter_concepts()
     ):

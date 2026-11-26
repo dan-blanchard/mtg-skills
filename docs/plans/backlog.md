@@ -71,6 +71,88 @@ phase-rs issue.
   Bower Passage, Champion of Lambholt, Heat Wave and Storm, Windrider stay:
   "… can't block creatures you control" (a `BlockRestriction` over `Not` your
   creatures) forces blockers off your attackers.
+- **The reads block (2026-11-25, Dan's rulings; at v0.133.0 every item below was
+  still misread by phase):** the three Fynn bites read as bites
+  (`misparsed_shapes`' bite row over `clause_grammar.power_damage_target`, the
+  dealer as phase's own bites write it); a "Choose a …" phase types as a target
+  is marked as chosen on resolution (CR 115.10a: Crush Underfoot's Giant); 18
+  of the 20 parked "can't be the target of [some] spells" lines are read
+  (`crosswalk.targeting_shields` over `clause_grammar.targeting_shield`): a
+  shield handed to another permanent is board protection, and a hexproof or
+  "hexproof from" grant where it stops your opponents' spells and abilities
+  (CR 702.11b, 702.11d; Spellbane Centaur reads as Tam, Mindful First-Year);
+  a creature's own shield gives no signal, as a printed one doesn't (Dan's
+  ruling, 2026-11-25; Lurker's conditional one included: every typed peer that
+  reads `conditional_self_protection` grants itself a protective keyword); a
+  granted prowess, exalted, bushido, rampage, melee or battle cry is
+  `boosts_others`, one granted to a target creature with its target flag
+  (ADR-0065); the where-X recovery reads a typed trigger's
+  effect without its condition, one instruction per residue of a binding, and
+  Magus of the Mind's elided library (impulse draw); eight parked targeting
+  payoffs name their source (`crosswalk.parked_targeting_payoffs`); Penregon
+  Besieged, Territorial Strike, Scour the Scene and Darigaaz's Whelp are
+  corrected, each with a canary. Left: Tomik's lands (its ledger row) and Wall of
+  Shadows's "spells that can target only Walls" are not read by the shield
+  grammar; the counter keywords (training, dethrone, mentor) are not in the
+  boost-keyword rule, and flanking (a shrink) is out.
+- **The choose-not-target correction reads a heading "Choose a / an / one …"
+  only** (`misparsed_shapes`' untargeted-choice row,
+  `clause_grammar.opens_with_choice`). The same shape, unmarked: "Choose five
+  permanents you control" (Clarion Ultimatum still reads `own_target_spell`),
+  "Choose up to X" (Temporal Firestorm still reads
+  `per_target_payoff|you|variable`), and a non-heading "then choose any number"
+  (Ripples of Potential, both). Each is a `TargetOnly` the word "target" doesn't
+  name (CR 115.10a).
+- **`own_target_spell` on spells that target nothing of yours** (an older gap,
+  found by the reads block's review, 2026-11-25): about 68 of its 741 holders
+  name no target at all (the reviewer's list:
+  `~/.cache/mtg-skills/phase-bump/v0.133.0/own-target-holders.txt`). Choices
+  phase doesn't mark as made on resolution (Contractual Safeguard, Balance,
+  Balancing Act, Restore Balance, Camouflage, Devastating Mastery, Misfortune,
+  Flaming Gambit); filters that are no target but which `has_own_target_spell`
+  reads as one (`Sacrifice`: Liliana's Triumph, Clip Wings; `PutCounterAll`:
+  Basri's Solidarity, Scale Blessing; `ChangeZoneAll`: Part the Veil,
+  Ghostway); and "target creature that player controls" typed `You` (Mega
+  Flare, Shellshock — Delirium's misparse).
+- **Silent misparses to report upstream** (phase types it wrong; found by the
+  reads block, 2026-11-25). Each with phase v0.133.0's coverage export
+  (`supported`) and whether its confirmed-misparse census lists the face. Vetted
+  on 2026-11-25 (`docs/plans/phase-upstream-issues/vetting-2026-11-25.md`):
+  Territorial Strike was filed as phase-rs/phase #11364; every other entry is
+  already known to phase (its census or an open issue), so nothing more is to be
+  filed:
+  - Spirit Flare, Crush Underfoot, Thorin, Mountain-king: "it deals damage equal
+    to its power to target creature" is a `DealDamage` on `ParentTarget`, the
+    dealer itself, with no `damage_source`; the recipient target is dropped.
+    Unsupported; all three in the census (`target_wrong`, Thorin's as
+    `trigger_wrong`).
+  - Thorin, Mountain-king: the reflexive "When one or more Equipment become
+    attached to that creature this way, …" is flattened into an unconditional
+    sub-ability of the attach. Unsupported; in the census (`trigger_wrong`).
+  - Delirium: "Tap target creature that player controls" is typed `controller:
+    You`, and "That creature deals damage equal to its power to the player" is
+    the same `DealDamage` on `ParentTarget`, a creature, where the recipient is
+    the player. Not worked around: its sub-ability carries no description for
+    the bite row to read. Unsupported; in the census (`wrong_player`).
+  - Garruk Relentless: "That creature deals damage equal to its power to him",
+    the same `ParentTarget` where the recipient is Garruk (not worked around).
+    Unsupported; not in the census.
+  - Territorial Strike: "If a Dragon creature was beheld, it perpetually gets
+    +2/+2" is an `ApplyPerpetual` on `ParentTarget`, the destroyed permanent, not
+    the beheld Dragon (`CostPaidObject`). Reported supported; not in the census.
+  - Scour the Scene: "choose a creature card in your hand or a creature you
+    control" is a `ChooseFromZone` of the hand alone, the battlefield creature an
+    arm of its filter. Unsupported; in the census (`wrong_zone`).
+  - Crush Underfoot: "Choose a Giant creature you control" is a `TargetOnly`
+    with no resolution timing, but the Giant isn't targeted (its ruling: chosen
+    as the spell resolves; CR 115.10a). Unsupported (above); its census row
+    names only the damage clause. Gideon's Sacrifice ("Choose a creature or
+    planeswalker you control") and Clambassadors' trigger ("choose an artifact,
+    creature, or land you control") are the same misparse; phase reports both
+    supported and its census has neither. phase-rs/phase #10688 (open) already
+    reports this root cause on Crush Underfoot, citing CR 115.10a: nothing new
+    to file for any of the three (`misparsed_shapes`' untargeted-choice row
+    corrects them).
 
 **From the phase v0.131.0 pin bump (2026-11-24)**
 
@@ -85,10 +167,8 @@ phase-rs issue.
   which the `theft_makers` / `opp_top_exile` reads don't follow; Battlefield
   Thaumaturge's and Disorder's qualifiers park (`cost_reduction`'s instant/sorcery
   subject, `color_hoser`); Cocoon's comma-joined instruction list isn't split by
-  the recovery stage. About twenty "can't be the target of [some] spells" statics
-  now park as `mode: {Other: text}` (Fiendslayer Paladin, Gaea's Revenge, Dense
-  Foliage); `ConceptTree.other_static_modes()` lists them, read so far only by
-  Tomik's ledger row.
+  the recovery stage. (The twenty "can't be the target of [some] spells" statics
+  that park as `mode: {Other: text}` are read now: the v0.133.0 reads block.)
 - **Phase now leaves "When you attack enchanted opponent" an `Unknown` trigger
   mode**: Tenuous Truce lost `attack_matters` (upstream draft 30; no read can
   recover it without matching phase's text).
@@ -108,11 +188,10 @@ phase-rs issue.
     `ApplyPerpetual` P/T change on a creature on the battlefield is a `pump`,
     Dan's call 2026-11-25). Of phase's 54 typed changes on 51 cards, 28 are on
     the battlefield (18 the card itself, 10 another creature), 24 off it, and 2
-    unread: Darigaaz's Whelp's "Whenever you draw a Dragon card, it perpetually
-    gets +1/+1" (a trigger mode phase leaves `Unknown`; the drawn card, so off
-    anyway; its seek trigger reads `card_boost|you|hand`) and Penregon Besieged's "choose a creature with the least toughness
-    among creatures your opponents control. It perpetually gets -1/-1" (the
-    choice is a residue; a real shrink of an opponent's creature). Rewritten: 10
+    unread then, read since the v0.133.0 reads block: Darigaaz's Whelp's
+    "Whenever you draw a Dragon card" (phase's `Unknown` mode, written as
+    `Drawn`) and Penregon Besieged's parked choice (typed as a `TargetOnly`, so
+    its -1/-1 is a `debuff_makers` shrink). Rewritten: 10
     of the 36 `perpetual_modify_pt` clauses (Chaos Balor ×2, By Elspeth's
     Command's first mode, Leaf-Leap Guide, Sewer Plague, Darigaaz's Whelp,
     Freyalise, Benalish Partisan, Managorger Phoenix, Hurkyl's Prodigy), plus
@@ -144,14 +223,10 @@ phase-rs issue.
       `card_boost` either way).
     - *Undersimplify*: "it perpetually gets -2/-0", a shrink of a spell on the
       stack: no boost.
-  - *`card_boost` known gaps* (2026-11-25): Territorial Strike's "If a Dragon
-    creature was beheld, it perpetually gets +2/+2" is typed by phase as a
-    change to the destroyed permanent; the "it" is the beheld Dragon, which can
-    be revealed from your hand, so its `hand` boost is missed (read as none).
-    Scour the Scene's "choose a creature card in your hand or a creature you
-    control. It perpetually gets +1/+0" reads as `hand` only; the battlefield
-    option gets no pump (phase's choice is a `ChooseFromZone` of the hand).
-    Tawnos Endures's granted "if this card is exiled, it perpetually gets
+  - *`card_boost` known gaps* (2026-11-25; Territorial Strike's beheld Dragon
+    and Scour the Scene's battlefield option are read since the v0.133.0 reads
+    block, both a pump and `card_boost|you|hand`): Tawnos Endures's granted "if
+    this card is exiled, it perpetually gets
     +1/+1" is none: the exiled creature can be anyone's. A change to the card
     itself is the card growing (Tomakul Phoenix). Soul Shredder holds no
     boost: phase types its "~ perpetually gets +1/+1" on `Any`, and parks its
@@ -174,49 +249,21 @@ phase-rs issue.
     `ApplyPerpetual`, not the pump. (`_etb_pump_unit` reads the unit's effect
     concepts since 2026-11-25: Leaf-Leap Guide is `entered_attacker|you|etb_pump`.)
 - **Left open by the boost lines (ADR-0065, 2026-11-25)**:
-  - *"It"s left unread* (`boost_recipient` says `unknown`): Mirkwood Trapper's
-    "that player chooses an attacking creature. It gets +2/+0"; Sigardian
-    Zealot's "choose any number of creatures … Each of them gets +X/+X"; Garruk,
-    Apex Predator's emblem ("Whenever a creature attacks you, it gets +5/+5");
-    Curse of Stalked Prey's "put a +1/+1 counter on that creature" (a damage
-    trigger naming no source); Tusk and Whiskers's sticker trigger (phase's
-    `Unknown` mode, "Whenever you put an ability sticker on a creature"). An
-    unknown recipient counts as yours meanwhile (Dan's ruling, under Settled).
-  - A granted prowess (Wizard's Staff's "Equipped creature has prowess"; Bria,
-    Riptide Rogue's to your other creatures) is read by neither `self_boost` nor
-    `boosts_others`. (Granted firebreathing is: Kusari-Gama reads
-    `boosts_others|you|attached`.)
-  - *Targeting payoffs the residue arm reads* name no source since the oracle-text
-    read of their clause was removed (2026-11-25), so they read as either (`""`)
-    and are offered both the spell and the ability pages: Agrus Kos, Eternal
-    Soldier and Skophos Maze-Warden (abilities only, phase's `Unknown` mode),
-    Dormant Gomazoa (`Unknown`), Iron Fist, Living Weapon and Ms. Marvel, Kamala
-    Khan ("a spell that targets a creature you control", which
-    `targeting_trigger_source` doesn't read), Brine Comber's back face. Bill
-    Potts's "activate an ability that targets only ~" (`Unknown`) is not read;
-    its typed cast half reads `targeting_matters|any|spell`. The fix is a
-    `clause_grammar` read of the `Unknown` mode (as Akiri's is) with a canary,
-    and `targeting_trigger_source` extended to a cast trigger on your creatures.
   - Earthbend's "put N +1/+1 counters on it" (a land it animates, which it
     targets) is `boosts_others|target_ability`.
   - Meatsqueak, Hoard Lord's "For every seven Foods you control, Squirrels you
     control get +3/+3" is typed as a static on `SelfRef` with the count dropped,
     so it reads as `self_boost|you|static` and not as a team pump; an upstream
     phase misparse (worth a phase issue), not ledgered.
-- **Where-X clauses the recovery reads as the wrong thing** (each to settle
-  per card; none moves a signal today unless said): Commander Liara Portyr's
-  "spells you cast from exile this turn cost {X} less" recovers as
-  `cast_from_zone`, a cost reduction read as a cast permission; Magus of the
-  Mind's "exile the top X cards" recovers as a plain exile, where the card
-  lets you play them. A `where_x_binding` residue is read from its
-  instruction alone, never the "where X is …" half (Dan's ruling on Bound //
-  Determined, 2026-11-25); a residue of another kind that holds its own
-  binding (Liara's `unparsed_quantity`) is still read whole.
-- **Not recovered**: 6 of the 31 `where_x_binding` residues on legal cards
-  (census 2026-11-25; 25 recovered): Commander Liara Portyr's "cost {X} less"
-  binding, a verb the allowlist doesn't hold (Florian's and Surveyor's Scope's
-  look / search), and Niv-Mizzet, Guildpact's two and Concert Kaboomist's
-  face-up twin (the "combat damage" / "turned face up" veto).
+- **Not recovered**: 3 of the 31 `where_x_binding` residues on legal cards
+  (census at v0.133.0 after the reads block; 28 recovered): Commander Liara
+  Portyr's "cost {X} less" binding (its `unparsed_quantity` twin holds the
+  verb) and Florian, Voldaren Scion's and Surveyor's Scope's look / search,
+  whose following moves phase types (no signal is lost). Niv-Mizzet,
+  Guildpact's damage and draw, Concert Kaboomist's face-up burn and Magus of
+  the Mind's impulse exile are read since the v0.133.0 reads block. A
+  `where_x_binding` residue is read from its instruction alone, never the
+  "where X is …" half (Dan's ruling on Bound // Determined, 2026-11-25).
 
 **From comparing Arena game logs with phase (2026-11-09)**
 
@@ -362,12 +409,9 @@ phase-rs issue.
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
-- **Phase drops a bite's own target** (report upstream, Dan posts): Spirit
-  Flare's "it deals damage equal to its power to target attacking or blocking
-  creature an opponent controls", Crush Underfoot's "to target creature" and
-  Thorin, Mountain-king's "to up to one target creature" parse as a
-  `DealDamage` to `ParentTarget`, the dealer itself, so none reads as a bite
-  (`crosswalk.is_bite`) or as power damage of yours.
+- (Phase dropping a bite's own target — Spirit Flare, Crush Underfoot, Thorin,
+  Mountain-king — is corrected by `misparsed_shapes`' bite row since the v0.133.0
+  reads block, and listed with that block's silent misparses.)
 
 **From the Omnath Competitive Brawl build (2026-10-04)**
 
@@ -668,8 +712,15 @@ from Open)**
 - **A boost that can land on your creature is yours** (Dan, 2026-11-25): Chaos
   Balor's "each creature target player controls" (the player can be you)
   counts. Only one that can land on nothing but opponents' creatures is out. A
-  recipient `boost_recipient` can't resolve (`unknown`) stays counted, and
-  listed under Open (the boost lines' unread "it"s).
+  recipient `boost_recipient` can't resolve (`unknown`) stays counted as yours,
+  and listed here, not as open work: Mirkwood Trapper's "that player chooses an
+  attacking creature. It gets +2/+0"; Sigardian Zealot's "choose any number of
+  creatures … Each of them gets +X/+X"; Garruk, Apex Predator's emblem
+  ("Whenever a creature attacks you, it gets +5/+5"); Curse of Stalked Prey's
+  "put a +1/+1 counter on that creature" (a damage trigger naming no source);
+  Tusk and Whiskers's sticker trigger (phase's `Unknown` mode). Applied in the
+  v0.133.0 reads block: Territorial Strike's beheld Dragon and Scour the
+  Scene's "or a creature you control" are pumps of yours.
 - **"Those creatures gain [keyword]" after a mass effect over creatures you
   control is the team's** (Dan, 2026-11-24; `crosswalk.group_grant_statics`),
   except a group you take (Mob Rule, Call for Aid, Insurrection) or one with no

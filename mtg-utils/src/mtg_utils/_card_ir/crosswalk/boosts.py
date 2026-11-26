@@ -33,6 +33,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     OBJECT_FILTER_TAGS,
     _find_owner_wrapper,
     acts_on_a_group,
+    beholds,
     controller_side,
     counter_kind,
     effect_chosen_on_resolution,
@@ -354,6 +355,10 @@ def object_recipient(
         if named is not None:
             return object_recipient(unit, named)
         return _event_object(unit, node)
+    if tag == "CostPaidObject" and beholds(unit):
+        # The beheld object (CR 701.4a): a card in your hand or a permanent you
+        # control.
+        return "yours"
     if tag == "LastCreated":
         # The token the chain just made ("Put X +1/+1 counters on it").
         return "yours"

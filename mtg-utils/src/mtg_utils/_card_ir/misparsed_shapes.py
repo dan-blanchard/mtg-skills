@@ -265,6 +265,38 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   creature spell. A pump on a player or on a creature that just left changes
   nothing; the boon text tells the two from Dark Salvation's player ``Pump``.
   ``test_flattened_boon_canary`` fails once phase types them.
+* **A bite's target written on its dealer.** "Tap target untapped creature you
+  control. If you do, it deals damage equal to its power to target attacking
+  or blocking creature an opponent controls" (Spirit Flare; Crush Underfoot,
+  Thorin, Mountain-king) types the damage on ``ParentTarget`` — the creature of
+  yours the earlier effect named, which deals it — so the card reads as damage
+  to itself, no bite. Where the description names a target creature as the
+  recipient (``clause_grammar.power_damage_target``), the target is written
+  back as phase types its own bites (Sylvan Smite: the ``Typed`` creature and
+  ``damage_source: Target``, the earlier effect's creature dealing it;
+  Catti-brie of Mithral Hall's ``Or`` of an attacking and a blocking one; "up
+  to one" as ``multi_target``). ``test_bite_target_canary`` fails once phase
+  types it.
+* **A choice typed as a target.** "Choose a Giant creature you control" (Crush
+  Underfoot) is a heading ``TargetOnly``, as if it targeted; the word "target"
+  names no such object (CR 115.10a), so the choice is marked as made on
+  resolution, phase's ``target_choice_timing: Resolution``
+  (``clause_grammar.opens_with_choice``). ``test_untargeted_choice_canary``
+  fails once phase marks it.
+* **Three Alchemy "it"s and a draw trigger.** Penregon Besieged's parked
+  "choose a creature with the least toughness among creatures your opponents
+  control" (``clause_grammar.chosen_creature``) is typed as Crush Underfoot's
+  ``TargetOnly`` choice made on resolution, so its "It perpetually gets -1/-1"
+  lands on that creature; Territorial Strike's "If a Dragon creature was beheld, it
+  perpetually gets +2/+2", written on the destroyed permanent, is written on
+  phase's ``CostPaidObject`` (the beheld Dragon, CR 701.4a); Scour the Scene's
+  "choose a creature card in your hand or a creature you control", a choice
+  from the hand alone, gets the battlefield as phase's ``additional_zones``;
+  Darigaaz's Whelp's ``Unknown`` "Whenever you draw a Dragon card" is phase's
+  ``Drawn`` mode with the subtype on ``valid_card``
+  (``clause_grammar.drawn_card_subtype``). ``test_parked_choice_canary``,
+  ``test_beheld_it_canary``, ``test_hand_or_battlefield_choice_canary`` and
+  ``test_parked_draw_trigger_canary`` fail once phase types them.
 
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
@@ -278,15 +310,21 @@ from typing import NamedTuple
 
 from mtg_utils._card_ir.clause_grammar import (
     CardGroup,
+    ChosenCreature,
     ParkedPump,
     PerpetualSubject,
+    PowerDamageTarget,
     PumpSubject,
     SplitPump,
     attached_attackers_kind,
     binding_sentence,
+    chosen_creature,
+    drawn_card_subtype,
     lead_object,
+    opens_with_choice,
     parked_perpetual_change,
     parked_pump,
+    power_damage_target,
     split_pump,
     subtype_keyword_grant,
     verb_list_pump,
@@ -1436,6 +1474,240 @@ def _place_split(target: dict, split: _PumpSplit) -> None:
         target["multi_target"] = first["multi_target"]
 
 
+#: A power-sized amount read off "its" — the pronoun's own subject (``Anaphoric``).
+_ITS_POWER = {"type": "Ref", "qty": {"type": "Power", "scope": {"type": "Anaphoric"}}}
+
+
+def _power_damage_filter(read: PowerDamageTarget) -> dict:
+    """The filter phase writes for the target a bite names: a ``Typed`` creature
+    (or subtype) with its controller, one arm per combat state ("target
+    attacking or blocking creature an opponent controls": an ``Or`` of an
+    attacking and a blocking one — Catti-brie of Mithral Hall)."""
+
+    def arm(states: tuple[str, ...]) -> dict:
+        return {
+            "type": "Typed",
+            "type_filters": [
+                {"Subtype": read.subtype} if read.subtype is not None else "Creature"
+            ],
+            "controller": read.controller,
+            "properties": [{"type": s} for s in states],
+        }
+
+    if len(read.states) > 1:
+        return {"type": "Or", "filters": [arm((s,)) for s in read.states]}
+    return arm(read.states)
+
+
+def _bite_recipients(rec: dict) -> list[tuple[dict, PowerDamageTarget]]:
+    """Each body whose damage equal to "its" power phase wrote on
+    ``ParentTarget`` — the creature of yours the earlier effect named, the dealer
+    itself — where the description names a target creature as the recipient
+    (:func:`~mtg_utils._card_ir.clause_grammar.power_damage_target`): Spirit
+    Flare, Crush Underfoot, Thorin, Mountain-king (3 cards at v0.133.0). It is
+    written as phase writes its own bites ("Then that creature deals damage
+    equal to its power to target creature you don't control" — Sylvan Smite):
+    the recipient's filter, and ``damage_source: Target``, the earlier effect's
+    creature dealing the damage (without it the spell, or Thorin himself, would
+    deal it). The structure alone over-matches: of the 8 legal faces with this
+    ``DealDamage`` after an earlier effect, Garruk Relentless's "to him" and
+    Alpha Brawl's "to that creature" are no target creature (the grammar's
+    read), Delirium's ability has no description to read (its sub-ability's),
+    and Beastie Beatdown's dealer heads its own ability."""
+    out: list[tuple[dict, PowerDamageTarget]] = []
+    for body, description, _trig, earlier in _described_bodies(rec):
+        effect = body.get("effect")
+        if not (
+            isinstance(effect, dict)
+            and effect.get("type") == "DealDamage"
+            and (effect.get("target") or {}).get("type") == "ParentTarget"
+            and effect.get("amount") == _ITS_POWER
+            and not effect.get("damage_source")
+            and earlier.last is not None
+        ):
+            continue
+        dealer = earlier.last.get("target") or {}
+        if dealer.get("type") != "Typed" or dealer.get("controller") != "You":
+            continue
+        read = power_damage_target(description)
+        if read is not None:
+            out.append((body, read))
+    return out
+
+
+def _least_or_most(chosen: ChosenCreature) -> list[dict]:
+    """The ``PtComparison`` phase writes for "a creature with the least toughness
+    among creatures your opponents control" (Olórin's Searing Light's "the
+    greatest power among creatures that player controls")."""
+    if chosen.extreme is None:
+        return []
+    function, stat = chosen.extreme
+    return [
+        {
+            "type": "PtComparison",
+            "stat": stat,
+            "scope": "Current",
+            "comparator": "EQ",
+            "value": {
+                "type": "Ref",
+                "qty": {
+                    "type": "PropertyAggregate",
+                    "function": function,
+                    "property": stat,
+                    "source": {
+                        "type": "Objects",
+                        "filter": {
+                            "type": "Typed",
+                            "type_filters": ["Creature"],
+                            "controller": chosen.controller,
+                            "properties": [],
+                        },
+                    },
+                },
+            },
+        }
+    ]
+
+
+def _parked_choices(rec: dict) -> list[tuple[dict, dict]]:
+    """``(body, effect)`` for each parked "choose a creature …" an
+    ``ApplyPerpetual`` of its ``ParentTarget`` follows (Penregon Besieged's
+    "choose a creature with the least toughness among creatures your opponents
+    control. It perpetually gets -1/-1"; 1 card at v0.133.0): the choice is
+    typed as phase types "Choose a Giant creature you control" (Crush
+    Underfoot's ``TargetOnly``), chosen as it resolves, not targeted (CR
+    115.10a: ``target_choice_timing: Resolution``, phase's mark on Daily
+    Regimen), so the change lands on the chosen creature."""
+    out: list[tuple[dict, dict]] = []
+    for body in _ability_bodies(rec):
+        effect = body.get("effect") or {}
+        nxt = (body.get("sub_ability") or {}).get("effect") or {}
+        if not (
+            effect.get("type") == "Unimplemented"
+            and effect.get("name") == "unparsed_verb_arguments"
+            and nxt.get("type") == "ApplyPerpetual"
+            and (nxt.get("target") or {}).get("type") == "ParentTarget"
+        ):
+            continue
+        chosen = chosen_creature(str(effect.get("description") or ""))
+        if chosen is None:
+            continue
+        out.append(
+            (
+                body,
+                {
+                    "type": "TargetOnly",
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Creature"],
+                        "controller": chosen.controller,
+                        "properties": _least_or_most(chosen),
+                    },
+                },
+            )
+        )
+    return out
+
+
+def _untargeted_choices(rec: dict) -> list[dict]:
+    """The heading bodies phase types as a ``TargetOnly`` for a "choose a …"
+    that names no target: "Choose a Giant creature you control. It deals damage
+    equal to its power to target creature" (Crush Underfoot; its ruling: "You
+    choose that Giant as Crush Underfoot resolves"), Gideon's Sacrifice, Guard
+    Dogs, Fortunate Few, Sculpted Sunburst, Clambassadors' trigger (7 cards at
+    v0.133.0). An object a spell or ability affects is a target only when the
+    word "target" names it (CR 115.10a), so the choice is marked as made on
+    resolution (``target_choice_timing: Resolution``, phase's mark on Daily
+    Regimen), read by ``crosswalk.effect_chosen_on_resolution``
+    (:func:`~mtg_utils._card_ir.clause_grammar.opens_with_choice`)."""
+    out: list[dict] = []
+    heads = [
+        *((a, a.get("description")) for a in rec.get("abilities") or ()),
+        *((t.get("execute"), t.get("description")) for t in rec.get("triggers") or ()),
+    ]
+    for body, description in heads:
+        if (
+            isinstance(body, dict)
+            and (body.get("effect") or {}).get("type") == "TargetOnly"
+            and not body.get("target_choice_timing")
+            and opens_with_choice(str(description or ""))
+        ):
+            out.append(body)
+    return out
+
+
+def _is_behold(cost: object) -> bool:
+    """A face's ``additional_cost`` that beholds (CR 701.4a), optional or not."""
+    if not isinstance(cost, dict):
+        return False
+    if cost.get("type") == "Optional":
+        cost = (cost.get("data") or {}).get("cost")
+    return isinstance(cost, dict) and cost.get("type") == "Behold"
+
+
+def _beheld_its(rec: dict) -> list[dict]:
+    """The ``ApplyPerpetual`` effects phase wrote on ``ParentTarget`` under an
+    "if a [quality] was beheld" condition (``AdditionalCostPaid``) on a face
+    whose additional cost beholds: "Destroy target nonland permanent. If a
+    Dragon creature was beheld, it perpetually gets +2/+2" (Territorial Strike;
+    1 card at v0.133.0) puts the change on the destroyed permanent, where the
+    "it" is the beheld Dragon — a card revealed from your hand or a permanent
+    you control (CR 701.4a, 701.4b). Written on phase's ``CostPaidObject``, the
+    object a cost named."""
+    if not _is_behold(rec.get("additional_cost")):
+        return []
+    return [
+        effect
+        for body in _ability_bodies(rec)
+        if (body.get("condition") or {}).get("type") == "AdditionalCostPaid"
+        and (effect := body.get("effect") or {}).get("type") == "ApplyPerpetual"
+        and (effect.get("target") or {}).get("type") == "ParentTarget"
+    ]
+
+
+def _hand_or_battlefield_choices(rec: dict) -> list[dict]:
+    """The ``ChooseFromZone`` effects that choose from a hand among an ``Or``
+    holding a creature you control: "choose a creature card in your hand or a
+    creature you control" (Scour the Scene; 1 card at v0.133.0). A card in a
+    hand has no controller (CR 108.4), so the arm is the battlefield's; it is
+    written as phase's multi-zone choice (``additional_zones`` — Mapping the
+    Maze's hand or graveyard)."""
+    out: list[dict] = []
+    for body in _ability_bodies(rec):
+        effect = body.get("effect") or {}
+        filt = effect.get("filter") or {}
+        if (
+            effect.get("type") == "ChooseFromZone"
+            and effect.get("zone") == "Hand"
+            and not effect.get("additional_zones")
+            and filt.get("type") == "Or"
+            and any(
+                isinstance(arm, dict) and arm.get("controller") == "You"
+                for arm in filt.get("filters") or ()
+            )
+        ):
+            out.append(effect)
+    return out
+
+
+def _parked_draw_triggers(rec: dict) -> list[tuple[dict, str]]:
+    """``(trigger, subtype)`` for each draw trigger phase leaves an ``Unknown``
+    mode that the clause grammar reads as watching you draw a card of one
+    subtype (:func:`~mtg_utils._card_ir.clause_grammar.drawn_card_subtype`):
+    "Whenever you draw a Dragon card, it perpetually gets +1/+1" (Darigaaz's
+    Whelp; 1 card at v0.133.0). Written as phase's ``Drawn`` mode on you
+    (Aether Syphon's "Whenever you draw a card") with the drawn card's subtype
+    on ``valid_card``."""
+    out: list[tuple[dict, str]] = []
+    for trig in rec.get("triggers") or ():
+        mode = trig.get("mode") if isinstance(trig, dict) else None
+        if isinstance(mode, dict) and isinstance(mode.get("Unknown"), str):
+            subtype = drawn_card_subtype(mode["Unknown"])
+            if subtype is not None:
+                out.append((trig, subtype))
+    return out
+
+
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
     sweeps = [
@@ -1498,6 +1770,12 @@ def correct_misparsed_shapes(rec: dict) -> dict:
     aura_pumps = _aura_self_pumps(rec)
     moved_its = _moved_away_its(rec)
     boons = _flattened_boons(rec)
+    bites = _bite_recipients(rec)
+    choices = _parked_choices(rec)
+    beheld = _beheld_its(rec)
+    two_zone_choices = _hand_or_battlefield_choices(rec)
+    draw_triggers = _parked_draw_triggers(rec)
+    untargeted = _untargeted_choices(rec)
     found = (
         sweeps,
         split_flips,
@@ -1516,6 +1794,12 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         aura_pumps,
         moved_its,
         boons,
+        bites,
+        choices,
+        beheld,
+        two_zone_choices,
+        draw_triggers,
+        untargeted,
     )
     if not any(found):
         return rec
@@ -1603,6 +1887,41 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         target = memo[id(body)]
         assert isinstance(target, dict)
         target["effect"] = _creature_spell_boon(target["effect"])
+    for body, read in bites:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        target["effect"]["target"] = _power_damage_filter(read)
+        target["effect"]["damage_source"] = "Target"
+        if read.up_to and not target.get("multi_target"):
+            target["multi_target"] = {"min": 0, "max": {"type": "Fixed", "value": 1}}
+    for body, typed in choices:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        target["effect"] = typed
+        target["target_choice_timing"] = "Resolution"
+    for body in untargeted:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        target["target_choice_timing"] = "Resolution"
+    for effect in beheld:
+        target = memo[id(effect)]
+        assert isinstance(target, dict)
+        target["target"] = {"type": "CostPaidObject"}
+    for effect in two_zone_choices:
+        target = memo[id(effect)]
+        assert isinstance(target, dict)
+        target["additional_zones"] = ["Battlefield"]
+    for trig, subtype in draw_triggers:
+        target = memo[id(trig)]
+        assert isinstance(target, dict)
+        target["mode"] = "Drawn"
+        target["valid_target"] = {"type": "Controller"}
+        target["valid_card"] = {
+            "type": "Typed",
+            "type_filters": [{"Subtype": subtype}],
+            "controller": None,
+            "properties": [],
+        }
     if static_lines:
         out["static_abilities"] = [
             *(out.get("static_abilities") or ()),

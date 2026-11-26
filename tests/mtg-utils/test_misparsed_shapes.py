@@ -1568,3 +1568,251 @@ def test_flattened_boon_leaves_a_player_pump_alone():
     """Dark Salvation's player-targeted ``Pump`` carries no boon text."""
     (rec,) = test_phase_records("Dark Salvation")
     assert correct_misparsed_shapes(rec) is rec
+
+
+# ── Phase v0.133.0's block: a bite's target, three Alchemy "it"s, a draw trigger ──
+
+
+def _chain_effects(body: dict) -> list[dict]:
+    out = []
+    while isinstance(body, dict):
+        out.append(body["effect"])
+        body = body.get("sub_ability")
+    return out
+
+
+def _bite_body(rec: dict) -> dict:
+    head = (
+        rec["abilities"][0] if rec.get("abilities") else rec["triggers"][0]["execute"]
+    )
+    return next(e for e in _chain_effects(head) if e["type"] == "DealDamage")
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "target"),
+    [
+        (
+            "Spirit Flare",
+            {
+                "type": "Or",
+                "filters": [
+                    {
+                        "type": "Typed",
+                        "type_filters": ["Creature"],
+                        "controller": "Opponent",
+                        "properties": [{"type": state}],
+                    }
+                    for state in ("Attacking", "Blocking")
+                ],
+            },
+        ),
+        (
+            "Crush Underfoot",
+            {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": None,
+                "properties": [],
+            },
+        ),
+        (
+            "Thorin, Mountain-king",
+            {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": None,
+                "properties": [],
+            },
+        ),
+    ],
+)
+def test_bite_target_canary(name, target):
+    """ "It deals damage equal to its power to target attacking or blocking
+    creature an opponent controls" (Spirit Flare): phase writes the damage on
+    ``ParentTarget`` — the creature of yours that deals it — so the card reads
+    as no bite. The stage writes the target the description names."""
+    (rec,) = test_phase_records(name)
+    assert _bite_body(rec)["target"] == {"type": "ParentTarget"}, (
+        f"misparsed_shapes bite target: RETIRE-READY — phase types {name}'s "
+        "recipient. Delete the bite row (and its grammar reader, "
+        "clause_grammar.power_damage_target) once all three are typed, and this "
+        "canary."
+    )
+    fixed = _bite_body(correct_misparsed_shapes(rec))
+    assert fixed["target"] == target
+    # the dealer is the earlier effect's creature, as phase writes its own
+    # bites (Sylvan Smite), never the spell or the card itself
+    assert fixed["damage_source"] == "Target"
+    assert ("damage_equal_power", "bite") in {
+        (s.key, s.subject) for s in test_signals(name)
+    }
+
+
+def test_the_bites_dealer_is_the_creature():
+    """Phase's own bite of the same ``Anaphoric`` chain (Sylvan Smite) carries
+    ``damage_source: Target``: the creature the earlier effect named deals the
+    damage, so its deathtouch applies (CR 702.2b)."""
+    from mtg_utils._card_ir.crosswalk import tag_of
+    from mtg_utils._card_ir.trees import trees_for
+
+    for name in ("Sylvan Smite", "Spirit Flare", "Crush Underfoot"):
+        dealers = {
+            getattr(c.node, "damage_source", None)
+            for t in trees_for(test_card(name))
+            for u in t.units
+            for c in u.effects
+            if tag_of(c.node) == "DealDamage"
+        }
+        assert dealers == {"Target"}, name
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize("name", ["Crush Underfoot", "Gideon's Sacrifice"])
+def test_untargeted_choice_canary(name):
+    """ "Choose a Giant creature you control" (Crush Underfoot; its ruling: "You
+    choose that Giant as Crush Underfoot resolves"): phase types a heading
+    ``TargetOnly`` with no resolution timing, as if it targeted. The word
+    "target" names no such object (CR 115.10a); the stage marks the choice as
+    made on resolution, phase's mark on Daily Regimen."""
+    (rec,) = test_phase_records(name)
+    (head,) = rec["abilities"][:1]
+    assert head["effect"]["type"] == "TargetOnly"
+    assert not head.get("target_choice_timing"), (
+        f"misparsed_shapes untargeted choice: RETIRE-READY — phase marks {name}'s "
+        "choice. Delete the row and this canary."
+    )
+    fixed = correct_misparsed_shapes(rec)["abilities"][0]
+    assert fixed["target_choice_timing"] == "Resolution"
+
+
+def test_a_chosen_giant_is_no_target_of_yours():
+    """Crush Underfoot names no creature of yours as a target, so it is no
+    own-target spell (``has_own_target_spell``); Sylvan Smite's "target
+    creature you control" is."""
+    assert "own_target_spell" not in _keys("Crush Underfoot")
+    assert "own_target_spell" in _keys("Sylvan Smite")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Delirium",  # "That creature deals damage equal to its power to the player"
+        "Garruk Relentless",  # "… to him"
+        "Alpha Brawl",  # "… to that creature"
+    ],
+)
+def test_a_power_damage_to_no_target_creature_is_left(name):
+    records = test_phase_records(name)
+    assert all(correct_misparsed_shapes(rec) is rec for rec in records)
+
+
+@pytest.mark.parametrize(
+    ("text", "read"),
+    [
+        (
+            "it deals damage equal to its power to target creature you don't control.",
+            (None, "Opponent", False),
+        ),
+        (
+            (
+                "that creature deals damage equal to its power to up to one "
+                "target creature."
+            ),
+            (None, None, True),
+        ),
+        ("That creature deals damage equal to its power to the player.", None),
+        ("~ deals damage equal to its power to any target.", None),
+    ],
+)
+def test_power_damage_target_grammar(text, read):
+    from mtg_utils._card_ir.clause_grammar import power_damage_target
+
+    got = power_damage_target(text)
+    if read is None:
+        assert got is None
+    else:
+        assert (got.subtype, got.controller, got.up_to) == read
+
+
+@pytest.mark.retirement_canary
+def test_parked_choice_canary():
+    """Penregon Besieged's "choose a creature with the least toughness among
+    creatures your opponents control. It perpetually gets -1/-1": phase parks
+    the choice, so the change lands on nothing. The stage types it as phase's
+    "Choose a Giant creature you control" (``TargetOnly``)."""
+    (rec,) = test_phase_records("Penregon Besieged")
+    choice = rec["triggers"][0]["execute"]["effect"]
+    assert choice["type"] == "Unimplemented", (
+        "misparsed_shapes parked choice: RETIRE-READY — phase types Penregon "
+        "Besieged's choice. Delete the row and this canary."
+    )
+    body = correct_misparsed_shapes(rec)["triggers"][0]["execute"]
+    fixed = body["effect"]
+    assert fixed["type"] == "TargetOnly"
+    # "choose" names no target (CR 115.10a): chosen as it resolves
+    assert body["target_choice_timing"] == "Resolution"
+    assert fixed["target"]["controller"] == "Opponent"
+    (least,) = fixed["target"]["properties"]
+    assert least["stat"] == "Toughness"
+    assert least["value"]["qty"]["function"] == "Min"
+
+
+@pytest.mark.retirement_canary
+def test_beheld_it_canary():
+    """Territorial Strike's "If a Dragon creature was beheld, it perpetually gets
+    +2/+2": phase writes the change on ``ParentTarget``, the destroyed permanent.
+    The "it" is the beheld Dragon (CR 701.4a, 701.4b), phase's
+    ``CostPaidObject``."""
+    (rec,) = test_phase_records("Territorial Strike")
+    change = rec["abilities"][0]["sub_ability"]["effect"]
+    assert change["target"] == {"type": "ParentTarget"}, (
+        "misparsed_shapes beheld it: RETIRE-READY — phase binds Territorial "
+        "Strike's 'it'. Delete the row and this canary (keep crosswalk.beholds "
+        "if phase writes CostPaidObject)."
+    )
+    fixed = correct_misparsed_shapes(rec)["abilities"][0]["sub_ability"]["effect"]
+    assert fixed["target"] == {"type": "CostPaidObject"}
+
+
+@pytest.mark.retirement_canary
+def test_hand_or_battlefield_choice_canary():
+    """Scour the Scene's "choose a creature card in your hand or a creature you
+    control": phase types a choice from the hand alone, with the creature you
+    control an arm of its filter. The stage adds the battlefield as phase's
+    ``additional_zones``."""
+    (rec,) = test_phase_records("Scour the Scene")
+    choose = next(t for t in rec["triggers"] if t["mode"] == "Sacrificed")["execute"][
+        "effect"
+    ]
+    assert not choose.get("additional_zones"), (
+        "misparsed_shapes hand-or-battlefield choice: RETIRE-READY — phase types "
+        "Scour the Scene's second zone. Delete the row and this canary."
+    )
+    fixed = next(
+        t
+        for t in correct_misparsed_shapes(rec)["triggers"]
+        if t["mode"] == "Sacrificed"
+    )["execute"]["effect"]
+    assert fixed["additional_zones"] == ["Battlefield"]
+
+
+@pytest.mark.retirement_canary
+def test_parked_draw_trigger_canary():
+    """Darigaaz's Whelp's "Whenever you draw a Dragon card": phase leaves the
+    mode ``Unknown``. The stage writes phase's ``Drawn`` on you, with the
+    drawn card's subtype on ``valid_card``."""
+    records = test_phase_records("Darigaaz's Whelp")
+    rec = next(r for r in records if r.get("triggers"))
+    parked = [t for t in rec["triggers"] if isinstance(t["mode"], dict)]
+    assert parked, (
+        "misparsed_shapes parked draw trigger: RETIRE-READY — phase types "
+        "Darigaaz's Whelp's draw trigger. Delete the row and this canary."
+    )
+    fixed = [
+        t for t in correct_misparsed_shapes(rec)["triggers"] if t["mode"] == "Drawn"
+    ]
+    assert [t["valid_card"]["type_filters"] for t in fixed] == [[{"Subtype": "Dragon"}]]
+    assert ("draw_matters", "you") in {
+        (s.key, s.scope) for s in test_signals("Darigaaz's Whelp")
+    }

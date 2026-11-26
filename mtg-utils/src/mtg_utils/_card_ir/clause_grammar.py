@@ -954,7 +954,9 @@ STATIC_TOKENS = (
 # keyword counters' kinds (CR 122.1b) less decayed and exalted, which no dropped
 # grant of the corpus names, plus the other keywords a keyword tribe pages that
 # one does (banding — Wall of Caltrops; defender — Guardian Zendikon; prowess —
-# Swiftspear's Teachings' boon; ward — Better Offer).
+# Swiftspear's Teachings' boon; ward — Better Offer; battle cry — Marshland
+# Hordemaster's parked "~ perpetually gains battle cry", a boost of your other
+# attackers, CR 702.91a).
 GRANT_KEYWORDS: tuple[str, ...] = (
     "flying",
     "first strike",
@@ -971,6 +973,9 @@ GRANT_KEYWORDS: tuple[str, ...] = (
     "banding",
     "defender",
     "prowess",
+    # battle cry in phase's spelling (``Battlecry``), read by its words through
+    # :data:`_KEYWORD_ALIASES`
+    "battlecry",
     "shadow",
     "ward",
     # Umbra armor (CR 702.89a), in phase's spelling: its ``TotemArmor``, the
@@ -978,7 +983,10 @@ GRANT_KEYWORDS: tuple[str, ...] = (
     "totem armor",
 )
 #: A keyword's other name, read as its :data:`GRANT_KEYWORDS` spelling.
-_KEYWORD_ALIASES: dict[str, str] = {"umbra armor": "totem armor"}
+_KEYWORD_ALIASES: dict[str, str] = {
+    "umbra armor": "totem armor",
+    "battle cry": "battlecry",
+}
 
 
 def ward_generic_cost(text: str) -> int | None:
@@ -2191,3 +2199,418 @@ def verb_list_pump(residue: str, description: str) -> VerbListPump | None:
     if subject is None:
         return None
     return VerbListPump(subject, amounts.group(1), amounts.group(2))
+
+
+# ── A power-sized damage effect's recipient (a bite whose target phase dropped) ──
+
+
+@dataclass(frozen=True)
+class PowerDamageTarget:
+    """The creature a "deals damage equal to its power to …" clause targets:
+    its combat states ("attacking or blocking": each one an arm of phase's
+    ``Or``), its subtype (``None`` for any creature), whose it is (``"You"`` /
+    ``"Opponent"`` / ``None``, phase's ``controller``) and "up to one"."""
+
+    states: tuple[str, ...]
+    subtype: str | None
+    controller: str | None
+    up_to: bool
+
+
+_POWER_DAMAGE_TO_RX = re.compile(
+    r"\bdeals? damage equal to (?:its|his|her|their) power to ", re.IGNORECASE
+)
+_POWER_DAMAGE_TARGET = comb.seq(
+    comb.opt(comb.phrase({"up"}, {"to"}, {"one"})),
+    comb.keyword({"target"}),
+    comb.opt(
+        comb.alt(
+            comb.value(
+                ("Attacking", "Blocking"),
+                comb.phrase({"attacking"}, {"or"}, {"blocking"}),
+            ),
+            comb.value(("Attacking",), comb.keyword({"attacking"})),
+            comb.value(("Blocking",), comb.keyword({"blocking"})),
+        )
+    ),
+    comb.alt(comb.value(None, comb.keyword({"creature"})), _SUBTYPE),
+    comb.opt(
+        comb.alt(
+            comb.value("You", comb.phrase({"you"}, {"control"})),
+            comb.value("Opponent", comb.phrase({"an"}, {"opponent"}, {"controls"})),
+            comb.value("Opponent", comb.phrase({"you"}, {"dont"}, {"control"})),
+        )
+    ),
+)
+
+
+def power_damage_target(text: str) -> PowerDamageTarget | None:
+    """The target creature the one "deals damage equal to its power to …" clause
+    of ``text`` names: "it deals damage equal to its power to target attacking
+    or blocking creature an opponent controls" (Spirit Flare), "to target
+    creature" (Crush Underfoot), "to up to one target creature" (Thorin,
+    Mountain-king). ``None`` when ``text`` holds no such clause, more than one,
+    or a recipient that is no target creature ("to the player" — Delirium; "to
+    him" — Garruk Relentless; "to that creature" — Alpha Brawl)."""
+    found = list(_POWER_DAMAGE_TO_RX.finditer(text))
+    if len(found) != 1:
+        return None
+    rest = text[found[0].end() :]
+    sentence = rest.split(".", 1)[0]
+    read = _POWER_DAMAGE_TARGET.run(sentence)
+    if read is None or read[1].strip():
+        return None
+    up_to, _target, states, subtype, controller = read[0]
+    return PowerDamageTarget(
+        states=states or (),
+        subtype=subtype,
+        controller=controller,
+        up_to=up_to is not None,
+    )
+
+
+# ── "can't be the target of [some] spells": a targeting shield ─────────────────
+
+
+ShieldSubject = Literal["self", "attached", "yours", "all"]
+
+
+@dataclass(frozen=True)
+class TargetingShield:
+    """What a "can't be the target of …" line restricts: whom it shields (the
+    card itself, the creature an Aura or Equipment is attached to —
+    ``attachment`` ``"EnchantedBy"`` / ``"EquippedBy"`` —, the creatures you
+    control, or every creature), whether spells and abilities can't target it,
+    the quality the line names (``spell_quality`` for the spells, ``source_quality``
+    for the abilities' sources: "black", "nongreen", "black or red", "Aura",
+    "artifact"; ``""`` for any), whether every source it names is your
+    opponents' (``opponents``), and whether it holds only "unless" a condition
+    is met (``conditional``)."""
+
+    subject: ShieldSubject
+    attachment: str | None
+    spells: bool
+    abilities: bool
+    spell_quality: str
+    source_quality: str
+    opponents: bool
+    conditional: bool
+
+    @property
+    def keyword(self) -> str:
+        """The protective keyword the restriction is, in phase's spelling (CR
+        702.11b hexproof: "can't be the target of spells or abilities your
+        opponents control"; 702.11d: "hexproof from [quality]" … "of [quality]
+        spells your opponents control or abilities your opponents control from
+        [quality] sources"; 702.18a shroud: "can't be the target of spells or
+        abilities"): ``"HexproofFrom"`` when it stops your opponents' spells and
+        abilities of a quality (theirs alone, or everyone's — Spellbane Centaur's
+        blue ones, which "hexproof from" doesn't cover whole: reading it so is
+        the lane's own decision), ``"Hexproof"`` when it stops your opponents' of any
+        quality, ``"Shroud"`` for everyone's of any quality, ``""`` for a
+        narrower restriction (spells alone, abilities alone)."""
+        if not (self.spells and self.abilities):
+            return ""
+        if self.spell_quality or self.source_quality:
+            return "HexproofFrom"
+        return "Hexproof" if self.opponents else "Shroud"
+
+
+_SHIELD_VERB_RX = re.compile(r"\bcan't be the targets? of\b", re.IGNORECASE)
+_SHIELD_SUBJECTS: dict[tuple[str, ...], tuple[ShieldSubject, str | None]] = {
+    ("~",): ("self", None),
+    ("this", "creature"): ("self", None),
+    ("this", "enchantment"): ("self", None),
+    ("this", "permanent"): ("self", None),
+    ("enchanted", "creature"): ("attached", "EnchantedBy"),
+    ("equipped", "creature"): ("attached", "EquippedBy"),
+    ("creatures", "you", "control"): ("yours", None),
+    ("creatures",): ("all", None),
+}
+_OPPONENTS_CONTROL = ("your", "opponents", "control")
+
+
+def _shield_item(words: list[str]) -> tuple[str, str, bool] | None:
+    """One "[quality] spells [your opponents control]" / "abilities [from
+    [quality] sources] [your opponents control]" item: ``(kind, quality,
+    opponents)`` where ``kind`` is ``"spells"`` / ``"abilities"``; ``None`` for
+    words naming neither, or more after them."""
+    if "spells" in words:
+        at = words.index("spells")
+        kind = "spells"
+    elif "abilities" in words:
+        at = words.index("abilities")
+        kind = "abilities"
+    else:
+        return None
+    quality = words[:at]
+    after = words[at + 1 :]
+    if kind == "abilities" and after[:1] == ["from"] and "sources" in after:
+        end = after.index("sources")
+        quality, after = [*quality, *after[1:end]], after[end + 1 :]
+    opponents = tuple(after) == _OPPONENTS_CONTROL
+    if after and not opponents:
+        return None
+    return kind, " ".join(quality), opponents
+
+
+def targeting_shield(text: str) -> TargetingShield | None:
+    """The targeting restriction a static line states and nothing more, read
+    from phase's parked ``Other`` mode text: "~ can't be the target of black or
+    red spells your opponents control" (Fiendslayer Paladin), "Creatures you
+    control can't be the targets of blue spells or abilities from blue sources"
+    (Spellbane Centaur), "Enchanted creature gets +0/+2 and can't be the target
+    of spells" (Spectral Shield: the restriction's own subject is the line's),
+    "~ can't be the target of spells unless it attacked or blocked this turn"
+    (Lurker: ``conditional``). ``None`` for a subject or a source this grammar
+    doesn't read ("Lands on the battlefield and land cards in graveyards" —
+    Tomik's; "spells that can target only Walls" — Wall of Shadows)."""
+    verb = _SHIELD_VERB_RX.search(text)
+    if verb is None:
+        return None
+    head = [comb.norm_word(w) or w for w in text[: verb.start()].split()]
+    for at, w in enumerate(head):
+        if w in ("gets", "get", "has", "have") and at > 0 and head[-1] == "and":
+            head = head[:at]
+            break
+    subject = _SHIELD_SUBJECTS.get(tuple(head))
+    if subject is None:
+        return None
+    clause = text[verb.end() :].split(".", 1)[0]
+    words = [comb.norm_word(w) for w in clause.split()]
+    conditional = "unless" in words
+    if conditional:
+        words = words[: words.index("unless")]
+    items: list[list[str]] = [[]]
+    for w in words:
+        if (
+            w == "or"
+            and items[-1]
+            and items[-1][-1] in ("spells", "control", "sources")
+        ):
+            items.append([])
+        elif w == "of" and not items[-1]:
+            continue
+        else:
+            items[-1].append(w)
+    spells = abilities = False
+    spell_quality = source_quality = ""
+    opponents = True
+    for item in items:
+        read = _shield_item(item)
+        if read is None:
+            return None
+        kind, quality, theirs = read
+        opponents = opponents and theirs
+        if kind == "spells":
+            spells, spell_quality = True, quality
+        else:
+            abilities, source_quality = True, quality
+    return TargetingShield(
+        subject=subject[0],
+        attachment=subject[1],
+        spells=spells,
+        abilities=abilities,
+        spell_quality=spell_quality,
+        source_quality=source_quality,
+        opponents=opponents,
+        conditional=conditional,
+    )
+
+
+# ── What a targeting payoff watches target ─────────────────────────────────────
+
+#: A targeting payoff's event: "[subject] becomes the target of …" / "become
+#: the target of …", or "[player] cast(s) / activate(s) … that targets …".
+_TARGETED_BY_RX = re.compile(
+    r"(?P<watched>[^,.]*?)\bbecomes? the target of (?P<of>[^,.]*)"
+    r"|(?P<caster>\b(?:you|an opponent|a player|each player)) "
+    r"(?P<verb>cast|casts|activate|activates) (?P<what>[^,.]*?) that targets "
+    r"(?P<target>[^,.]*)",
+    re.IGNORECASE,
+)
+#: Words naming your own object as a target or the watched object: "a creature
+#: you control", the card itself ("~", "it", "this creature"), "you".
+_YOURS_RX = re.compile(r"\byou control\b|~|\bit\b|\bthis \w+|^\s*you\b", re.IGNORECASE)
+_THEIRS_RX = re.compile(
+    r"\b(?:an opponent controls|your opponents control|an opponent)\b", re.IGNORECASE
+)
+
+
+@dataclass(frozen=True)
+class TargetingPayoff:
+    """A targeting payoff a parked clause states (CR 115.1: a spell or an
+    ability targets as it is put on the stack): what does the targeting
+    (``source``: ``"spell"``, ``"ability"`` or ``""`` for "a spell or ability")
+    and whose targeting it rewards (``side``: ``"you"`` — your spell or ability
+    targets your own object; ``"opponents"`` — an opponent's does, or the
+    target is an opponent's; ``"any"`` — either)."""
+
+    source: str
+    side: str
+
+
+def _kind_of(words: set[str]) -> str | None:
+    spell = bool(words & {"spell", "spells"})
+    ability = bool(words & {"ability", "abilities"})
+    if spell and ability:
+        return ""
+    return "spell" if spell else "ability" if ability else None
+
+
+def targeting_payoffs(text: str, *, quoted: bool = True) -> frozenset[TargetingPayoff]:
+    """The targeting payoffs a parked clause states: "Whenever you become the
+    target of a spell" (Dormant Gomazoa: a spell, anyone's), "Whenever you cast
+    a spell that targets a creature you control" (Iron Fist, Living Weapon:
+    your spell on your creature), "Whenever ~ becomes the target of an ability
+    that targets only it" (Agrus Kos, Eternal Soldier: an ability, anyone's),
+    "Whenever you activate an ability that targets only ~" (Bill Potts: your
+    ability on the card), "… enchanted creature becomes the target of an Aura
+    spell" (Brine Comber's back face). Without ``quoted`` a quoted ability's
+    words are left out: a payoff the clause hands another object ("It
+    perpetually gains 'Whenever ~ becomes the target of a spell or ability, draw
+    a card'" — Niambi, Beloved Protector) is not the clause's own. Empty when it
+    states none."""
+    out: set[TargetingPayoff] = set()
+    for m in _TARGETED_BY_RX.finditer(text if quoted else _unquoted(text)):
+        if m.group("verb"):
+            source = (
+                "spell" if m.group("verb").lower().startswith("cast") else "ability"
+            )
+            caster = m.group("caster").lower()
+            target = m.group("target")
+            if caster == "an opponent" or _THEIRS_RX.search(target):
+                side = "opponents"
+            elif caster == "you" and _YOURS_RX.search(target):
+                side = "you"
+            else:
+                side = "any"
+            out.add(TargetingPayoff(source, side))
+            continue
+        of = m.group("of")
+        kind = _kind_of({comb.norm_word(w) for w in of.split()[:6]})
+        if kind is None:
+            continue
+        watched = m.group("watched").split(" or ")[-1]
+        if _THEIRS_RX.search(of) or _THEIRS_RX.search(watched):
+            side = "opponents"
+        elif re.search(r"\byou control\b", of) and _YOURS_RX.search(watched):
+            side = "you"
+        else:
+            side = "any"
+        out.add(TargetingPayoff(kind, side))
+    return frozenset(out)
+
+
+# ── A creature chosen for a one-off effect ─────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class ChosenCreature:
+    """A creature a parked "choose a creature …" instruction picks: whose it is
+    (phase's ``controller``: ``"Opponent"`` / ``"You"`` / ``None``) and the
+    extreme it must hold among them ("with the least toughness": ``("Min",
+    "Toughness")``; ``None`` for none)."""
+
+    controller: str | None
+    extreme: tuple[str, str] | None
+
+
+_CHOSEN_CREATURE = comb.seq(
+    comb.phrase({"choose"}, {"a"}, {"creature"}),
+    comb.opt(
+        comb.seq(
+            comb.phrase({"with"}, {"the"}),
+            comb.alt(
+                comb.value("Min", comb.keyword({"least"})),
+                comb.value("Max", comb.keyword({"greatest"})),
+            ),
+            comb.alt(
+                comb.value("Toughness", comb.keyword({"toughness"})),
+                comb.value("Power", comb.keyword({"power"})),
+            ),
+            comb.phrase({"among"}, {"creatures"}),
+        )
+    ),
+    comb.alt(
+        comb.value("Opponent", comb.phrase({"your"}, {"opponents"}, {"control"})),
+        comb.value("Opponent", comb.phrase({"an"}, {"opponent"}, {"controls"})),
+        comb.value("You", comb.phrase({"you"}, {"control"})),
+    ),
+)
+
+
+def chosen_creature(text: str) -> ChosenCreature | None:
+    """The creature a parked instruction chooses, and nothing more: "choose a
+    creature with the least toughness among creatures your opponents control"
+    (Penregon Besieged). ``None`` for anything else."""
+    read = _CHOSEN_CREATURE.run(text)
+    if read is None or read[1].strip(" ."):
+        return None
+    _choose, extreme, controller = read[0]
+    return ChosenCreature(
+        controller=controller,
+        extreme=(extreme[1], extreme[2]) if extreme else None,
+    )
+
+
+# ── A draw trigger's card ──────────────────────────────────────────────────────
+
+_DRAWN_CARD = comb.seq(
+    comb.phrase({"whenever"}, {"you"}, {"draw"}, {"a", "an"}),
+    _SUBTYPE,
+    comb.keyword({"card"}),
+)
+
+
+def drawn_card_subtype(text: str) -> str | None:
+    """The subtype of the card a draw trigger watches you draw, and nothing
+    more: "Whenever you draw a Dragon card" (Darigaaz's Whelp). ``None`` for
+    anything else."""
+    read = _DRAWN_CARD.run(text)
+    if read is None or read[1].strip():
+        return None
+    return read[0][1]
+
+
+def trigger_condition_end(sentence: str) -> int:
+    """Where a sentence's leading trigger condition ("When ~ is turned face up,",
+    "Whenever ~ deals combat damage to a player,") ends, so what follows is the
+    effect alone; ``0`` when it opens on none."""
+    read = _TRIGGER_PREFIX.run(sentence)
+    return len(sentence) - len(read[1]) if read is not None else 0
+
+
+_TOP_CARDS_RX = re.compile(r"\bthe top (?:\w+ )?cards?\b(?! of)", re.IGNORECASE)
+_YOUR_LIBRARY_RX = re.compile(r"\byour library\b", re.IGNORECASE)
+
+
+def with_elided_library(lead: str, instruction: str) -> str:
+    """``instruction`` with the library its "the top X cards" elides, where the
+    instructions before it (``lead``) name only your library: "Shuffle your
+    library, then exile the top X cards" (Magus of the Mind) exiles the top of
+    your library. ``instruction`` itself otherwise."""
+    if not _TOP_CARDS_RX.search(instruction) or "library" in instruction.lower():
+        return instruction
+    if not _YOUR_LIBRARY_RX.search(lead):
+        return instruction
+    return _TOP_CARDS_RX.sub(lambda m: f"{m.group(0)} of your library", instruction, 1)
+
+
+_CHOOSE_A_RX = re.compile(r"^choose (?:a|an|one)\b(?P<rest>[^.]*)", re.IGNORECASE)
+
+
+def opens_with_choice(description: str) -> bool:
+    """Whether an ability's clause, its lead (a trigger, a cost, a duration)
+    peeled, opens on a "choose a …" that names no target: "Choose a Giant
+    creature you control" (Crush Underfoot), "Whenever ~ deals combat damage to
+    a player, choose an artifact, creature, or land you control"
+    (Clambassadors). Not "choose target …", nor "choose one —" (a mode)."""
+    peeled = _CLAUSE_LEAD.run(description)
+    clause = (peeled[1] if peeled is not None else description).strip()
+    m = _CHOOSE_A_RX.match(clause)
+    return (
+        m is not None
+        and not m.group("rest").lstrip().startswith("—")
+        and "target" not in m.group("rest").lower()
+    )

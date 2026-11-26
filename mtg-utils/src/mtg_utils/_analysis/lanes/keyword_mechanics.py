@@ -104,9 +104,8 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 from mtg_utils._card_ir.recovery import (
     IMPERATIVE,
-    YOURS,
     done_by_another,
-    is_theirs,
+    exiles_your_library,
 )
 from mtg_utils._card_ir.text_idioms import _CAST_FROM_EXILE_P
 
@@ -517,8 +516,7 @@ def _cast_from_exile_unit_sources(unit: AbilityUnit) -> set[str]:
             # "exile all cards from that player's hand"; not Bell Borca's "Note
             # the mana value of each card as it's put into exile"), the top of
             # your own library the impulse one
-            top = "Library" in c.zones and YOURS in c.subject and not is_theirs(c)
-            out.add("top" if top else "other")
+            out.add("top" if exiles_your_library(c) else "other")
             continue
         kind = _exile_source(unit, c.node)
         if kind is not None:

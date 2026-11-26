@@ -113,6 +113,7 @@ from mtg_utils._card_ir.recovery import (
     OTHER_CHOOSER,
     OTHER_PLAYER,
     SELF,
+    exiles_your_library,
 )
 from mtg_utils._card_ir.text_idioms import (
     _TOPDECK_OTHER_ZONE,
@@ -228,8 +229,10 @@ def _own_top_exiles(
         or c.scope == "opponents"
         for c in tops
     ):
-        return []
-    return tops
+        tops = []
+    # a parked exile of the top of your library the recovery read (Magus of the
+    # Mind's "exile the top X cards", where X is …)
+    return [*tops, *(c for c in effects if exiles_your_library(c))]
 
 
 def _hides_own_card(unit: AbilityUnit) -> bool:

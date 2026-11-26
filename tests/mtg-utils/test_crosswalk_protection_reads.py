@@ -314,3 +314,165 @@ def test_parked_prevention_residues_canary(name, residue):
         "with none left, delete parked_prevention and its two readers "
         "(protection.protective_saves, the damage_prevention lane)."
     )
+
+
+# ── "can't be the target of [some] spells": the shields phase parks ────────────
+
+
+def _shields(name: str):
+    from mtg_utils._card_ir.crosswalk import targeting_shields
+
+    return [shield for t in _trees(name) for _u, _sdef, shield in targeting_shields(t)]
+
+
+def _protection_idents(name: str) -> set[tuple[str, str, str]]:
+    from mtg_utils.testkit import test_signals
+
+    return {
+        (s.key, s.scope, s.subject)
+        for s in test_signals(name)
+        if s.key
+        in {
+            "board_protection",
+            "protection_grant",
+            "conditional_self_protection",
+            "keyword_bodies",
+            "team_boost_or_grant",
+        }
+    }
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "subject", "kind", "opponents"),
+    [
+        ("Anti-Magic Aura", "attached", "", False),
+        ("Artifact Ward", "attached", "", False),
+        ("Bartel Runeaxe", "self", "", False),
+        ("Dense Foliage", "all", "", False),
+        ("Fiendslayer Paladin", "self", "", True),
+        ("Gaea's Revenge", "self", "HexproofFrom", False),
+        ("Karplusan Strider", "self", "", False),
+        ("Lurker", "self", "", False),
+        ("Mercenary Informer", "self", "HexproofFrom", False),
+        ("Raiding Party", "self", "HexproofFrom", False),
+        ("Rebel Informer", "self", "HexproofFrom", False),
+        ("Shanna, Sisay's Legacy", "self", "", True),
+        ("Species 8472", "self", "", True),
+        ("Spectral Shield", "attached", "", False),
+        ("Spellbane Centaur", "yours", "HexproofFrom", False),
+        ("Suq'Ata Firewalker", "self", "HexproofFrom", False),
+        ("Tetsuo Umezawa", "self", "", False),
+        ("Thrun, Breaker of Silence", "self", "HexproofFrom", True),
+    ],
+)
+def test_parked_targeting_shield_canary(name, subject, kind, opponents):
+    """Phase v0.131.0 parks "can't be the target of [some] spells" as an ``Other``
+    static mode; the clause grammar reads who it shields and from what
+    (``crosswalk.targeting_shields``). The kind is the protective keyword the
+    restriction is: hexproof where it stops your opponents' spells and
+    abilities, of a quality or not (CR 702.11b, 702.11d), else none. Fails once
+    phase types the line: then read the typed form and delete the case."""
+    shields = _shields(name)
+    assert shields, (
+        f"targeting shields: RETIRE-READY for {name} — phase no longer parks the "
+        "line as an Other mode. Read its typed form and delete this case; once "
+        "none is left, retire crosswalk.targeting_shields and "
+        "clause_grammar.targeting_shield."
+    )
+    (shield,) = shields
+    assert (shield.subject, shield.keyword, shield.opponents) == (
+        subject,
+        kind,
+        opponents,
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "idents"),
+    [
+        # another creature shielded: board protection (roles.protects)
+        (
+            "Anti-Magic Aura",
+            {("board_protection", "you", ""), ("protection_grant", "you", "")},
+        ),
+        (
+            "Spectral Shield",
+            {("board_protection", "you", ""), ("protection_grant", "you", "")},
+        ),
+        (
+            "Artifact Ward",
+            {("board_protection", "you", ""), ("protection_grant", "you", "")},
+        ),
+        # your team, from opponents' blue spells and abilities too: a hexproof
+        # from blue (CR 702.11d), read as Tam, Mindful First-Year's typed
+        # "hexproof from each of its colors" grant
+        (
+            "Spellbane Centaur",
+            {
+                ("board_protection", "you", ""),
+                ("board_protection", "you", "hexproof"),
+                ("keyword_bodies", "you", "hexproof"),
+                ("keyword_bodies", "you", "hexproof from"),
+                ("protection_grant", "you", ""),
+                ("team_boost_or_grant", "you", "hexproof from"),
+            },
+        ),
+        (
+            "Tam, Mindful First-Year",
+            {
+                ("board_protection", "you", ""),
+                ("board_protection", "you", "hexproof"),
+                ("keyword_bodies", "you", "hexproof"),
+                ("keyword_bodies", "you", "hexproof from"),
+                ("protection_grant", "you", ""),
+                ("team_boost_or_grant", "you", "hexproof from"),
+            },
+        ),
+        # a creature's own shield gives no signal, parked or printed (Dan's
+        # ruling, 2026-11-25): as its printed peers read nothing
+        ("Fiendslayer Paladin", set()),
+        ("Bartel Runeaxe", set()),
+        ("Gaea's Revenge", set()),
+        (
+            "Thrun, Breaker of Silence",
+            {
+                ("conditional_self_protection", "you", ""),  # its typed indestructible
+                ("keyword_bodies", "you", "indestructible"),
+            },
+        ),
+        ("Gladecover Scout", set()),
+        ("Knight of Grace", set()),
+        # "unless it attacked or blocked this turn": no protective keyword, so
+        # not the conditional self-protection Dragonlord Ojutai's hexproof is
+        ("Lurker", set()),
+        (
+            "Dragonlord Ojutai",
+            {
+                ("conditional_self_protection", "you", ""),
+                ("keyword_bodies", "you", "hexproof"),
+            },
+        ),
+    ],
+)
+def test_a_parked_shield_reads_as_the_protection_it_is(name, idents):
+    assert _protection_idents(name) == idents
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        (
+            "Lands on the battlefield and land cards in graveyards can't be the "
+            "targets of spells or abilities your opponents control."
+        ),
+        (
+            "~ can't be the target of spells that can target only Walls or of "
+            "abilities that can target only Walls."
+        ),
+    ],
+)
+def test_a_shield_the_grammar_cannot_read_whole_is_left(text):
+    from mtg_utils._card_ir.clause_grammar import targeting_shield
+
+    assert targeting_shield(text) is None

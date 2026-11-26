@@ -31,6 +31,10 @@ recipient is read off the structure (:func:`perpetual_changes`):
   it is the trigger's object (as is ``TriggeringSource``): a creature entering
   the battlefield, blocking or crewing; not a spell cast (Rothga) or a card
   that died.
+* ``CostPaidObject`` of a behold ("If a Dragon creature was beheld, it
+  perpetually gets +2/+2" — Territorial Strike) is a card revealed from your
+  hand or a permanent you control (CR 701.4a): pumped on the battlefield, and a
+  ``card_boost`` of your hand.
 * ``TrackedSet`` ("those creatures") is the population the earlier mass effect
   acted on; the view is a ``PumpAll`` over that effect's filter, so it keeps
   whose creatures they are ("each creature target player controls" — Chaos
@@ -66,6 +70,7 @@ from mtg_utils._card_ir.crosswalk.core import (
 )
 from mtg_utils._card_ir.crosswalk.reads import (
     ability_zones,
+    beholds,
     filter_controller,
     filter_inzone_zones,
     pump_raises,
@@ -235,12 +240,16 @@ def _parent(at: _Body, decorations: dict) -> Recipient:
     if _returns_self(effect, decorations):
         return "self"
     target = getattr(effect, "target", None)
+    extra = getattr(effect, "additional_zones", None)
     return earlier_object(
         tag_of(effect),
         destination=getattr(effect, "destination", None),
         choice_zone=getattr(effect, "zone", None),
         target_typed=tag_of(target) == "Typed",
         target_zones=_zones(target),
+        choice_zones=[z for z in extra if isinstance(z, str)]
+        if isinstance(extra, list)
+        else (),
     )
 
 
@@ -283,6 +292,11 @@ def _recipient(
         return _the_card(at, unit, tree, decorations) if found == "self" else found
     if tag == "TrackedSet":
         return _tracked(at)
+    if tag == "CostPaidObject" and beholds(unit):
+        # "Behold a [quality]" means "Reveal a [quality] card from your hand or
+        # choose a [quality] permanent you control on the battlefield" (CR
+        # 701.4a): the beheld object can be a creature you control.
+        return "battlefield"
     return "unknown"
 
 
@@ -457,9 +471,7 @@ def _earlier_card_zone(at: _Body, decorations: dict) -> str | None:
         and filter_controller(target) != "You"
     ):
         # a permanent anyone controls, destroyed or returned to its owner's
-        # hand: no card of yours ("Destroy target nonland permanent. If a Dragon
-        # creature was beheld, it perpetually gets +2/+2" — Territorial Strike,
-        # whose "it" is the beheld Dragon phase typed as the destroyed one)
+        # hand: no card of yours
         return None
     return earlier_zone(
         tag_of(effect),
@@ -489,11 +501,14 @@ def _object_zone(at: _Body, decorations: dict) -> str | None:
     return zone
 
 
-def _typed_card_zones(at: _Body, decorations: dict) -> tuple[str, ...]:
+def _typed_card_zones(
+    at: _Body, decorations: dict, unit: AbilityUnit
+) -> tuple[str, ...]:
     """Where the typed ``ApplyPerpetual`` heading ``at`` lands on a card of yours
     outside the battlefield (the rules :func:`_recipient` reads it by): a target
     in another zone, the earlier effect's object where it ends up, the
-    trigger's card, the population an earlier mass effect acted on. A change in
+    trigger's card, the population an earlier mass effect acted on, a card a
+    behold revealed from your hand (phase's ``CostPaidObject``). A change in
     a granted ability lands on the object it was granted to, whose owner the
     structure doesn't tell (Tawnos Endures's "Exile target creature" — anyone's),
     so it is none."""
@@ -509,6 +524,8 @@ def _typed_card_zones(at: _Body, decorations: dict) -> tuple[str, ...]:
         zone = _trigger_card_zone(at.trigger)
     elif tag == "TrackedSet" and _tracked(at) == "off":
         zone = _object_zone(at, decorations)
+    elif tag == "CostPaidObject" and beholds(unit):
+        zone = "Hand"  # a beheld card revealed from your hand (CR 701.4a)
     else:
         zone = None
     return (zone,) if zone else ()
@@ -542,7 +559,7 @@ def card_boost_zones(unit: AbilityUnit) -> frozenset[str]:
         mod = _pt_change(effect)
         if mod is not None:
             if pump_raises(mod) and not at.granted:
-                zones.update(_typed_card_zones(at, decorations))
+                zones.update(_typed_card_zones(at, decorations, unit))
         elif tag_of(effect) == "Unimplemented":
             zones.update(_parked_card_zones(at, decorations))
     return frozenset(zones)

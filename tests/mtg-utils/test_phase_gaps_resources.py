@@ -172,15 +172,14 @@ def test_a_binding_sentence_reads_no_verb_x_does_not_size():
     )
     assert _x_instruction(anzrag, ALLOWLIST) == "exile the top X cards of your library"
     assert list(_recovered("Anzrag's Rampage")) == ["exile"]
-    # A sentence whose first instruction names X is read with its trigger and
-    # without its binding, and one that names no X is not read at all.
+    # A sentence whose first instruction names X is read without its binding,
+    # from the verb its comma-joined item opens on, and one that names no X is
+    # not read at all.
     mask = (
         "Whenever equipped creature deals combat damage to a player, it connives "
         "X, where X is the amount of damage it dealt to that player."
     )
-    assert _x_instruction(mask, ALLOWLIST) == (
-        "Whenever equipped creature deals combat damage to a player, it connives X"
-    )
+    assert _x_instruction(mask, ALLOWLIST) == "it connives X"
     assert _x_instruction("Draw a card, where X is the number of Elves", ALLOWLIST) is (
         None
     )
@@ -195,11 +194,12 @@ def test_a_bindings_own_words_are_no_detail_of_the_verb():
     assert not any(i.startswith("creature_recursion|") for i in idents)
 
 
-def test_a_binding_parked_twice_recovers_its_verb_once():
+def test_a_binding_parked_twice_recovers_each_verb_once():
     """Starfleet Communicator grants "Whenever ~ attacks, draw X cards, then …
     put up to X land cards … onto the battlefield, where X is …", and phase
     parks the binding once per X. The quote has no unit of its own: its
-    sentence is its granter's, and the draw is read once."""
+    sentence is its granter's. The first residue reads the draw, the second
+    the put (the ``n``-th residue reads the ``n``-th instruction naming X)."""
     from mtg_utils._card_ir.crosswalk import iter_nested_granted_effect_concepts
 
     granted = [
@@ -208,7 +208,7 @@ def test_a_binding_parked_twice_recovers_its_verb_once():
         for unit in t.units
         for c in iter_nested_granted_effect_concepts(unit.node)
     ]
-    assert [c.recovered_by for c in granted if c.recovered_by] == ["draw"]
+    assert [c.recovered_by for c in granted if c.recovered_by] == ["draw", "reanimate"]
     assert sum(tag_of(c.node) == "Unimplemented" for c in granted) == 2
 
 
@@ -461,3 +461,61 @@ def test_resource_clause_still_parked_canary(name, residue, token, tag, workarou
     assert any(n == residue for n, _ in _residues(name)), retire
     assert token in _recovered(name), retire
     assert tag is None or tag not in _raw_tags(name), retire
+
+
+# ── Phase v0.133.0's block: the where-X leftovers ──────────────────────────────
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "tokens", "idents"),
+    [
+        # "Whenever ~ deals combat damage to a player, it deals X damage to any
+        # target, target player draws X cards, and you gain X life, where X is
+        # …": one residue per verb, the gain parked whole
+        (
+            "Niv-Mizzet, Guildpact",
+            {"damage": 1, "draw": 1},
+            {"direct_damage|you|", "card_draw_engine|you|", "lifegain_makers|you|"},
+        ),
+        # "When ~ enters or is turned face up, it deals X damage to target
+        # opponent": phase types both triggers, the face-up one ``TurnFaceUp``
+        ("Concert Kaboomist", {"damage": 2}, {"direct_damage|you|"}),
+        # "Shuffle your library, then exile the top X cards … you may play lands
+        # and cast spells from among cards exiled this way": impulse draw
+        ("Magus of the Mind", {"exile": 1}, {"impulse_top_play|you|"}),
+    ],
+)
+def test_where_x_leftover_canary(name, tokens, idents):
+    """The where-X recovery reads the effect of a typed trigger without its
+    condition ("deals combat damage", "is turned face up" are no part of the
+    effect), the ``n``-th of a binding's residues as the ``n``-th instruction
+    naming X, and "the top X cards" after an instruction on your library as
+    your library's top. Fails once phase types the verbs: then delete the
+    case."""
+    assert any(n == "where_x_binding" for n, _ in _residues(name)), (
+        f"where-X leftover: RETIRE-READY — phase types {name}'s X verbs. Delete "
+        "this case."
+    )
+    recovered = _recovered(name)
+    assert {t: len(recovered.get(t, ())) for t in tokens} == tokens
+    assert idents <= _idents(name)
+
+
+def test_a_typed_triggers_condition_is_no_part_of_its_effect():
+    from mtg_utils._card_ir.recovery import _x_instruction
+
+    niv = (
+        "Whenever ~ deals combat damage to a player, it deals X damage to any "
+        "target, target player draws X cards, and you gain X life, where X is the "
+        "number of different color pairs among permanents you control."
+    )
+    assert _x_instruction(niv, ALLOWLIST, after=43) == "it deals X damage to any target"
+    assert _x_instruction(niv, ALLOWLIST, nth=1, after=43) == (
+        "target player draws X cards, and you gain X life"
+    )
+    magus = (
+        "Shuffle your library, then exile the top X cards, where X is one plus "
+        "the number of spells cast this turn."
+    )
+    assert _x_instruction(magus, ALLOWLIST) == ("exile the top X cards of your library")

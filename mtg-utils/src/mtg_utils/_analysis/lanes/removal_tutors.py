@@ -96,6 +96,7 @@ from mtg_utils._card_ir.crosswalk import (
     negative_pt_field,
     out_of_reach,
     overload_sweep,
+    parked_targeting_payoffs,
     plays_lands_from_graveyard,
     pt_mod_signs,
     recipient_tag,
@@ -2904,6 +2905,11 @@ def _targeting_side(tree: ConceptTree) -> list[Signal]:
             side = targeting_trigger_side(trig)
             if side in ("you", "opponents"):
                 sides.add(side)
+    # The payoffs phase parks, read by the clause grammar (Iron Fist, Living
+    # Weapon's "you cast a spell that targets a creature you control").
+    sides |= {
+        p.side for p in parked_targeting_payoffs(tree) if p.side in ("you", "opponents")
+    }
     return [
         Signal("targeting_matters", "any", side, "", tree.name, "high")
         for side in sorted(sides)

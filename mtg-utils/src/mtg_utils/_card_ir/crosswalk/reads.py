@@ -34,6 +34,12 @@ from mtg_utils._card_ir.card_subtypes import (
     PLANESWALKER_TYPES,
     SPELL_TYPES,
 )
+from mtg_utils._card_ir.clause_grammar import (
+    TargetingPayoff,
+    TargetingShield,
+    targeting_payoffs,
+    targeting_shield,
+)
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -4570,7 +4576,7 @@ def iter_flip_outcomes(node: object) -> Iterator[TypedMirrorNode]:
 
 
 def has_nested_fight(node: object) -> bool:
-    """Whether a ``Fight`` tag (CR 701.12) is reachable ANYWHERE under
+    """Whether a ``Fight`` tag (CR 701.14a) is reachable ANYWHERE under
     ``node`` — a fight buried inside a granted trigger (Cherished
     Hatchling's cast-a-Dinosaur grant, Grothama's "Other creatures have
     '... it fights Grothama.'"), a granted activated ability (Setessan
@@ -8182,6 +8188,58 @@ PROTECTIVE_KEYWORDS: frozenset[str] = frozenset(
 )
 
 
+#: The kind a targeting shield (:func:`targeting_shields`) that is no protective
+#: keyword reads as: "can't be the target of spells" (Anti-Magic Aura), "of
+#: abilities from artifact sources" (Artifact Ward).
+UNTARGETABLE = "untargetable"
+
+
+def targeting_shields(
+    tree: ConceptTree,
+) -> tuple[tuple[AbilityUnit, TypedMirrorNode, TargetingShield], ...]:
+    """``(unit, static def, shield)`` for every "can't be the target of [some]
+    spells" line phase parks as an ``Other`` static mode, read by the shared
+    clause grammar (:func:`~mtg_utils._card_ir.clause_grammar.targeting_shield`):
+    who it shields, which spells and abilities can't target it (a colour, a
+    type, a source's quality) and whose (your opponents' only, or anyone's).
+    Fiendslayer Paladin's "can't be the target of black or red spells your
+    opponents control", Spellbane Centaur's "Creatures you control can't be the
+    targets of blue spells or abilities from blue sources", Lurker's "unless it
+    attacked or blocked this turn"; 18 legal cards at v0.133.0 (Tomik's lands
+    and Wall of Shadows's "spells that can target only Walls" are not read).
+    Memoized on the tree: four lanes ask it."""
+    return memo_on(tree, "_xw_targeting_shields", _read_targeting_shields)
+
+
+def _read_targeting_shields(
+    tree: ConceptTree,
+) -> tuple[tuple[AbilityUnit, TypedMirrorNode, TargetingShield], ...]:
+    out: list[tuple[AbilityUnit, TypedMirrorNode, TargetingShield]] = []
+    for unit in tree.units:
+        for sdef in unit.static_defs():
+            mode = getattr(sdef, "mode", None)
+            if not (
+                isinstance(mode, MirrorVariant)
+                and mode.key == "Other"
+                and isinstance(mode.inner, str)
+            ):
+                continue
+            shield = targeting_shield(mode.inner)
+            if shield is not None:
+                out.append((unit, sdef, shield))
+    return tuple(out)
+
+
+def shield_kind(shield: TargetingShield) -> str:
+    """The protective keyword a targeting shield is, folded as
+    :func:`protective_keyword` folds a typed grant ("hexproof from blue" is
+    ``"hexproof"``, CR 702.11d), else :data:`UNTARGETABLE`."""
+    if not shield.keyword:
+        return UNTARGETABLE
+    folded = normalised_keyword_name(shield.keyword)
+    return "hexproof" if folded == "hexprooffrom" else folded
+
+
 def normalised_keyword_name(kw: str) -> str:
     """A phase keyword spelling folded for set membership: lower case, no
     spaces, no hyphens (``JumpStart`` → ``jumpstart``, ``TotemArmor`` →
@@ -11369,6 +11427,45 @@ def targeting_trigger_source(trig: TypedMirrorNode) -> TargetingSource | None:
     return ""
 
 
+#: The residues a targeting payoff phase parks whole sits in: "Whenever you
+#: cast a spell that targets a creature you control, ~ gains …" (Iron Fist,
+#: Living Weapon; Ms. Marvel, Kamala Khan) and an ability phase names but
+#: doesn't model (Weird Angel Flame's heroic line).
+_PARKED_TARGETING_RESIDUES = ("granter_reference_unreached", "unknown")
+
+
+def parked_targeting_payoffs(tree: ConceptTree) -> frozenset[TargetingPayoff]:
+    """The targeting payoffs phase parks, read by the shared clause grammar
+    (:func:`~mtg_utils._card_ir.clause_grammar.targeting_payoffs`): a trigger
+    whose mode phase leaves ``Unknown`` (Agrus Kos, Eternal Soldier; Skophos
+    Maze-Warden; Dormant Gomazoa; Bill Potts's activation half), a residue
+    holding the whole ability (:data:`_PARKED_TARGETING_RESIDUES`), and the half
+    of a typed trigger's description phase dropped ("Whenever this Aura enters
+    or enchanted creature becomes the target of an Aura spell", typed as the
+    enters trigger alone — Brine Comber's back face; a quoted ability there is
+    another object's, Niambi, Beloved Protector's). Memoized on the tree. The
+    typed triggers are
+    :func:`targeting_trigger_source` / :func:`targeting_trigger_side`'s."""
+    return memo_on(tree, "_xw_parked_targeting_payoffs", _read_parked_targeting_payoffs)
+
+
+def _read_parked_targeting_payoffs(tree: ConceptTree) -> frozenset[TargetingPayoff]:
+    out: set[TargetingPayoff] = set()
+    for text in tree.unknown_trigger_modes():
+        out |= targeting_payoffs(text)
+    for name in _PARKED_TARGETING_RESIDUES:
+        for text in tree.residues(name):
+            out |= targeting_payoffs(text)
+    for unit in tree.units:
+        mode = getattr(unit.node, "mode", None) if unit.origin == "trigger" else None
+        if not isinstance(mode, str) or mode in ("BecomesTarget", "SpellCast"):
+            continue
+        description = getattr(unit.node, "description", None)
+        if isinstance(description, str):
+            out |= targeting_payoffs(description, quoted=False)
+    return frozenset(out)
+
+
 def attack_trigger_side(trig: object) -> TargetingSide | None:
     """Whose creatures an attack trigger watches attack, or ``None`` when the
     trigger watches no attack:
@@ -11708,6 +11805,15 @@ def picked_by_caster(
     if ref.kind != "that" or ref.effect.concept != "sacrifice":
         return False
     return sacrifice_actor(unit, ref.effect.node) is None
+
+
+def beholds(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` pays a behold cost (CR 701.4a: "Behold a [quality]"
+    means "Reveal a [quality] card from your hand or choose a [quality]
+    permanent you control on the battlefield"), so phase's ``CostPaidObject``
+    in it is a card in your hand or a permanent you control (Territorial
+    Strike's "If a Dragon creature was beheld, it perpetually gets +2/+2")."""
+    return any(tag_of(c.node) == "Behold" for c in unit.costs)
 
 
 def deals_its_own_power(node: TypedMirrorNode, unit: AbilityUnit | None = None) -> bool:
@@ -13925,6 +14031,22 @@ def _keyword_bodies(
     )
     if casts_as_though_flash(tree):
         out.add("flash")  # the card itself, cast as though it had flash
+    if not (made_only or own_only):
+        # a targeting shield the card hands another permanent of yours, where it
+        # is a protective keyword: "Creatures you control can't be the targets of
+        # blue spells or abilities from blue sources" (Spellbane Centaur, read as
+        # a hexproof from blue by the lane's own decision: it stops your own blue
+        # spells too, beyond CR 702.11d's opponents'), read as a typed grant is.
+        # A creature's own shield gives no signal, as its printed one doesn't
+        # (Dan's ruling, 2026-11-25).
+        for _unit, sdef, shield in targeting_shields(tree):
+            affected = getattr(sdef, "affected", None)
+            if (
+                shield.subject != "self"
+                and shield.keyword
+                and filter_controller_side(affected) != "opponents"
+            ):
+                out |= _keyword_with_conferred(shield.keyword)
     for unit in tree.units:
         for sdef, mod in iter_mod_sites(unit.node, deep=True):
             affected = getattr(sdef, "affected", None)

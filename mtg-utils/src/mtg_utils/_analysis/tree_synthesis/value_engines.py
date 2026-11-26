@@ -36,6 +36,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind_any,
     dynamic_pt_mod_sites,
     effect_actor_scope,
+    effect_chosen_on_resolution,
     effect_filter,
     effect_owner_player_scope,
     effect_player_reach,
@@ -551,6 +552,9 @@ def has_own_target_spell(tree: ConceptTree) -> bool:
         and filter_controller(tgt, unit) == "You"
         and not _is_mass_effect(node)
         and not _names_cards_off_battlefield(tgt)
+        # an object chosen as the spell resolves is no target (CR 115.10a):
+        # Crush Underfoot's "Choose a Giant creature you control"
+        and not effect_chosen_on_resolution(unit.node, node)
         for unit in tree.units
         for node in unit.iter_typed()
     )

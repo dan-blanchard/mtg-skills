@@ -114,6 +114,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     static_reveal_who,
     tag_of,
+    targeting_shields,
     trigger_caster_scope,
     trigger_constraint_n,
     trigger_constraint_tag,
@@ -1440,6 +1441,23 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
         ):
             fire_subject("aura_equip_kw_grant", "you", subject, raw)
 
+    # A targeting shield phase parks on another creature that is a protective
+    # keyword (``crosswalk.targeting_shields``): your team's "can't be the
+    # targets of blue spells or abilities from blue sources" (Spellbane
+    # Centaur) reads as a hexproof-from grant, the lane's own decision: it
+    # covers what "hexproof from blue" means (your opponents' blue spells and
+    # abilities, CR 702.11d) and your own blue ones besides;
+    # a narrower one (Anti-Magic Aura's spells alone) is a protection grant
+    # through ``protective_grant_recipients`` below.
+    for _unit, sdef, shield in targeting_shields(tree):
+        if shield.subject != "self" and shield.keyword:
+            affected = getattr(sdef, "affected", None)
+            raw = getattr(sdef, "description", None) or ""
+            # folded as a typed grant's keyword is (``HexproofFrom`` →
+            # "hexprooffrom", subject "hexproof from" — Tam, Mindful First-Year)
+            subject = keyword_subject(shield.keyword)
+            team_site(affected, normalised_keyword_name(shield.keyword), subject, raw)
+            grantee_site(affected, subject, raw)
     # A pump's grant phase dropped beside it (``crosswalk.pump_keyword_grants``):
     # the pump's object is the grantee, read as a grant site's — your team
     # ("creatures you control gain trample and get +1/+1 …" — Tromp the
@@ -2642,7 +2660,12 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
     dealing its own power (:func:`crosswalk.is_bite`) — not Repentance's
     self-damage, Mutiny's opposing dealer or Corpse Explosion's spell. The
     creature is the source, so its deathtouch makes the bite removal (CR
-    702.2b): a deathtouch lane's serve reads this subject.
+    702.2b): a deathtouch lane's serve reads this subject. A bite is one-sided:
+    your creature deals damage equal to its power to another creature and takes
+    none back, where a fight has each creature deal damage equal to its power to
+    the other (CR 701.14a; the fight lane's own). Spirit Flare's, Crush
+    Underfoot's and Thorin, Mountain-king's, whose target phase drops, are read
+    off the recipient ``misparsed_shapes`` writes back.
     """
     found: dict[str, str] = {}
     equipment = "Equipment" in tree.card_subtypes

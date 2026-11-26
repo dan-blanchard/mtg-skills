@@ -51,9 +51,11 @@ from mtg_utils._card_ir.crosswalk.reads import (
     parked_prevention,
     protective_keyword,
     redirects_damage_from_you,
+    shield_kind,
     static_mode_field,
     static_mode_tag,
     tag_of,
+    targeting_shields,
     unit_keyword_grants,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -350,6 +352,14 @@ def protective_grant_recipients(
     existence test the ``board_protection`` lane makes; the pairs are what the
     tests pin.
 
+    A targeting shield phase parks (``reads.targeting_shields``) on something
+    other than the card is one too: "Enchanted creature can't be the target of
+    spells" (Anti-Magic Aura) reads as ``reads.UNTARGETABLE``, Spellbane
+    Centaur's blue shield for your creatures as ``hexproof``: it stops your
+    opponents' blue spells and abilities, which is what "hexproof from blue"
+    means (CR 702.11d), and your own blue ones too, so reading it as
+    hexproof-from is the lane's own decision.
+
     Dropped: a grant to the card itself ("~ has hexproof as long as it's
     untapped" — Dragonlord Ojutai; "Sacrifice another creature: ~ gains
     indestructible" — Yahenni), a grant only an opponent's objects take, and a
@@ -377,6 +387,22 @@ def protective_team_grants(tree: ConceptTree) -> Iterator[str]:
             yield kw
 
 
+def _shield_grants(
+    tree: ConceptTree, unit: AbilityUnit
+) -> Iterator[tuple[str, ProtectionRecipient, object]]:
+    """The targeting shields of ``unit`` (``reads.targeting_shields``) on something
+    other than the card itself, as grants: the enchanted creature (Anti-Magic
+    Aura, Spectral Shield, Artifact Ward), your creatures (Spellbane Centaur),
+    every creature (Dense Foliage: yours among them)."""
+    for at, sdef, shield in targeting_shields(tree):
+        if at is not unit or shield.subject == "self":
+            continue
+        affected = getattr(sdef, "affected", None)
+        who = _recipient(tree, unit, affected)
+        if who is not None:
+            yield shield_kind(shield), who, affected
+
+
 def _protective_grants(
     tree: ConceptTree,
 ) -> Iterator[tuple[str, ProtectionRecipient, object]]:
@@ -384,6 +410,7 @@ def _protective_grants(
     filter it names (``None`` for a player's own protective mode)."""
     card_is_aura = "Aura" in tree.card_subtypes
     for unit in tree.units:
+        yield from _shield_grants(tree, unit)
         threaded: dict[int, object] = {}
         for tgt, mod in unit_keyword_grants(unit):
             threaded.setdefault(id(mod), tgt)

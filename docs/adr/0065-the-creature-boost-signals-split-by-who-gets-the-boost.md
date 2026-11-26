@@ -73,6 +73,38 @@ first build); and **the builder's choices** where both were silent.
   shrink (Lash of Malice). **A boost that can only land on an opponent's creature is
   never yours.** Chaos Balor keeps its combat boost. Veteran Motorist and Flailing Drake
   boost a different creature, not themselves.
+- **A granted boost keyword boosts your other creatures (Dan's rulings,
+  2026-11-25, after the first build).** Every keyword whose whole effect is a
+  power/toughness boost counts when granted to your other creatures: prowess (CR
+  702.108a), exalted (702.83a), bushido (702.45a), rampage (702.23a), melee
+  (702.121a) and battle cry (702.91a: "each other attacking creature gets +1/+0",
+  a boost of the team). Flanking does not: it shrinks the blocker (702.25a). It
+  is `boosts_others`, filed by how it is granted: `anthem` for a standing grant
+  to a group of yours ("Other creatures you control have prowess" — Bria,
+  Riptide Rogue; Syr Joshua and Syr Saxon's battle cry), `attached` with its
+  delivery for an Aura's or Equipment's ("Equipped
+  creature has prowess" — Wizard's Staff, `target_ability`; Taught by Narset's
+  Aura, `target_spell`). Prowess, bushido, rampage, melee and battle cry
+  trigger on the creature that has them, so only a grant to creatures counts;
+  exalted's boost lands on the creature attacking alone, so a grant to any
+  permanents of yours counts ("Clues you control have exalted" — Merchant of
+  Truth; Rashel, Fist of Torm's Auras). A battle cry the card gives itself
+  boosts the others too, `effect` as a printed battle cry is (Reckless
+  Pyrosurfer; Marshland Hordemaster's parked "perpetually gains battle cry");
+  any other grant to the card itself grows itself (Fumiko the Lowblood's
+  bushido). *The coordinator's decision, consistent with the target-flag
+  ruling:* a boost keyword granted to ONE target creature that is not an
+  opponent's carries the target flag as any targeted boost does, `effect` plus
+  `target_spell` or `target_ability` by delivery (Fang of the Pack's "another
+  target creature you control gains melee", Rapid Fire's rampage, Sensei
+  Golden-Tail's bushido). *The coordinator's choice, consistent with how team
+  pumps read:* a group grant that lasts a turn is `effect`, as a one-shot team
+  pump is, not `anthem` — decided by structure, a static ability against an
+  effect with a duration (Vivien's Stampede's "Each creature you control gains …
+  melee until end of turn"; Rammas Echor, Ancient Shield's "creatures you
+  control with defender gain exalted until end of turn").
+  (`lanes.boosts._granted_boost_keywords`,
+  `_targeted_boost_keyword_deliveries`, `_own_battle_cry`.)
 
 - **`card_boost` (new; built on the sibling branch `card-boost` and merged here): a
   perpetual power/toughness raise on cards of yours NOT on the battlefield** — "creature
@@ -192,9 +224,14 @@ replacement's `PostReplacementDamageTarget` the damaged creature (Vigor);
 an untargeted pending enters-with counter another creature's (Yuna). A target in a
 graveyard, hand or library, and a delayed trigger's "it", is no chosen target (Defy
 Death, Valiant Farewell). `crosswalk.targeting_trigger_source` reads what a typed
-targeting payoff watches, a granted one included (Livewire Lash, Kira); the residue
-arm names no source, so a payoff phase leaves untyped reads as either (`""`; the text
-read it had was removed with Bill Potts's `Unknown`-mode gate). The lanes are `_analysis/lanes/boosts.py` (`self_boost`;
+targeting payoff watches, a granted one included (Livewire Lash, Kira); a payoff
+phase parks (an `Unknown` trigger mode, a whole-ability residue, the dropped half of a
+typed trigger) is read by the shared clause grammar
+(`crosswalk.parked_targeting_payoffs` over `clause_grammar.targeting_payoffs`, phase
+v0.133.0's block): Agrus Kos, Eternal Soldier and Skophos Maze-Warden `ability`,
+Dormant Gomazoa, Iron Fist, Living Weapon and Ms. Marvel, Kamala Khan `spell` (the last
+two also `you`), Bill Potts `""` (spells and abilities both). Only a parked payoff the
+grammar can't read is left to the residue arm, which names no source (`""`). The lanes are `_analysis/lanes/boosts.py` (`self_boost`;
 `boosts_others`, read after every lane and bridge row from the tree and the lanes'
 own signals; its `attached` is `counters_voltron.gear_pump_subjects`, the read behind
 `voltron_makers|you|pump`) and `tree_synthesis.combat.effect_boost_units`. Sickle

@@ -81,13 +81,14 @@ def trigger_object(
     """Where a trigger's object is (``ParentTarget`` with no earlier effect, or
     ``TriggeringSource``): a creature entering the battlefield (the card itself
     when the trigger watches only it), an attacker, a blocker, a crewing
-    creature; not a spell cast (Rothga, Bonded Engulfer) or a card that died
+    creature; not a spell cast (Rothga, Bonded Engulfer), a card drawn
+    (Darigaaz's Whelp's "Whenever you draw a Dragon card") or a card that died
     (Tomakul Phoenix)."""
     if mode in ("ChangesZone", "ChangesZoneAll"):
         if destination != "Battlefield":
             return "off"
         return "self" if watches_self else "battlefield"
-    if mode == "SpellCast":
+    if mode in ("SpellCast", "Drawn"):
         return "off"
     if mode in BATTLEFIELD_EVENT_MODES:
         return "battlefield"
@@ -101,16 +102,23 @@ def earlier_object(
     choice_zone: str | None,
     target_typed: bool,
     target_zones: Iterable[str],
+    choice_zones: Iterable[str] = (),
 ) -> Recipient:
     """Where the object the earlier effect of the chain acted on is
     (``ParentTarget``'s antecedent): a card put onto the battlefield, a target
     an effect left there; not a card chosen from a hand (Veteran Charger),
     sought (Hardened Bonds) or returned to a hand (Candela, Aegis of Adagia).
-    The card itself put back onto the battlefield is the caller's to tell."""
+    A choice that may pick a permanent instead (``choice_zones``, phase's
+    ``additional_zones``: "choose a creature card in your hand or a creature you
+    control" — Scour the Scene) can land on the battlefield, which is where it
+    is read (a boost that can land on your creature counts as yours, Dan's
+    ruling 2026-11-25); the card in the hand is the ``card_boost`` read's. The
+    card itself put back onto the battlefield is the caller's to tell."""
     if tag in _ZONE_MOVES:
         return "battlefield" if destination == "Battlefield" else "off"
     if tag == "ChooseFromZone":
-        return "battlefield" if choice_zone == "Battlefield" else "off"
+        zones = {choice_zone, *choice_zones}
+        return "battlefield" if "Battlefield" in zones else "off"
     if tag in OFF_BATTLEFIELD_TAGS:
         return "off"
     if tag in LEAVES_IT_TAGS and target_typed:
@@ -189,11 +197,14 @@ def earlier_zone(
 def trigger_zone(mode: str | None, destination: str | None) -> str | None:
     """The zone a trigger's object is in outside the battlefield
     (:func:`trigger_object` "off"): the zone a card was put into (Volatile
-    Rift's "a creature card is put into your hand"), the stack for a spell cast
+    Rift's "a creature card is put into your hand"), the hand for a card drawn,
+    the stack for a spell cast
     (Rothga, Bonded Engulfer's "When you cast a creature spell, it perpetually
     gets …")."""
     if mode in ("ChangesZone", "ChangesZoneAll"):
         return destination if destination and destination != "Battlefield" else None
+    if mode == "Drawn":
+        return "Hand"
     return "Stack" if mode == "SpellCast" else None
 
 

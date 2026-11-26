@@ -198,6 +198,15 @@ def _card_boosts(name: str) -> set[str]:
         # a delayed "When you cast a creature spell, it perpetually gets +X/+X",
         # nested in the effect that makes it: the spell on the stack
         ("Rothga, Bonded Engulfer", {"stack"}),
+        # "If a Dragon creature was beheld, it perpetually gets +2/+2": the
+        # beheld Dragon (``misparsed_shapes`` writes phase's ``CostPaidObject``),
+        # a card revealed from your hand or a permanent you control (CR 701.4a)
+        ("Territorial Strike", {"hand"}),
+        # "choose a creature card in your hand or a creature you control"
+        ("Scour the Scene", {"hand"}),
+        # "Whenever you draw a Dragon card, it perpetually gets +1/+1" (the
+        # drawn card), beside its kicked seek's
+        ("Darigaaz's Whelp", {"hand"}),
     ],
 )
 def test_a_typed_perpetual_boost_off_the_battlefield_is_a_card_boost(name, subjects):
@@ -212,10 +221,6 @@ def test_a_typed_perpetual_boost_off_the_battlefield_is_a_card_boost(name, subje
         # a shrink is no boost
         "Hook Horror",
         "Undersimplify",
-        # "Destroy target nonland permanent. If a Dragon creature was beheld, it
-        # perpetually gets +2/+2": phase types the "it" as the destroyed
-        # permanent, anyone's
-        "Territorial Strike",
         # "Exile target creature" granting it "if this card is exiled, it
         # perpetually gets +1/+1": the exiled card can be anyone's
         "Tawnos Endures",
@@ -495,3 +500,31 @@ def test_a_card_boost_opens_its_pairings():
             e.serve.counts_ident(f"card_boost|you|{subject}")
             for e in SPECS[("creatures_matter", "you")].extras
         ), subject
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # the beheld Dragon can be a creature you control (CR 701.4a)
+        "Territorial Strike",
+        # "… or a creature you control. It perpetually gets +1/+0"
+        "Scour the Scene",
+    ],
+)
+def test_a_boost_that_can_land_on_your_creature_is_a_pump_of_yours(name):
+    """Dan's ruling (2026-11-25): a boost that CAN land on your creature counts
+    as yours, beside the card in the hand it can also land on."""
+    idents = _idents(name)
+    assert ("effect_boost", "you", "") in idents
+    assert ("boosts_others", "you", "effect") in idents
+    # chosen as a cost or on resolution, never targeted
+    assert ("boosts_others", "you", "target_spell") not in idents
+
+
+def test_a_shrink_of_a_chosen_opponents_creature_is_a_debuff():
+    """Penregon Besieged's "choose a creature with the least toughness among
+    creatures your opponents control. It perpetually gets -1/-1" reads as the
+    typed perpetual shrinks do (Davriel's Withering)."""
+    assert ("debuff_makers", "any", "") in _idents("Penregon Besieged")
+    assert ("debuff_makers", "any", "") in _idents("Davriel's Withering")
+    assert not {i for i in _idents("Penregon Besieged") if i[0] == "effect_boost"}

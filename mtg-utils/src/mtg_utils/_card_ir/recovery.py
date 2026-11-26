@@ -47,6 +47,8 @@ from mtg_utils._card_ir.clause_grammar import (
     replacement_token,
     scan_clause,
     static_token,
+    trigger_condition_end,
+    with_elided_library,
 )
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
@@ -169,7 +171,7 @@ ALLOWLIST: dict[str, TokenRule] = {
     # way costs {2} more to cast" (Soul Partition, parked by phase v0.133.0)
     # -- the same real "stax_taxes" concept the cast lock above decorates.
     "opponent_spell_tax": TokenRule(concept="stax_taxes", category="restriction"),
-    # fight ACTION idiom (CR 701.12): "~ fights up to one target creature"
+    # fight ACTION idiom (CR 701.14a): "~ fights up to one target creature"
     # (Gimli, Mournful Avenger's third-resolution rider) / a Saga modal
     # bullet ("Fight! — ~ fights up to one target creature an opponent
     # controls" — Summon: Magus Sisters). Maps to the native Fight tag's
@@ -672,10 +674,15 @@ def _binding_sentence(c: ConceptNode, unit: AbilityUnit | None) -> str | None:
 
 # An X an instruction names ("connives X", "+X/+X", "{X} less", "top X cards").
 _X_RX = re.compile(r"(?<![A-Za-z])X(?![A-Za-z])")
+# An item of a comma-joined instruction list ("it deals X damage to any target,
+# target player draws X cards, and you gain X life").
+_LIST_ITEM_RX = re.compile(r",\s+(?:and\s+)?")
 _THEN_RX = re.compile(r",?\s+then\s+", re.IGNORECASE)
 
 
-def _x_instruction(sentence: str, table: dict[str, TokenRule]) -> str | None:
+def _x_instruction(
+    sentence: str, table: dict[str, TokenRule], *, nth: int = 0, after: int = 0
+) -> str | None:
     """The part of a binding's sentence to read for the verb X belongs to: the
     sentence up to its binding when its first instruction names X ("Whenever …
     deals combat damage to a player, it connives X"), else the later instruction
@@ -684,25 +691,61 @@ def _x_instruction(sentence: str, table: dict[str, TokenRule]) -> str | None:
     The binding itself ("where X is …") is never part of it: what it counts is
     no detail of the verb (Bound's "Return up to X cards from your graveyard to
     your hand, where X is the number of colors that creature was" returns
-    cards, not creatures). ``None`` when no instruction names X. An instruction
-    starts at a sentence break, at "then", or where :func:`_later_clauses`
-    reads a verb."""
+    cards, not creatures). ``nth`` picks a later instruction naming X, for the
+    ``nth`` residue phase parked for the same binding ("it deals X damage to any
+    target, target player draws X cards, and you gain X life, where X is …" —
+    Niv-Mizzet, Guildpact: one residue per verb); ``after`` is where the
+    sentence's typed trigger condition ends (:func:`trigger_condition_end`), so
+    the instruction is the effect alone ("When ~ is turned face up, it deals X
+    damage to target opponent" — Concert Kaboomist: the condition is phase's
+    ``TurnFaceUp`` mode, never part of the effect). An instruction on "the top
+    X cards" after one on your library is read with the library it elides
+    (:func:`with_elided_library`: Magus of the Mind's "Shuffle your library,
+    then exile the top X cards" exiles the top of your library). ``None`` when no
+    instruction names X. An instruction starts at a sentence break, at "then",
+    where :func:`_later_clauses` reads a verb, or at an item of a comma-joined
+    list the grammar reads a verb at."""
     binding = WHERE_X_BINDING_RX.search(sentence)
     head = sentence[: binding.start()] if binding else sentence
-    named = _X_RX.search(head)
-    if named is None:
-        return None
     starts = sorted(
         {
-            *(m.end() for m in SENTENCE_BREAK_RX.finditer(head)),
-            *(m.end() for m in _THEN_RX.finditer(head)),
-            *(start for start, _part in _later_clauses(head, table)),
+            after,
+            *(
+                start
+                for start in (
+                    *(m.end() for m in SENTENCE_BREAK_RX.finditer(head)),
+                    *(m.end() for m in _THEN_RX.finditer(head)),
+                    *(start for start, _part in _later_clauses(head, table)),
+                    *(
+                        m.end()
+                        for m in _LIST_ITEM_RX.finditer(head)
+                        if (parse_clause(head[m.end() :]) or "") in table
+                    ),
+                )
+                if start > after
+            ),
         }
     )
-    before = [start for start in starts if start <= named.start()]
-    after = [start for start in starts if start > named.start()]
-    start = before[-1] if before else 0
-    return head[start : after[0] if after else len(head)].rstrip(" ,.")
+    named = [
+        with_elided_library(head[:begin], head[begin:end].strip().rstrip(" ,."))
+        for begin, end in zip(starts, [*starts[1:], len(head)], strict=True)
+        if _X_RX.search(head, begin, end)
+    ]
+    return named[nth] if nth < len(named) else None
+
+
+def _typed_trigger_head(sentence: str, described_by: AbilityUnit | None) -> int:
+    """Where ``sentence``'s trigger condition ends when ``described_by`` is a
+    trigger phase typed (its ``mode`` a plain string — ``DamageDone``,
+    ``TurnFaceUp``): the parked residue is then the effect alone, and the
+    condition's words ("deals combat damage", "is turned face up") no part of
+    it. ``0`` otherwise — an ``Unknown`` mode, an ability, a granted body read
+    from its granter's description."""
+    if described_by is None or described_by.origin != "trigger":
+        return 0
+    if not isinstance(getattr(described_by.node, "mode", None), str):
+        return 0
+    return trigger_condition_end(sentence)
 
 
 def _recover_binding_sentence(
@@ -717,21 +760,35 @@ def _recover_binding_sentence(
     finds in ``described_by``'s description). Phase parks only the binding and
     drops that verb, unless it typed the verb beside the residue
     (:func:`_types_the_verb`): that ability keeps its own, and the residue stays
-    a residue."""
+    a residue. Phase parks one residue per verb that names X ("draw X cards,
+    then … put up to X land cards …": Starfleet Communicator; Niv-Mizzet,
+    Guildpact's damage and draw), so the ``n``-th residue holding the same
+    binding reads the ``n``-th instruction naming X."""
     sentence = _binding_sentence(c, described_by)
-    text = _x_instruction(sentence, table) if sentence is not None else None
+    earlier = siblings[: next(i for i, s in enumerate(siblings) if s is c)]
+    nth = sum(
+        1
+        for other in earlier
+        if residue_is(other.node, "where_x_binding") and (other.raw == c.raw)
+    )
+    text = (
+        _x_instruction(
+            sentence, table, nth=nth, after=_typed_trigger_head(sentence, described_by)
+        )
+        if sentence is not None
+        else None
+    )
     out = _recover(c, table, unit, text) if text is not None else None
     if out is None:
         return None
-    # One sentence, one verb: an earlier residue that already holds this
-    # binding would read that verb again — the same binding parked twice ("draw
-    # X cards, then … put up to X land cards …": Starfleet Communicator), or a
-    # residue holding the instruction with its binding ("spells you cast from
-    # exile this turn cost {X} less to cast, where X is …": Commander Liara
-    # Portyr).
-    earlier = siblings[: next(i for i, s in enumerate(siblings) if s is c)]
+    # One sentence, one verb: an earlier residue of another kind that holds this
+    # binding with its instruction already reads that verb ("spells you cast
+    # from exile this turn cost {X} less to cast, where X is …": Commander Liara
+    # Portyr's ``unparsed_quantity``).
     if any(
-        tag_of(other.node) == "Unimplemented" and c.raw in (other.raw or "")
+        tag_of(other.node) == "Unimplemented"
+        and not residue_is(other.node, "where_x_binding")
+        and c.raw in (other.raw or "")
         for other in earlier
     ):
         return None
@@ -933,6 +990,20 @@ def is_theirs(c: ConceptNode) -> bool:
     or the opponents' side (its ``scope``). The one side read the lanes make of a
     recovered node."""
     return c.scope == "opponents" or bool({THEIRS, OTHER_PLAYER} & set(c.reading))
+
+
+def exiles_your_library(c: ConceptNode) -> bool:
+    """Whether a recovered clause exiles cards from the top of your own library
+    (the impulse draw's exile: "exile the top X cards of your library" —
+    Anzrag's Rampage; Magus of the Mind's, the library its instruction elides)
+    as the ability's own instruction (``IMPERATIVE``)."""
+    return (
+        c.recovered_by == "exile"
+        and IMPERATIVE in c.subject
+        and "Library" in c.zones
+        and YOURS in c.subject
+        and not is_theirs(c)
+    )
 
 
 def is_yours(c: ConceptNode) -> bool:
