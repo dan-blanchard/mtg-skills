@@ -12,7 +12,7 @@ v0.131.0 on 2026-11-24). Posting them is Dan's; its README has the posting order
 ranked by the workaround code each retires. Phase also publishes a
 `metadata.confirmed_misparse` category on about 2,500 records now, so some of these
 are already known to it (each draft says where). **Vetted 2026-11-25 against
-v0.133.0:** 6 issues filed the same day as phase-rs/phase #11359 to #11364 (the text
+v0.133.0:** 6 issues filed the same day as phase-rs/phase #11359 to #11364, and 3 more on 2026-11-26 against v0.134.0, #11383 to #11385 (the text
 as posted is in `docs/plans/phase-upstream-issues/filed/`). Every other draft and backlog row is recorded as not filed, with its reason, in
 `docs/plans/phase-upstream-issues/vetting-2026-11-25.md`: parked and not a regression,
 already in phase's confirmed-misparse census, ours, or a duplicate of an open
@@ -169,8 +169,16 @@ phase-rs issue.
   own-target block, 2026-11-26, its ledger row retired; Wall of Shadows's "can't
   be the target of spells that can target only Walls" stays unread on purpose:
   a creature's own shield gives no signal, Dan's ruling.)
-- **Mass effects phase types exactly as targeted ones** (silent misparses,
-  candidates for an upstream report; the own-target rows, 2026-11-26). Phase
+- **Mass effects phase types exactly as targeted ones** (the own-target rows,
+  2026-11-26; vetted in phase's engine at v0.134.0 the same day,
+  `docs/plans/phase-upstream-issues/vetting-2026-11-26.md`: the regenerate and
+  phase-out forms are real bugs there, filed as phase-rs/phase #11383 (Wrap in
+  Vigor regenerates only the creature you pick; Taniwha phases out one land);
+  Teferi's Protection and Contractual Safeguard are NOT bugs in phase, whose
+  engine special-cases them (#2907, and its own test), though the data shape
+  is the same; Sunder the Gateway and Calix, Guided by Fate's untargeted
+  objects are filed as #11384, Echo Chamber's "they control" as #11385; the
+  rest is already in phase's census or flagged unsupported). Phase
   writes "Regenerate each creature you control" (Wrap in Vigor) as
   `{"type": "Regenerate", "target": {"type": "Typed", "type_filters":
   ["Creature"], "controller": "You"}}`, field for field the node of
@@ -180,8 +188,9 @@ phase-rs issue.
   "Put a counter of that kind on each other creature you control"
   (Contractual Safeguard) as a `PutChosenCounter` on one `Typed` filter, the
   shape of Aven Courier's single permanent. No `*All` variant, scope, chooser
-  or `multi_target` differs, so phase's engine can't tell the population from a
-  target either. The repo reads them by the recovery stage's
+  or `multi_target` differs: phase's engine tells a population from a target
+  only by an exception list over the filter's shape (phasing: exactly "all
+  permanents you control"; regenerate: none). The repo reads them by the recovery stage's
   `ConceptNode.population` mark (`recovery.mark_populations` over
   `clause_grammar.population_effects`, read by `reads.acts_on_a_group`):
   Wrap in Vigor, Wail of the Nim, Golgari Charm, Dark Dabbling, Loxodon
