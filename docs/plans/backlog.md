@@ -20,26 +20,6 @@ phase-rs issue.
 
 **From the closing precon scoreboard (2026-11-26, N18 at e25fb0d3 against N17 at 2720444a; `~/mtg/tuner-work/w-2026-11-25/`)**
 
-- **TyranidSwarm_40K lost Cyclonic Rift as an add: the even share, and a held
-  settle-up pass** (traced 2026-11-26). Hierophant Bio-Titan now counts as a closer,
-  so the "≈2 closers" swap went away and the swaps behind it reshuffled. At
-  Exocrine's board-wipe upgrade, three swaps from the end with $150.59 spent, the
-  even share was ($233.73 − 150.59) / 3 = $27.71. Rift ($29.71) was past it, so the
-  first card within it that passed the gate (Scourge of Fleets, $0.49) took the
-  slot. The tune then ended $78 under budget. A settle-up pass was built, reviewed
-  and measured twice (N19, N22): once every swap is made, it re-runs each search that
-  passed a card over for its price, on the money left. It FAILED the gate's primary
-  line: held-out plan 416 → 415, guide adds 111 → 106, job-equivalents 39 → 40,
-  cuts flat, spend +24% ($110 → $136 held-out average), 10 guide adds gained and 13
-  lost. Dan's decision (2026-11-26): held as a patch,
-  `~/mtg/tuner-work/w-2026-11-26/settle-up/` (its README has the measures and the
-  fixed review findings); the commit stays on branch `tuner-rift`. Don't re-suggest
-  it as built. It gives the leftover money to the first priced-out swap in issue
-  order, and each upgrade reshuffles the swaps behind it (a freed card taken by a
-  later search, that search's own add freed in turn): that is where the 13 lost
-  guide adds come from. To pass, it would need to spend only where the swap's own
-  order holds still: a card ahead of the add that no later swap takes, the rest of
-  the proposal kept as made.
 - **Two upgrade orders turn on a card the pick never takes** (traced 2026-11-26,
   `~/mtg/tuner-work/w-2026-11-26/rift/`; both followed a changed input, neither is a
   defect yet). `find_add`'s cheaper window counts every candidate after the first
@@ -73,22 +53,70 @@ phase-rs issue.
   though Genesis Hydra, Emergent Woodwurm and Broodcaller Scourge cheat only up to
   a bound the signal does not carry.
 - **What a generous budget buys off the job pages: the pages' own order**
-  (2026-11-26; seen through the held settle-up pass, N19 / N22,
+  (2026-11-26; what the settle-up buys, N19 / N22 / N25 / N26 / N27,
   `~/mtg/tuner-work/w-2026-11-26/`; a larger budget picks the same). Not the
   mana-value gap: both are upgrades, held to their cut's band, and cheap. Each is the
-  job page's most played card once the money reaches it. Phyrexian Altar ($54.14,
+  job page's most played card once the money reaches it. The tuner's own need reads
+  call both on-plan (the planfit table above), and Dan ruled no plan-fit rule
+  (2026-11-26). Phyrexian Altar ($54.14,
   rank 305) upgrades Rousing Refrain on Prismari Artistry's ramp page (32nd on it;
   3rd on the "token maker consumers" need page), over Burnished Hart: a sacrifice
   outlet as ramp in a spells deck with no sacrifice plan. Esper Sentinel ($51.13,
   rank 79) upgrades Shimmer Dragon on Deep Clue Sea's card-draw page (4th), over
   Howling Mine: a draw tax on opponents' first noncreature spell, its X the
-  Sentinel's 1 power, in Morska's Clue deck. A read of the deck's plan on the
-  ramp and draw pages (what the Altar sacrifices, what the Sentinel's power is
-  worth here) would tell them apart; none exists. Counter Intelligence's card-draw
+  Sentinel's 1 power, in Morska's Clue deck. Counter Intelligence's card-draw
   upgrade of Thirst for Knowledge, given $0.82, reads the blend: Silent Hallcreeper
   ($0.80, rank 1446) 7th, Seize the Spoils ($0.25, rank 725) 13th, everything above
   Hallcreeper costlier. That is a ranking question: the draw blend against a
   more-played card that draws two and makes a Treasure.
+
+**The settle-up (2026-11-26; `~/mtg/tuner-work/w-2026-11-26/`)**
+
+- **Settling up the budget the even share held back: v1 held, v2 landed** (2026-11-26).
+  - *The cause.* TyranidSwarm_40K lost Cyclonic Rift as an add (traced
+    2026-11-26). At Exocrine's board-wipe upgrade, three swaps from the end with
+    $150.59 spent, the even share was ($233.73 − 150.59) / 3 = $27.71. Rift
+    ($29.71) was past it, so Scourge of Fleets ($0.49) took the slot, and the tune
+    ended $78 under budget.
+  - *v1, held.* A pass that re-runs each priced-out search on the money left
+    (branch `tuner-rift`, 2da5670b; the patch and README in
+    `~/mtg/tuner-work/w-2026-11-26/settle-up/`). It failed the gate twice (N19,
+    N22): held-out plan 416 → 415, guide adds 111 → 106, job-equivalents 39 → 40,
+    spend +24%, 13 guide adds lost. Each upgrade freed a card a later search took.
+    Don't re-suggest it as built.
+  - *v2, landed.* `propose_swaps`' settle-up. A priced-out swap is upgraded in
+    place, in swap order, to the best card ranked ahead of its add on its own
+    search (`find_on_page` at the swap's stored page, never deeper) that no swap
+    holds or held, paid from the money left. The Game Changer room is read
+    exactly (the end state, the old add's slot given back); the counted shares
+    a re-run can't replay move no way wrong: no support card or polymorph whiff
+    where the old add had none, no bomb lost. A swap that filled a full job's
+    slot (its own or, after a recheck repick, the slot's) is not settled, a
+    settle never takes the role-fix guard's overshooting fallback, and nothing
+    else moves.
+  - *N27* (the confirming run of the landed code). All 55 decks, on the 25 /
+    held-out / fresh sets: guide adds 124 → 128 / 111 → 110 / 49 → 51, plan
+    503 → 505 / 416 → 415 / 170 → 167, job-equivalents 44 → 42 / 39 → 40 /
+    18 → 17, cuts unchanged; held-out guide adds + job-equivalents 150 → 150,
+    cuts 264 → 264. N26 (7a6f817d) changed 55 pairs in 41 decks, every pair
+    keeping its cut; N27 matches it on 54 of 55 decks. Virtue and Valor keeps
+    its Snake Umbra → Sphere Grid swap as made: the slot was a full job's, the
+    recheck dropped its add and repicked, and the repick now keeps the slot's
+    flag, so it is no longer settled. The first measure, N25 (a1b0bd7c): 70 pairs,
+    held-out guide adds 111 → 109, job-equivalents 39 → 40, spend +24%.
+  - *Dan's decisions (2026-11-26).*
+    - v2 lands as a bug fix, on the gate's floors only: held-out guide adds +
+      job-equivalents no worse than −5, cuts no worse than −1, review clean. The
+      +10 plan line is waived because the change fixes a defect and adds no new
+      policy.
+    - No plan-fit rule is added. The tuner's own reads call Esper Sentinel and
+      Phyrexian Altar on-plan (Morska's "drawn makers" need, Rootha's "token maker
+      consumers"); the table is in `~/mtg/tuner-work/w-2026-11-26/planfit/`.
+  - *The order, a choice to revisit.* Swap order is the tuner's issue priority, and
+    the settle spends without the per-card purse cap. One early swap can take money
+    a later, better upgrade would have spent. In Prismari Artistry, swap 11
+    (Rousing Refrain → Phyrexian Altar, $54) takes what swap 25 would have spent on
+    Rhystic Study. A largest-gain order is the alternative; it is not measured.
 
 **From ranking the upstream drafts (2026-11-25; `docs/plans/phase-upstream-issues/ranking.md`)**
 

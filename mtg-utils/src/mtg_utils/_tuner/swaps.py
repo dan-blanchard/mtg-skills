@@ -516,6 +516,9 @@ class SwapContext:
     #: How far past the deck's top end an add may cost (``Calibration.
     #: curve_room``; None, no ceiling: ADR-0066).
     curve_room: float | None = None
+    #: Whether the settle-up pass runs once the swaps are made (``propose_swaps``'
+    #: docstring); False leaves the main loop's proposal as it stands.
+    settle_up: bool = True
     #: Adds the builder rejected — never sourced, on any path (the issue loop, the
     #: dead-weight drain, the fill pass all pick through ``addable``).
     exclude: Collection[str] = ()
@@ -560,6 +563,16 @@ class SwapContext:
         return ceiling is None or copies < ceiling
 
 
+@dataclass(frozen=True)
+class SwapState:
+    """What the settle-up (``propose_swaps``) keeps of a swap: its theme
+    avenue (whose support cards the settle may not add) and whether it filled
+    a full job's slot (never settled up)."""
+
+    avenue: str | None
+    full_job: bool
+
+
 def propose_swaps(
     classes: Sequence[CardClass],
     issues: Sequence[Issue],
@@ -570,6 +583,22 @@ def propose_swaps(
     ``ctx.fill_slots`` > 0 (an under-sized deck) a fill pass then adds pure adds (no
     cut) into the open slots. Returns the swaps + a note.
     See :class:`SwapContext` for the deck facts and the purse.
+
+    Settling up: once every swap is made and rechecked, a swap whose search
+    passed over a card for its price (the even share, the purse cap, more than
+    was left) may take, in swap order, the best card ranked ahead of its add on
+    that same search, at its own page, that passes every gate there (the curve
+    cap included, the Game Changer room as the proposal ends), that no swap
+    holds or held, and that moves no counted share the wrong way (no support
+    card or polymorph whiff where the old add was none), paying the difference
+    from the money actually left with no per-card cap. The swap's cut and every
+    other swap stay exactly as made: no other search runs, no other add is
+    rebooked, a card a settle-up frees goes to no later one, and a full job's
+    slot is not settled. It changes nothing where nothing was priced out or
+    nothing can be bought (the owned-only pass, a tier of no wildcards, an
+    opened pool's free cards), and it never leaves an add unfuelled or takes
+    the proposal past its budget, its Game Changer room, a support share, the
+    whiff share or a copy limit.
 
     Copies: a candidate stays addable while the deck's copies plus the copies this
     run already added are under its ``copy_ceiling`` — "go to four" is a swap like
@@ -631,10 +660,13 @@ def propose_swaps(
     # Adds the whole-proposal recheck dropped (:func:`_unfueled_adds`): never
     # re-picked for the cut they leave.
     unfueled: set[str] = set()
+    # Every add a swap holds or held once the main loop ended (the settle-up's):
+    # no settle-up takes one, a freed one included, so nothing chains.
+    settle_held: set[str] = set()
 
     def addable(card: dict) -> bool:
         name = card.get("name", "")
-        if name in unfueled:
+        if name in unfueled or name in settle_held:
             return False
         if name in ctx.exclude:
             rejected_hits.append(name)
@@ -978,6 +1010,17 @@ def propose_swaps(
     last_find: list[tuple[dict, dict] | None] = [None]
     # Whether the curve cap refused a card on the page ``find_on_page`` just read.
     capped_out = [False]
+    # Whether the last ``find_add`` passed over a card ranked ahead of its pick
+    # for the price (past the share, the purse cap, or more than is left), and
+    # in step with ``committed`` each swap's; and whether the settle-up pass is
+    # running, which prices against the purse alone (:func:`find_add`).
+    priced_out = [False]
+    priced: list[bool] = []
+    # In step with ``committed``: what each swap's search saw (``SwapState``).
+    swap_states: list[SwapState] = []
+    settling = [False]
+    # The add a settling search stops at (``find_add``): its own swap's.
+    settle_stop: list[str | None] = [None]
     ledger: _Purse = (
         _WildcardLedger(ctx.wildcard_budget)
         if ctx.wildcard_budget is not None
@@ -1440,7 +1483,10 @@ def propose_swaps(
         next ``_CHEAPER_WINDOW`` candidates are weighed, and the first that fits
         the share is the add, else the cheapest near tie (:func:`_near_tie`), so
         the budget reaches more issues. An upgrade's add past the share takes at
-        most ``_PURSE_CAP`` of what is left.
+        most ``_PURSE_CAP`` of what is left. Either way the share is an
+        estimate of what the swaps still open will spend: once they are made,
+        ``propose_swaps`` settles up, running a search that passed a card over
+        for its price again on the purse alone (``settling``).
 
         Under a polymorph commander a job upgrade of a card that makes fodder
         (``Sourcing.fodder_spec``'s serve) must make fodder too, or the card is
@@ -1497,7 +1543,10 @@ def propose_swaps(
         tie_read = read_for(job)
         if tie_read is not None and not tie_read.orders:
             tie_read = None
-        share = ledger.share(ctx.max_swaps - len(swaps))
+        # Settling up (after the loop), no swap is still open: the share is
+        # whatever the purse affords.
+        share = math.inf if settling[0] else ledger.share(ctx.max_swaps - len(swaps))
+        priced_out[0] = False
         # A cut serving none of the main avenues (``_upgrades``' ``off_theme``).
         band_cut = upgrade_of or trim_of
         off_theme = band_cut is not None and not cut_focus.mains.intersection(
@@ -1511,11 +1560,31 @@ def propose_swaps(
             if job is None and ctx.playrate and share < _TIGHT_SHARE
             else _CHEAPER_WINDOW
         )
-        for card in ranked:
+        stopped = False
+        # Where on the page a card was passed over for its price. Only one
+        # ranked ahead of the pick prices the swap out: the role-fix guard
+        # scans the whole page, past its pick, and the settle-up stops at the
+        # swap's add.
+        priced_at: list[int] = []
+        at: dict[int, int] = {}
+
+        def picked_here(
+            card: dict, cost: float, *, off_avenue: bool = False
+        ) -> tuple[dict, float, bool]:
+            priced_out[0] = any(p < at[id(card)] for p in priced_at)
+            return card, cost, off_avenue
+
+        for position, card in enumerate(ranked):
+            at[id(card)] = position
             if first is not None:
                 looked += 1
                 if looked > window:
                     break
+            if card.get("name") == settle_stop[0]:
+                # Settling up: only a card ranked ahead of the add the swap
+                # holds may replace it.
+                stopped = True
+                break
             if not addable(card):  # every allowed copy taken — the next best
                 continue
             if spec.get("name") and float(card.get("cmc") or 0.0) > deck_top_mv:
@@ -1628,6 +1697,10 @@ def propose_swaps(
                 continue
             cost = acquire_cost(card)
             if cost is None:
+                # More than is left (``_Purse.limited_by_spend``: never with no
+                # budget to spend, nor for a card with no listing).
+                if ledger.limited_by_spend(card):
+                    priced_at.append(position)
                 continue
             if (
                 band_cut is not None
@@ -1638,6 +1711,7 @@ def propose_swaps(
                 # ``_PURSE_CAP`` of what is left: Sheoldred, the Apocalypse took
                 # half of Endless Punishment's $126 as a trim's add and the
                 # tune ran dry at 20 swaps (2026-11-02).
+                priced_at.append(position)
                 continue
             overshoot = role_of(card, deck_mana=ctx.deck_mana) & full_roles
             if upgrade_of is not None:
@@ -1647,9 +1721,10 @@ def propose_swaps(
                 continue
             if not guard:
                 if not ctx.playrate or cost <= share:
-                    return card, cost, False
+                    return picked_here(card, cost)
                 if first is None:
                     first = best = (card, cost)
+                    priced_at.append(position)  # past the share
                 elif (
                     best is not None
                     and cost < best[1]
@@ -1660,15 +1735,21 @@ def propose_swaps(
             eligible.append((card, cost))
 
         if best is not None:
-            return (*best, False)
+            return picked_here(*best)
+        if stopped and not eligible:
+            # Settling up, an overshooting card ahead was never the pick: the
+            # main loop's was the clean card the settle stops at.
+            return None
         if not guard or not eligible:
-            return (*fallback, False) if fallback else None
+            return picked_here(*fallback) if fallback else None
         on_avenue = _viable_served_names([c for c, _ in eligible])
         for card, cost in eligible:
             if card.get("name") in on_avenue:
-                return card, cost, False
+                return picked_here(card, cost)
+        if stopped:
+            return None  # the add held is on-avenue, or as good a last resort
         card, cost = eligible[0]  # nothing on-avenue — labeled last resort
-        return card, cost, True
+        return picked_here(card, cost, off_avenue=True)
 
     def support_room(avenue: str, card: dict) -> bool:
         """Whether ``card`` may be ``avenue``'s next add: a member always, a
@@ -1731,36 +1812,33 @@ def propose_swaps(
         *,
         off_avenue: bool = False,
         avenue: str | None = None,
+        full_job: bool = False,
     ) -> None:
         nonlocal flip_count, low_flips
+        # What the settle-up keeps of this swap (``SwapState``).
+        state = SwapState(avenue=avenue, full_job=full_job)
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
         if cut is not None:
             count_jobs(cut.record, cut.roles, -1)
-        count_jobs(add_card, role_of(add_card, deck_mana=ctx.deck_mana), 1)
-        if flip_floor is not None:
-            # The polymorph deck's flips, as the proposal leaves them.
-            if cut is not None and is_flip(cut.record, flip_types):
+            if flip_floor is not None and is_flip(cut.record, flip_types):
+                # The polymorph deck's flips, as the proposal leaves them.
                 flip_count -= 1
                 low_flips -= below_floor(cut.record)
-            if is_flip(add_card, flip_types):
-                flip_count += 1
-                low_flips += below_floor(add_card)
-        cover = coverage(add_card)
-        if cover.covered_by is None:
-            ledger.charge(add_card, cost)
-        committed.append((cut, add_card, cost, cover.covered_by is None))
+        add_entry, charged = take_add(add_card, cost)
+        committed.append((cut, add_card, cost, charged))
         searches.append(last_find[0])
+        priced.append(last_find[0] is not None and priced_out[0])
+        swap_states.append(state)
         last_find[0] = None
-        game_changers.charge(add_card, cut)
+        priced_out[0] = False
         if cut is not None:
+            game_changers.charge({}, cut)
             used_cuts[cut.name] += 1
         add_name = add_card.get("name", "")
-        used_adds[add_name] += 1
         if avenue is not None:
             theme_taken[avenue] += 1
             support_taken[avenue] += add_name in support_names.get(avenue, ())
-        copy_no = in_deck.get(add_name, 0) + used_adds[add_name]
         if off_avenue:
             # ADR-0040 companion: the find_add role_fix guard found no in-budget
             # candidate serving a viable avenue, so this is the labeled fallback.
@@ -1775,25 +1853,59 @@ def propose_swaps(
                     if cut
                     else None
                 ),
-                "add": {
-                    "name": add_name,
-                    "cmc": add_card.get("cmc", 0.0),
-                    # Which copy this add becomes (1 for a card the deck lacks; a
-                    # "go to four" reads as copy 4).
-                    "copy": copy_no,
-                    "cost": cost,
-                    # The coverage decision the purse charged by, served so the UI
-                    # derives nothing: copies this add leaves to acquire (0 or 1),
-                    # and "free" (a basic land) / "owned" (the collection's copies).
-                    "copies_short": 0 if cover.covered_by else 1,
-                    "covered_by": cover.covered_by,
-                    "owned": cover.covered_by == "owned",
-                    # Rarity rides along so a digital build can show the add's wildcard
-                    # cost (one wildcard of its rarity) without a second card lookup.
-                    "rarity": add_card.get("rarity", ""),
-                },
+                "add": add_entry,
             }
         )
+
+    def take_add(add_card: dict, cost: float) -> tuple[dict, bool]:
+        """Book an add into the proposal — its jobs, its flip, the purse (unless
+        the collection covers it), the Game Changer room, its copy — and return
+        the swap's ``add`` entry and whether the purse was charged."""
+        nonlocal flip_count, low_flips
+        count_jobs(add_card, role_of(add_card, deck_mana=ctx.deck_mana), 1)
+        if flip_floor is not None and is_flip(add_card, flip_types):
+            flip_count += 1
+            low_flips += below_floor(add_card)
+        cover = coverage(add_card)
+        if cover.covered_by is None:
+            ledger.charge(add_card, cost)
+        game_changers.charge(add_card, None)
+        add_name = add_card.get("name", "")
+        used_adds[add_name] += 1
+        entry = {
+            "name": add_name,
+            "cmc": add_card.get("cmc", 0.0),
+            # Which copy this add becomes (1 for a card the deck lacks; a
+            # "go to four" reads as copy 4).
+            "copy": in_deck.get(add_name, 0) + used_adds[add_name],
+            "cost": cost,
+            # The coverage decision the purse charged by, served so the UI
+            # derives nothing: copies this add leaves to acquire (0 or 1),
+            # and "free" (a basic land) / "owned" (the collection's copies).
+            "copies_short": 0 if cover.covered_by else 1,
+            "covered_by": cover.covered_by,
+            "owned": cover.covered_by == "owned",
+            # Rarity rides along so a digital build can show the add's wildcard
+            # cost (one wildcard of its rarity) without a second card lookup.
+            "rarity": add_card.get("rarity", ""),
+        }
+        return entry, cover.covered_by is None
+
+    def give_back_add(add_card: dict, cost: float, *, charged: bool) -> None:
+        """Undo :func:`take_add` for an add leaving the proposal."""
+        if charged:
+            ledger.refund(add_card, cost)
+        game_changers.release(add_card)
+        unbook_add(add_card)
+
+    def unbook_add(add_card: dict) -> None:
+        """:func:`give_back_add` without the purse and the Game Changer room."""
+        nonlocal flip_count, low_flips
+        count_jobs(add_card, role_of(add_card, deck_mana=ctx.deck_mana), -1)
+        if flip_floor is not None and is_flip(add_card, flip_types):
+            flip_count -= 1
+            low_flips -= below_floor(add_card)
+        used_adds[add_card.get("name", "")] -= 1
 
     allow_buys = (
         "set a wildcard budget to allow crafting"
@@ -1919,6 +2031,9 @@ def propose_swaps(
                     break
                 reason, cut = cut_entry
                 message = issue.message
+                # Whether this cut's job is full (the move onto the theme is
+                # weighed): such a swap is never settled up.
+                full_job = False
                 if remedy.spec_for_cut is None:
                     picked, avenue = find_theme_add(
                         remedy.spec, synergy_first=True, nonland_only=True, trim_of=cut
@@ -1980,6 +2095,12 @@ def propose_swaps(
                         else None
                     )
                     if target is not None:
+                        # A full job's slot: never settled up, since the move
+                        # weighed the theme's add against this cost.
+                        full_job = True
+                        # The search the swap keeps, should the move not be
+                        # taken (the recheck and the settle-up re-run it).
+                        job_find = (last_find[0], priced_out[0])
                         moved, moved_avenue = find_theme_add(
                             target.spec,
                             synergy_first=True,
@@ -1995,6 +2116,8 @@ def propose_swaps(
                         if moved is not None and moved[1] <= cap:
                             picked, avenue = moved, moved_avenue
                             source, job_read = target, None
+                        else:
+                            last_find[0], priced_out[0] = job_find
                     if picked is not None:
                         why = (
                             "reads better at the job and more decks play it"
@@ -2028,6 +2151,7 @@ def propose_swaps(
                     cost,
                     off_avenue=off_avenue,
                     avenue=avenue,
+                    full_job=full_job,
                 )
                 trims += 1
             continue
@@ -2167,16 +2291,24 @@ def propose_swaps(
         cut, add_card, cost, charged = committed.pop(i)
         dropped = swaps.pop(i)
         search = searches.pop(i)
-        if charged:
-            ledger.refund(add_card, cost)
+        priced.pop(i)
+        dropped_state = swap_states.pop(i)
+        give_back_add(add_card, cost, charged=charged)
         name = add_card.get("name", "")
         unfueled.add(name)
-        used_adds[name] -= 1
-        count_jobs(add_card, role_of(add_card, deck_mana=ctx.deck_mana), -1)
+        # The dropped add leaves its avenue's counts; a repick books its own
+        # (``commit``), so the settle-up reads the avenue's support share.
+        avenue = dropped_state.avenue
+        if avenue is not None:
+            theme_taken[avenue] -= 1
+            support_taken[avenue] -= name in support_names.get(avenue, ())
         if cut is None:
             continue
         used_cuts[cut.name] -= 1
         count_jobs(cut.record, cut.roles, 1)
+        # The cut is back in the deck: the Game Changer slot it freed is taken
+        # back (a repick's ``commit`` frees it again).
+        game_changers.reclaim(cut)
         # The cut takes its next-best add from the same search, fuelled in the
         # deck the proposal leaves: four guide cuts fell with their unfuelled
         # adds before (Thought Monitor, Narci, Eureka Moment, Treasure Cruise,
@@ -2195,11 +2327,111 @@ def propose_swaps(
             new_card,
             new_cost,
             off_avenue=off_avenue,
+            avenue=avenue,
+            # The slot's job was full whichever add fills it.
+            full_job=dropped_state.full_job,
         )
         # ``commit`` appends; the swap goes back where the dropped one stood.
         swaps.insert(i, swaps.pop())
         committed.insert(i, committed.pop())
         searches.insert(i, searches.pop())
+        priced.insert(i, priced.pop())
+        swap_states.insert(i, swap_states.pop())
+
+    # Settling up (see the docstring): each priced-out swap, in swap order, may
+    # take a card ranked ahead of its add on its own search that no swap holds
+    # or held, paid from the money left; nothing else moves. Swap order is the
+    # tuner's own priority (the issues, ranked): the money no later swap spent
+    # goes to the most important slot first, as the main loop's share would
+    # have given it, and with no per-card cap (the share is the purse's whole):
+    # an early swap may spend what a later one would have (Prismari Artistry's
+    # Phyrexian Altar, $54, before its Rhystic Study, 2026-11-26). Tyranid
+    # Swarm's tune ended $78 under its $234 budget with Cyclonic Rift ($29.71)
+    # priced out by a $27.71 share three swaps before the end.
+    #
+    # The shares the main loop holds the proposal to by counting as it adds (a
+    # theme's support share, a polymorph deck's whiffs) can't be replayed as
+    # each swap saw them, so the settle never moves them the wrong way: the new
+    # add is no support card where the old one wasn't, and under a polymorph
+    # commander takes the deck no flip below its floor more and no flip above
+    # it fewer (:func:`settle_keeps_shares`). The Game Changer room is a cap on
+    # the proposal itself, read exactly: the end state with the old add's slot
+    # given back. Every share and the cap hold after it as at the end of the
+    # main loop. A full job's slot (the move onto the theme weighed this cost)
+    # is not settled.
+    settle_held.update(add.get("name", "") for _c, add, _p, _x in committed)
+
+    def settle_keeps_shares(old: dict, new: dict, avenue: str | None) -> bool:
+        support = support_names.get(avenue or "", ())
+        if new.get("name", "") in support and old.get("name", "") not in support:
+            return False
+        if flip_floor is None:
+            return True
+
+        def low_high(card: dict) -> tuple[int, int]:
+            flip = is_flip(card, flip_types)
+            low = int(flip and below_floor(card))
+            return low, int(flip) - low
+
+        (old_low, old_high), (new_low, new_high) = low_high(old), low_high(new)
+        return new_low <= old_low and new_high >= old_high
+
+    settling[0] = True
+    for i, was_priced in enumerate(priced if ctx.settle_up else ()):
+        search, state = searches[i], swap_states[i]
+        if not was_priced or search is None or state.full_job:
+            continue
+        cut, add_card, cost, charged = committed[i]
+        name = add_card.get("name", "")
+        if sum(1 for _c, a, _p, _x in committed if a.get("name", "") == name) > 1:
+            continue
+        # The re-run's purse is the money left with this add given back, and
+        # the room without its Game Changer slot; it stops at the add.
+        room = game_changers.room
+        if charged:
+            ledger.refund(add_card, cost)
+        game_changers.release(add_card)
+        before = set(_unfueled_adds(committed, deck_records, ctx.commanders))
+        picked = None
+        settle_stop[0] = name
+        spec, options = search
+        while True:
+            picked = find_on_page(spec, **options)
+            if picked is None or picked[2]:
+                picked = None
+                break
+            trial = [*committed[:i], (cut, picked[0], 0.0, False), *committed[i + 1 :]]
+            after = set(_unfueled_adds(trial, deck_records, ctx.commanders))
+            if (
+                settle_keeps_shares(add_card, picked[0], state.avenue)
+                and i not in after
+                and not (after - {i}) - before
+            ):
+                break
+            # Unfed itself, starving another add or moving a share the wrong
+            # way: the next card ahead.
+            settle_held.add(picked[0].get("name", ""))
+        settle_stop[0] = None
+        last_find[0], priced_out[0] = None, False
+        game_changers.room = room
+        if picked is None:
+            # Kept, as booked: nothing ahead of it passes and is affordable.
+            if charged:
+                ledger.charge(add_card, cost)
+            continue
+        game_changers.release(add_card)
+        unbook_add(add_card)
+        new_card = picked[0]
+        settle_held.add(new_card.get("name", ""))
+        add_entry, new_charged = take_add(new_card, picked[1])
+        committed[i] = (cut, new_card, picked[1], new_charged)
+        swaps[i]["add"] = add_entry
+        swaps[i]["reason"] = (
+            swaps[i]["reason"]
+            .replace(name, add_entry["name"])
+            .removesuffix(" (off-avenue fallback)")
+        )
+    settling[0] = False
 
     digital = ctx.wildcard_budget is not None
     raise_budget = "raise your wildcard budget" if digital else "raise the budget"

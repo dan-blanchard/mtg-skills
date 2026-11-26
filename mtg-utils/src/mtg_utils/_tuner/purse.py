@@ -32,6 +32,12 @@ class _Purse(Protocol):  # noqa: PYI046 — the type swaps annotates its ledger 
         within it leaves every later add the same, so the budget binds only
         past it (``find_add``'s near tie)."""
 
+    def limited_by_spend(self, record: dict) -> bool:
+        """Whether this purse could buy ``record`` with more left: an
+        ``acquire_cost`` of None that what is spent, not what the purse is,
+        decided (``propose_swaps``' settle-up). Never with no budget to spend:
+        the owned-only pass, a tier of no wildcards, a card with no listing."""
+
     @property
     def usd_spent(self) -> float: ...
 
@@ -66,6 +72,10 @@ class _UsdLedger:
             return math.inf
         return (self.budget - self.spent) / max(1, adds)
 
+    def limited_by_spend(self, record: dict) -> bool:
+        price = extract_price(record)
+        return self.budget is not None and price is not None and price <= self.budget
+
     @property
     def usd_spent(self) -> float:
         return round(self.spent, 2)
@@ -84,6 +94,7 @@ class _WildcardLedger:
 
     def __init__(self, budget: Mapping[str, int]) -> None:
         self.remaining = {t: int(budget.get(t, 0)) for t in _WC_TIERS}
+        self.budget = dict(self.remaining)
         self.spent = dict.fromkeys(_WC_TIERS, 0)
 
     def acquire_cost(self, record: dict) -> float | None:
@@ -106,6 +117,10 @@ class _WildcardLedger:
 
     def share(self, adds: int) -> float:
         return math.inf  # one wildcard of its rarity, whatever the card
+
+    def limited_by_spend(self, record: dict) -> bool:
+        # The tier is what prices a card here, its USD listing or none.
+        return self.budget.get(record.get("rarity") or "", 0) > 0
 
     @property
     def usd_spent(self) -> float:
@@ -135,3 +150,13 @@ class _GameChangerRoom:
             return
         self.room -= bool(add.get("game_changer"))
         self.room += bool(cut is not None and cut.record.get("game_changer"))
+
+    def release(self, add: dict) -> None:
+        """An add taken back out of the proposal frees the slot it spent."""
+        if self.room is not None:
+            self.room += bool(add.get("game_changer"))
+
+    def reclaim(self, cut: CardClass) -> None:
+        """A cut put back into the deck takes back the slot it freed."""
+        if self.room is not None:
+            self.room -= bool(cut.record.get("game_changer"))

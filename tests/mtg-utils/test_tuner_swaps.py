@@ -3278,18 +3278,26 @@ def test_a_fodder_makers_job_upgrade_makes_fodder_under_a_polymorph_commander():
     assert add([arena, shop], held) == ["Thopter Shop"]
 
 
-def _murder_upgrade(path_rank, path_usd, budget):
-    """The add trading Murder (rank 8000) up to five swaps on ``budget``: Swords
-    to Plowshares at rank 10 and $5, or Path to Exile."""
+def _murder_upgrade(path_rank, path_usd, budget, *, signet_usd=None, max_swaps=5):
+    """The add trading Murder (rank 8000) on ``budget`` over ``max_swaps``
+    swaps: Swords to Plowshares at rank 10 and $5, or Path to Exile. With
+    ``signet_usd``, Golgari Signet (rank 8000) is cut after Murder for Arcane
+    Signet at that price, a later swap spending what Murder's leaves."""
     murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    classes = [murder]
     pool = [
         {**_played("Swords to Plowshares", 10), "prices": {"usd": "5.00"}},
         {**_played("Path to Exile", path_rank), "prices": {"usd": path_usd}},
     ]
+    if signet_usd is not None:
+        classes.append(
+            _real_cc("Golgari Signet", "spine", roles=["ramp"], edhrec_rank=8000)
+        )
+        pool.append({**_played("Arcane Signet", 20), "prices": {"usd": signet_usd}})
     out = _swaps_for_issue_dicts(
-        [murder],
+        classes,
         [{"kind": "upgrade", "severity": 1, "count": 1}],
-        _upgrade_ctx([murder], pool, budget=budget),
+        replace(_upgrade_ctx(classes, pool, budget=budget), max_swaps=max_swaps),
     )
     return [s["add"]["name"] for s in out["swaps"]]
 
@@ -3302,30 +3310,956 @@ def test_within_an_even_share_of_the_budget_the_most_played_card_is_the_add():
 
 
 def test_past_the_share_the_first_card_that_fits_it_is_the_add():
-    """$20 over five swaps is $4 a swap: Swords to Plowshares at $5 spends past
+    """$8 over two swaps is $4 a swap: Swords to Plowshares at $5 spends past
     it, so the most played card after it that fits the share is the add — Path
-    to Exile at $1, a near tie of Swords at rank 14 or not at rank 40."""
-    assert _murder_upgrade(14, "1.00", 20.0) == ["Path to Exile"]
-    assert _murder_upgrade(40, "1.00", 20.0) == ["Path to Exile"]
+    to Exile at $1, a near tie of Swords at rank 14 or not at rank 40 — and
+    Arcane Signet's $7 spends the rest."""
+    for rank in (14, 40):
+        assert _murder_upgrade(rank, "1.00", 8.0, signet_usd="7.00", max_swaps=2) == [
+            "Path to Exile",
+            "Arcane Signet",
+        ]
 
 
 def test_past_the_share_no_upgrade_takes_most_of_what_is_left():
-    """$8 over five swaps: Swords to Plowshares at $5 is past the share and more
-    than ``_PURSE_CAP`` of the purse, so Path to Exile at $3, no near tie at rank
-    40, is the add; at $10 of budget Swords is within the cap and keeps the slot
-    (no cheaper card in the window fits the share)."""
-    assert _murder_upgrade(40, "3.00", 8.0) == ["Path to Exile"]
-    assert _murder_upgrade(40, "3.00", 10.0) == ["Swords to Plowshares"]
+    """$8 over two swaps: Swords to Plowshares at $5 is past the $4 share and
+    more than ``_PURSE_CAP`` of the purse ($4.80), so Path to Exile at $4.50,
+    past the share too and no near tie at rank 40, is the add, and Arcane
+    Signet's $3.50 spends the rest; at $10 of budget Swords fits the share and
+    keeps the slot."""
+    assert _murder_upgrade(40, "4.50", 8.0, signet_usd="3.50", max_swaps=2) == [
+        "Path to Exile",
+        "Arcane Signet",
+    ]
+    assert _murder_upgrade(40, "4.50", 10.0, signet_usd="3.50", max_swaps=2)[0] == (
+        "Swords to Plowshares"
+    )
 
 
 def test_past_the_share_with_nothing_inside_it_a_near_tie_goes_to_the_cheaper_card():
-    """$10 over five swaps is $2 a swap, and neither card fits it: a card within
-    a factor of two of the first pick's play-rate (``_CHEAPER_TIE``) that costs
-    less is the add, the budget it leaves reaching the issues after it — Path
-    to Exile at rank 14 and $3; at rank 40 it is no near tie and Swords keeps
-    the slot."""
-    assert _murder_upgrade(14, "3.00", 10.0) == ["Path to Exile"]
-    assert _murder_upgrade(40, "3.00", 10.0) == ["Swords to Plowshares"]
+    """$9 over two swaps is $4.50 a swap, and neither card fits it: a card
+    within a factor of two of the first pick's play-rate (``_CHEAPER_TIE``)
+    that costs less is the add, the budget it leaves reaching the swap after
+    it — Path to Exile at rank 14 and $4.60, then Arcane Signet at $4.40; at
+    rank 40 it is no near tie, Swords keeps the slot and the Signet's swap
+    finds nothing it can pay for."""
+    assert _murder_upgrade(14, "4.60", 9.0, signet_usd="4.40", max_swaps=2) == [
+        "Path to Exile",
+        "Arcane Signet",
+    ]
+    assert _murder_upgrade(40, "4.60", 9.0, signet_usd="4.40", max_swaps=2) == [
+        "Swords to Plowshares"
+    ]
+
+
+def test_money_no_later_swap_spent_goes_back_to_the_add_the_share_held_back():
+    """The even share holds a pick back for the swaps still open; once every
+    swap is made, what none of them spent pays for it (``propose_swaps``'
+    settle-up). $20 over five swaps is $4 a swap and Path to Exile at $1 fits
+    it, but Murder is the only cut: the four other swaps are never made, so
+    Swords to Plowshares ($5, played more) is the add — as it is when the
+    swap after it costs $1, and not when that swap spends the money (the
+    test above). Likewise past the purse cap and past a near tie."""
+    assert _murder_upgrade(14, "1.00", 20.0) == ["Swords to Plowshares"]
+    assert _murder_upgrade(14, "1.00", 8.0, signet_usd="1.00", max_swaps=2) == [
+        "Swords to Plowshares",
+        "Arcane Signet",
+    ]
+    assert _murder_upgrade(40, "3.00", 8.0) == ["Swords to Plowshares"]
+    assert _murder_upgrade(14, "3.00", 10.0) == ["Swords to Plowshares"]
+
+
+def _removal_swaps(
+    pool, *, budget=50.0, max_swaps=2, cuts=("Murder", "Doom Blade"), **ctx_extra
+):
+    """Murder and Doom Blade (rank 8000) upgraded from ``pool``: the whole result."""
+    classes = [
+        _real_cc(name, "spine", roles=["interaction"], edhrec_rank=8000)
+        for name in cuts
+    ]
+    ctx = replace(
+        _upgrade_ctx(classes, pool, budget=budget), max_swaps=max_swaps, **ctx_extra
+    )
+    return _swaps_for_issue_dicts(
+        classes, [{"kind": "upgrade", "severity": 1, "count": 1}], ctx
+    )
+
+
+def _priced(name, rank, usd, rarity="rare"):
+    return {**_played(name, rank), "prices": {"usd": usd}, "rarity": rarity}
+
+
+def _books_balance(out, *, budget=None, wildcards=None, owned=None):
+    """What the swaps say they cost is what the purse spent, and within it; with
+    ``owned``, every owned copy covers an add before any copy is bought."""
+    adds = [s["add"] for s in out["swaps"]]
+    for name, have in (owned or {}).items():
+        copies = [a for a in adds if a["name"] == name]
+        assert sum(a["owned"] for a in copies) == min(have, len(copies))
+    charged = [a for a in adds if not a["covered_by"]]
+    assert out["spent"] == round(sum(a["cost"] for a in charged), 2)
+    if budget is not None:
+        assert out["spent"] <= budget
+    if wildcards is not None:
+        spent = out["wildcards_spent"]
+        for tier, n in wildcards.items():
+            assert spent[tier] == sum(1 for a in charged if a["rarity"] == tier) <= n
+
+
+def test_settling_up_leaves_a_second_copy_of_one_add_as_booked():
+    """Two cuts both upgraded to Swords to Plowshares in a four-of format, one
+    copy owned, Path to Exile ($100) priced out ahead of it: the settle-up
+    leaves an add another swap also takes alone, so the owned copy stays the
+    first and the books balance — in dollars and in wildcards."""
+    pool = [
+        _priced("Path to Exile", 5, "100.00", "mythic"),
+        _priced("Swords to Plowshares", 10, "5.00"),
+        _priced("Hero's Downfall", 50, "1.00", "uncommon"),
+    ]
+    owned = {"Swords to Plowshares": 1}
+    four = {"fmt": "modern", "max_copies": 4, "owned": owned}
+    # $120 over five swaps can afford Path ($100) once settled up: the swap
+    # holding the owned copy is still left alone, so the other copy is not
+    # re-priced as the first.
+    for budget, swaps in ((5.0, 2), (10.0, 2), (120.0, 5)):
+        out = _removal_swaps(pool, budget=budget, max_swaps=swaps, **four)
+        assert [(s["add"]["name"], s["add"]["owned"]) for s in out["swaps"]] == [
+            ("Swords to Plowshares", True),
+            ("Swords to Plowshares", False),
+        ]
+        _books_balance(out, budget=budget, owned=owned)
+    for rares in (1, 2):
+        wild = {"mythic": 0, "rare": rares, "uncommon": 0, "common": 0}
+        out = _removal_swaps(
+            pool,
+            budget=None,
+            wildcard_budget=wild,
+            medium="digital",
+            paper_only=False,
+            **four,
+        )
+        assert [s["add"]["name"] for s in out["swaps"]] == ["Swords to Plowshares"] * 2
+        _books_balance(out, wildcards=wild)
+
+
+def test_settling_up_replaces_an_owned_add_only_with_what_is_left():
+    """Swords to Plowshares ($5) past a $4 share (five swaps, one made), Path
+    to Exile owned and free: settled up, the $20 left pays for Swords; with $4
+    in all it does not, and the owned Path stays as booked, nothing spent."""
+    pool = [
+        _priced("Swords to Plowshares", 10, "5.00"),
+        _priced("Path to Exile", 14, "3.00"),
+    ]
+    owned = {"owned": {"Path to Exile": 1}}
+    out = _removal_swaps(pool, budget=20.0, max_swaps=5, cuts=("Murder",), **owned)
+    assert [(s["add"]["name"], s["add"]["owned"]) for s in out["swaps"]] == [
+        ("Swords to Plowshares", False)
+    ]
+    _books_balance(out, budget=20.0)
+    out = _removal_swaps(pool, budget=4.0, max_swaps=5, cuts=("Murder",), **owned)
+    assert [(s["add"]["name"], s["add"]["owned"]) for s in out["swaps"]] == [
+        ("Path to Exile", True)
+    ]
+    assert out["spent"] == 0.0
+
+
+def test_settling_up_takes_only_a_card_ranked_ahead_of_the_add_it_replaces():
+    """The settle-up's search stops at the add the swap holds: Path to Exile,
+    taken past Swords to Plowshares' share, stays when Arcane Signet's swap has
+    spent the money Swords would need — never Hero's Downfall, played less,
+    however cheap."""
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    signet = _real_cc("Golgari Signet", "spine", roles=["ramp"], edhrec_rank=8000)
+    pool = [
+        _priced("Swords to Plowshares", 10, "5.00"),
+        _priced("Path to Exile", 14, "1.00"),
+        _priced("Hero's Downfall", 50, "0.50"),
+        _priced("Arcane Signet", 20, "7.00"),
+    ]
+    ctx = replace(_upgrade_ctx([murder, signet], pool, budget=8.0), max_swaps=2)
+    out = _swaps_for_issue_dicts(
+        [murder, signet], [{"kind": "upgrade", "severity": 1, "count": 1}], ctx
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == [
+        "Path to Exile",
+        "Arcane Signet",
+    ]
+    _books_balance(out, budget=8.0)
+
+
+def test_settling_up_keeps_an_add_another_add_runs_on(monkeypatch):
+    """The fuel check runs both ways: an add the swap would drop that another
+    add of the proposal runs on (here, by a stand-in fuel read, Arcane Signet
+    on Path to Exile) keeps its slot, where without it the money left would
+    have bought Swords to Plowshares (the test of the share above)."""
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    real = swaps_mod._unfueled_adds
+
+    def fuel(committed, deck, commanders=()):
+        names = [add.get("name") for _c, add, _p, _x in committed]
+        starved = [i for i, n in enumerate(names) if n == "Arcane Signet"]
+        return real(committed, deck, commanders) + (
+            [] if "Path to Exile" in names else starved
+        )
+
+    monkeypatch.setattr(swaps_mod, "_unfueled_adds", fuel)
+    assert _murder_upgrade(14, "1.00", 8.0, signet_usd="1.00", max_swaps=2) == [
+        "Path to Exile",
+        "Arcane Signet",
+    ]
+
+
+def test_a_cut_put_back_by_the_recheck_takes_back_its_game_changer_slot(monkeypatch):
+    """With the bracket's room full, cutting Murder (a Game Changer here)
+    frees the slot Swords to Plowshares (one too) then takes; when the
+    whole-proposal recheck drops Murder's add and puts Murder back, the slot
+    it freed is taken back, so the room ends one over, not level."""
+    from mtg_utils._tuner import purse, recheck
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    rooms = []
+
+    class Room(purse._GameChangerRoom):
+        def __init__(self, room):
+            super().__init__(room)
+            rooms.append(self)
+
+    monkeypatch.setattr(swaps_mod, "_GameChangerRoom", Room)
+    real = swaps_mod._unfueled_adds
+
+    def fuel(committed, deck, commanders=()):
+        names = [add.get("name") for _c, add, _p, _x in committed]
+        own = [
+            i for i, n in enumerate(names) if n in ("Path to Exile", "Hero's Downfall")
+        ]
+        return sorted(set(real(committed, deck, commanders) + own))
+
+    monkeypatch.setattr(swaps_mod, "_unfueled_adds", fuel)
+    monkeypatch.setattr(recheck, "_unfueled_adds", fuel)  # the repick's read
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    murder.record["game_changer"] = True
+    blade = _real_cc("Doom Blade", "spine", roles=["interaction"], edhrec_rank=8000)
+    pool = [
+        {**_priced("Swords to Plowshares", 10, "1.00"), "game_changer": True},
+        _priced("Path to Exile", 14, "1.00"),
+        _priced("Hero's Downfall", 50, "1.00"),
+    ]
+    ctx = replace(_upgrade_ctx([murder, blade], pool), max_swaps=2, game_changer_room=0)
+    out = _swaps_for_issue_dicts(
+        [murder, blade], [{"kind": "upgrade", "severity": 1, "count": 1}], ctx
+    )
+    assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
+        ("Doom Blade", "Swords to Plowshares")
+    ]
+    assert rooms[0].room == -1  # Murder back and Swords added: one over
+
+
+def test_with_no_budget_to_spend_nothing_settles(monkeypatch):
+    """The owned-only pass and a tier of no wildcards spend nothing, so the
+    settle-up runs no search (``_Purse.limited_by_spend``): every candidate is
+    read once. With a budget Swords to Plowshares, priced out past the share,
+    is read again."""
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    reads = []
+    real = swaps_mod._upgrades
+
+    def upgrades(card, *args, **kw):
+        reads.append(card.get("name"))
+        return real(card, *args, **kw)
+
+    monkeypatch.setattr(swaps_mod, "_upgrades", upgrades)
+    pool = [
+        _priced("Swords to Plowshares", 10, "5.00"),
+        _priced("Path to Exile", 14, "1.00"),
+    ]
+    owned = {"owned": {"Path to Exile": 1}}
+    for extra in (
+        {"budget": None},
+        {
+            "budget": None,
+            "wildcard_budget": dict.fromkeys(
+                ("mythic", "rare", "uncommon", "common"), 0
+            ),
+            "medium": "digital",
+            "paper_only": False,
+        },
+    ):
+        reads.clear()
+        out = _removal_swaps(pool, max_swaps=5, cuts=("Murder",), **owned, **extra)
+        assert [s["add"]["name"] for s in out["swaps"]] == ["Path to Exile"]
+        assert reads.count("Swords to Plowshares") == 1
+    reads.clear()
+    _removal_swaps(pool, budget=20.0, max_swaps=5, cuts=("Murder",), **owned)
+    assert reads.count("Swords to Plowshares") == 2
+
+
+def test_what_the_spend_limits_is_what_settling_up_can_change():
+    """``_Purse.limited_by_spend``: a USD purse with a budget, for a listed card
+    within the whole budget; a wildcard purse for a card of a tier it holds
+    any wildcards of, whatever the card's USD listing (an Arena-only card has
+    none); never the owned-only pass or a tier of none."""
+    from mtg_utils._tuner.purse import _UsdLedger, _WildcardLedger
+
+    listed = _priced("Swords to Plowshares", 10, "5.00")
+    unlisted = {**test_card("Swords to Plowshares"), "prices": {}, "rarity": "rare"}
+    assert _UsdLedger(10.0).limited_by_spend(listed)
+    assert not _UsdLedger(4.0).limited_by_spend(listed)
+    assert not _UsdLedger(10.0).limited_by_spend(unlisted)
+    assert not _UsdLedger(None).limited_by_spend(listed)
+    wild = _WildcardLedger({"rare": 1})
+    assert wild.limited_by_spend(listed)
+    assert wild.limited_by_spend(unlisted)
+    assert not _WildcardLedger({"rare": 0, "mythic": 2}).limited_by_spend(unlisted)
+
+
+def _two_removal_upgrades(*, settle_up=True, **ctx_extra):
+    """Murder then Doom Blade (rank 8000) upgraded on $20 over five swaps (a $4
+    share): Swords to Plowshares ($5) is past it, so Murder takes Path to Exile
+    ($1) and Doom Blade, Path taken, Hero's Downfall ($1) — both priced out."""
+    pool = [
+        _priced("Swords to Plowshares", 10, "5.00"),
+        _priced("Path to Exile", 14, "1.00"),
+        _priced("Hero's Downfall", 50, "1.00"),
+    ]
+    return _removal_swaps(
+        pool, budget=20.0, max_swaps=5, settle_up=settle_up, **ctx_extra
+    )
+
+
+def test_settling_up_upgrades_one_swap_in_place_and_frees_nothing_for_another():
+    """Settled up, Murder's swap takes Swords to Plowshares, ranked ahead of
+    Path to Exile on its own search and paid from the money left. Path, freed,
+    goes to no later settle-up: it was held when the main loop ended, so Doom
+    Blade keeps Hero's Downfall (the held v1 gave it Path, and each such chain
+    lost guide adds)."""
+    out = _two_removal_upgrades()
+    assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
+        ("Murder", "Swords to Plowshares"),
+        ("Doom Blade", "Hero's Downfall"),
+    ]
+    _books_balance(out, budget=20.0)
+
+
+def test_settling_up_leaves_every_other_swap_byte_identical():
+    """Only the upgraded swap changes: the other swap's whole entry (cut, add,
+    cost, coverage, reason) is the main loop's, byte for byte."""
+    before = _two_removal_upgrades(settle_up=False)["swaps"]
+    after = _two_removal_upgrades()["swaps"]
+    # The parent's proposal (no settle-up): Path to Exile at $1, then Hero's
+    # Downfall at $1.
+    assert [(s["add"]["name"], s["add"]["cost"]) for s in before] == [
+        ("Path to Exile", 1.0),
+        ("Hero's Downfall", 1.0),
+    ]
+    assert after[0]["add"]["name"] == "Swords to Plowshares"
+    assert after[0]["cut"] == before[0]["cut"]
+    assert after[1:] == before[1:]
+
+
+def _dead_weight_pair(pool, **ctx_extra):
+    """Two dead-weight slots (two fringe theme cards, each cut after its add is
+    found) in a Commander deck topping at seven, on $20 over five swaps (a $4
+    share): the whole result."""
+    sig = _prolif_sig()
+    label = spec_for(sig).label
+    classes = [
+        _top(7.0),
+        _cc("Fringe One", "engine", served=[label], edhrec_rank=27000),
+        _cc("Fringe Two", "engine", served=[label], edhrec_rank=28000),
+    ]
+    ctx = SwapContext(
+        **{
+            "budgets": {},
+            "focus_result": _focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+            "deck_signals": [sig],
+            "search_fn": lambda **_: pool,
+            "identity": "",
+            "fmt": "commander",
+            "paper_only": True,
+            "owned": {},
+            "budget": 20.0,
+            "max_swaps": 5,
+            "top_heavy": False,
+            **ctx_extra,
+        }
+    )
+    issue = {"kind": "dead_weight", "severity": 8, "count": 2, "message": "x"}
+    return _swaps_for_issue_dicts(classes, [issue], ctx)
+
+
+def _body(name, rank, usd, *, game_changer=False):
+    return {
+        "name": name,
+        "type_line": "Creature",
+        "oracle_text": "",
+        "cmc": 3.0,
+        "mana_cost": "{3}",
+        "prices": {"usd": usd},
+        "color_identity": [],
+        "edhrec_rank": rank,
+        "game_changer": game_changer,
+    }
+
+
+def test_settling_up_frees_its_own_game_changer_slot_for_the_re_run():
+    """One Game Changer of room: the main loop takes Cheap Changer ($1), Dear
+    Changer ($5) past the $4 share; settled up, the re-run sees the room
+    without Cheap Changer's slot and takes Dear Changer."""
+    pool = [
+        _body("Dear Changer", 1, "5.00", game_changer=True),
+        _body("Cheap Changer", 2, "1.00", game_changer=True),
+    ]
+    out = _dead_weight_pair(pool, game_changer_room=1)
+    assert out["swaps"][0]["add"]["name"] == "Dear Changer"
+
+
+def test_a_kept_add_takes_its_game_changer_slot_back(monkeypatch):
+    """A swap that keeps its add re-books its Game Changer slot: Cheap Changer
+    stays (Big Card, $19.50, is past what is left), the second swap's
+    settle-up takes Mid Card, not Other Changer (a second Game Changer past
+    the room of one), and the room ends spent."""
+    from mtg_utils._tuner import purse
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    rooms = []
+
+    class Room(purse._GameChangerRoom):
+        def __init__(self, room):
+            super().__init__(room)
+            rooms.append(self)
+
+    monkeypatch.setattr(swaps_mod, "_GameChangerRoom", Room)
+    pool = [
+        _body("Big Card", 1, "19.50"),
+        _body("Cheap Changer", 2, "1.00", game_changer=True),
+        _body("Other Changer", 3, "2.00", game_changer=True),
+        _body("Mid Card", 4, "6.00"),
+        _body("Low Card", 5, "3.00"),
+    ]
+    out = _dead_weight_pair(pool, game_changer_room=1)
+    adds = [s["add"]["name"] for s in out["swaps"]]
+    assert adds == ["Cheap Changer", "Mid Card"]
+    assert rooms[-1].room == 0
+    # One slot alone, Big Card refused (a stand-in fuel read): the kept Cheap
+    # Changer's slot is spent at the end.
+    real = swaps_mod._unfueled_adds
+
+    def fuel(committed, deck, commanders=()):
+        names = [add.get("name") for _c, add, _p, _x in committed]
+        return sorted(
+            set(real(committed, deck, commanders))
+            | {i for i, n in enumerate(names) if n == "Big Card"}
+        )
+
+    monkeypatch.setattr(swaps_mod, "_unfueled_adds", fuel)
+    one = _capped_add(
+        [_top(7.0)], pool[:2], budget=20.0, max_swaps=5, game_changer_room=1
+    )
+    assert one == ["Cheap Changer"]
+    assert rooms[-1].room == 0
+
+
+def test_a_card_one_settle_up_takes_is_held_from_the_next():
+    """In a four-of format the settle-up's own pick is held too: Murder's swap
+    settles from Hero's Downfall to Swords to Plowshares, and Doom Blade's,
+    holding Path to Exile, may not take a second Swords."""
+    pool = [
+        _priced("Swords to Plowshares", 10, "5.00"),
+        _priced("Path to Exile", 14, "4.50"),
+        _priced("Hero's Downfall", 50, "1.00"),
+    ]
+    out = _removal_swaps(pool, budget=20.0, max_swaps=5, fmt="modern", max_copies=4)
+    assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
+        ("Murder", "Swords to Plowshares"),
+        ("Doom Blade", "Path to Exile"),
+    ]
+
+
+def test_settling_up_takes_no_card_the_deck_cannot_fuel(monkeypatch):
+    """The fuel check reads the new add itself: where the proposal would leave
+    Swords to Plowshares unfed (a stand-in fuel read), Murder's swap keeps
+    Path to Exile."""
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    real = swaps_mod._unfueled_adds
+
+    def fuel(committed, deck, commanders=()):
+        names = [add.get("name") for _c, add, _p, _x in committed]
+        return sorted(
+            set(real(committed, deck, commanders))
+            | {i for i, n in enumerate(names) if n == "Swords to Plowshares"}
+        )
+
+    monkeypatch.setattr(swaps_mod, "_unfueled_adds", fuel)
+    out = _two_removal_upgrades()
+    assert [s["add"]["name"] for s in out["swaps"]] == [
+        "Path to Exile",
+        "Hero's Downfall",
+    ]
+
+
+def _full_job_settle():
+    """Murder's interaction row at its max: its slot weighs the theme's add
+    (Evolution Sage, $3) against the job's (Path to Exile, $1; Swords to
+    Plowshares, $5, past the $4 share). The whole result."""
+    sig = _sig_of("proliferate_matters")
+    label = spec_for(sig).label
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    swords = {**_played("Swords to Plowshares", 10), "prices": {"usd": "5.00"}}
+    path = _played("Path to Exile", 14)
+    sage = {**_played("Evolution Sage", 9000), "prices": {"usd": "3.00"}}
+
+    def search(**kw):
+        theme = kw.get("serve") is not None or "proliferate" in kw["preset_names"]
+        return [sage] if theme else [swords, path, sage]
+
+    ctx = SwapContext(
+        budgets={"interaction": _band(10, 8, 10)},
+        focus_result={
+            **_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+            "mains": [label],
+            "upgrade_cards": [murder.name],
+        },
+        deck_signals=[sig],
+        search_fn=search,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=20.0,
+        max_swaps=5,
+        top_heavy=False,
+    )
+    return _swaps_for_issue_dicts(
+        [murder], [{"kind": "upgrade", "severity": 1, "count": 1}], ctx
+    )
+
+
+def test_a_full_jobs_slot_is_not_settled():
+    """The theme's add is dearer, so the job's stays, and the swap is never
+    settled up: the move weighed this cost."""
+    assert [s["add"]["name"] for s in _full_job_settle()["swaps"]] == ["Path to Exile"]
+
+
+def test_a_full_jobs_slot_keeps_its_own_search_for_the_recheck(monkeypatch):
+    """When the move onto the theme is not taken, the swap keeps the job's
+    search: the recheck dropping Path to Exile (a stand-in fuel read) repicks
+    off the interaction page (Swords to Plowshares), never the theme's."""
+    from mtg_utils._tuner import recheck
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    real = swaps_mod._unfueled_adds
+
+    def fuel(committed, deck, commanders=()):
+        names = [add.get("name") for _c, add, _p, _x in committed]
+        return sorted(
+            set(real(committed, deck, commanders))
+            | {i for i, n in enumerate(names) if n == "Path to Exile"}
+        )
+
+    monkeypatch.setattr(swaps_mod, "_unfueled_adds", fuel)
+    monkeypatch.setattr(recheck, "_unfueled_adds", fuel)
+    adds = [s["add"]["name"] for s in _full_job_settle()["swaps"]]
+    assert adds == ["Swords to Plowshares"]
+
+
+def test_a_settle_up_tries_the_next_card_ahead_after_a_fuel_refusal(monkeypatch):
+    """Swords to Plowshares, first ahead of Murder's Hero's Downfall, is
+    refused by a stand-in fuel read; the settle-up takes the next card ahead,
+    Path to Exile."""
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    real = swaps_mod._unfueled_adds
+
+    def fuel(committed, deck, commanders=()):
+        names = [add.get("name") for _c, add, _p, _x in committed]
+        return sorted(
+            set(real(committed, deck, commanders))
+            | {i for i, n in enumerate(names) if n == "Swords to Plowshares"}
+        )
+
+    monkeypatch.setattr(swaps_mod, "_unfueled_adds", fuel)
+    pool = [
+        _priced("Swords to Plowshares", 10, "5.00"),
+        _priced("Path to Exile", 14, "4.50"),
+        _priced("Hero's Downfall", 50, "1.00"),
+    ]
+    out = _removal_swaps(pool, budget=20.0, max_swaps=5, cuts=("Murder",))
+    assert [s["add"]["name"] for s in out["swaps"]] == ["Path to Exile"]
+
+
+def test_the_recheck_frees_a_dropped_adds_game_changer_slot(monkeypatch):
+    """A room of one Game Changer: the recheck drops First Changer (a stand-in
+    fuel read) and gives its slot back, so the repick may be Second Changer,
+    another Game Changer."""
+    from mtg_utils._tuner import recheck
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    real = swaps_mod._unfueled_adds
+
+    def fuel(committed, deck, commanders=()):
+        names = [add.get("name") for _c, add, _p, _x in committed]
+        return sorted(
+            set(real(committed, deck, commanders))
+            | {i for i, n in enumerate(names) if n == "First Changer"}
+        )
+
+    monkeypatch.setattr(swaps_mod, "_unfueled_adds", fuel)
+    monkeypatch.setattr(recheck, "_unfueled_adds", fuel)
+    pool = [
+        _body("First Changer", 1, "1.00", game_changer=True),
+        _body("Second Changer", 2, "1.00", game_changer=True),
+        _body("Plain Card", 3, "1.00"),
+    ]
+    out = _capped_add([_top(7.0)], pool, game_changer_room=1)
+    assert out == ["Second Changer"]
+
+
+def test_a_settle_up_meets_the_game_changer_room_as_the_proposal_ends():
+    """The room is a cap on the proposal: Dear Changer ($5, past the $4 share)
+    takes a slot that keeps Plain Card where a later swap spent the room on
+    Cheap Changer, and takes Cheap Changer's own slot (a Game Changer for a
+    Game Changer); with one slot it takes Plain Card's, the room still free."""
+    pool = [
+        _body("Dear Changer", 1, "5.00", game_changer=True),
+        _body("Plain Card", 2, "1.00"),
+        _body("Cheap Changer", 3, "1.00", game_changer=True),
+    ]
+    out = _dead_weight_pair(pool, game_changer_room=1)
+    assert [s["add"]["name"] for s in out["swaps"]] == ["Plain Card", "Dear Changer"]
+    one = _capped_add([_top(7.0)], pool, budget=20.0, max_swaps=5, game_changer_room=1)
+    assert one == ["Dear Changer"]
+
+
+def test_a_settle_up_adds_no_support_card_where_the_old_add_was_a_member():
+    """A type-searched theme (Artifacts) holds its support cards to one add in
+    five: the fifth dead-weight slot passes over Support Card ($17, past its
+    $3 share) for a member; settled up, the support share would allow it and
+    the money is there, but the slot keeps its member."""
+    sig = _type_sig("artifacts_matter")
+    label = spec_for(sig).label
+    members = [
+        {**_plain(f"Member {i}", 100 + i), "prices": {"usd": "0.50"}} for i in range(6)
+    ]
+    support = {**_plain("Support Card", 10), "prices": {"usd": "17.00"}}
+
+    def search(**kw):
+        return members if kw.get("card_type") else [support, *members]
+
+    classes = [_cc(f"Junk {i}", "filler", cmc=3.0) for i in range(5)]
+    issue = {"kind": "dead_weight", "severity": 7, "count": 5, "message": "x"}
+    ctx = SwapContext(
+        budgets={},
+        focus_result=_focus(viable=[{"label": label, "tier": "main", "depth": 20}]),
+        deck_signals=[sig],
+        search_fn=search,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=20.0,
+        max_swaps=10,
+        top_heavy=False,
+    )
+    adds = [
+        s["add"]["name"] for s in _swaps_for_issue_dicts(classes, [issue], ctx)["swaps"]
+    ]
+    assert "Support Card" not in adds
+    assert len(adds) == 5
+
+
+def test_a_settle_up_adds_no_whiff_under_a_polymorph_commander():
+    """Under Jace a rock's trim passes over Loyal Apprentice ($10, past the $4
+    share), a cheap creature card the polymorph would reveal beside the bombs,
+    for Raise the Alarm (no flip). Settled up, the money is left, but the
+    settle-up adds no flip below the deck's floor where the old add was none:
+    the whiff share it would move can't be replayed as the swap saw it."""
+    rock = _real_cc("Mind Stone", "spine", roles=["ramp"], edhrec_rank=8000)
+    pool = [
+        {**_played("Loyal Apprentice", 300), "prices": {"usd": "10.00"}},
+        _played("Raise the Alarm", 2000),
+    ]
+    ctx = SwapContext(
+        budgets={"ramp": _band(11, 8, 10)},
+        focus_result=_focus(viable=[{"label": "Main", "depth": 20, "cards": []}]),
+        deck_signals=[_WANTS_FODDER],
+        commander_idents=_POLYMORPH_IDENTS,
+        search_fn=lambda **_: pool,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=20.0,
+        max_swaps=5,
+        top_heavy=False,
+    )
+    out = _swaps_under_polymorph(
+        [*_polymorph_bombs(), rock],
+        [{"kind": "role_over", "role": "ramp", "severity": 1, "message": "ramp over"}],
+        ctx,
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == ["Raise the Alarm"]
+
+
+def test_a_settle_up_takes_no_card_that_overfills_a_full_role():
+    """A FOCUSED deck's two card-draw fills (the role-fix guard) pass over
+    Azorius Charm, first on their page, since its removal mode overfills the
+    full interaction row: the first takes Dear Draw ($45 of $50), the second
+    Generic Draw, Pricey Draw ($10) past the $5 left. Settled up, the only card
+    ahead of Generic Draw the purse affords is the Charm, the overshoot the
+    main loop refused: the slot keeps Generic Draw."""
+    sig, label, _classes, _budgets, issue, off_avenue, _on = _role_fix_scenario()
+    charm = {**test_card("Azorius Charm"), "prices": {"usd": "1.00"}, "edhrec_rank": 5}
+    dear = {**_off_avenue_draw("Dear Draw", 1.0, 8), "prices": {"usd": "45.00"}}
+    pricey = {**_off_avenue_draw("Pricey Draw", 1.0, 9), "prices": {"usd": "10.00"}}
+    out = _swaps_for_issue_dicts(
+        [_cc("Filler A", "filler", cmc=3.0), _cc("Filler B", "filler", cmc=3.0)],
+        [{**issue, "severity": 2}, {**issue, "severity": 1, "message": "again"}],
+        SwapContext(
+            budgets={"card_draw": _band(8, 10, 12), "interaction": _band(10, 8, 10)},
+            focus_result=_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+            deck_signals=[sig],
+            search_fn=lambda **_: [charm, dear, pricey, off_avenue],
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=2,
+            top_heavy=False,
+        ),
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == ["Dear Draw", "Generic Draw"]
+
+
+def _fuel_refusing(monkeypatch, *names):
+    """A stand-in fuel read: the real one, plus every add named ``names``
+    unfuelled, in the swap loop and the recheck alike."""
+    from mtg_utils._tuner import recheck
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    real = swaps_mod._unfueled_adds
+
+    def fuel(committed, deck, commanders=()):
+        adds = [add.get("name") for _c, add, _p, _x in committed]
+        return sorted(
+            set(real(committed, deck, commanders))
+            | {i for i, n in enumerate(adds) if n in names}
+        )
+
+    monkeypatch.setattr(swaps_mod, "_unfueled_adds", fuel)
+    monkeypatch.setattr(recheck, "_unfueled_adds", fuel)
+
+
+def _full_job_then(extra_issue=None, extra_cut=None, *, theme_page, job_page):
+    """Murder's upgrade with its interaction row at its max (a full job), then
+    ``extra_issue`` on ``extra_cut``, on $20 over five swaps."""
+    sig = _sig_of("proliferate_matters")
+    label = spec_for(sig).label
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    classes = [murder, *([extra_cut] if extra_cut else [])]
+    budgets = {"interaction": _band(10, 8, 10)}
+    if extra_issue is not None:
+        budgets["ramp"] = _band(11, 8, 10)
+
+    def search(**kw):
+        theme = kw.get("serve") is not None or "proliferate" in kw["preset_names"]
+        return theme_page if theme else job_page
+
+    ctx = SwapContext(
+        budgets=budgets,
+        focus_result={
+            **_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+            "mains": [label],
+            "upgrade_cards": [murder.name],
+        },
+        deck_signals=[sig],
+        search_fn=search,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=20.0,
+        max_swaps=5,
+        top_heavy=False,
+    )
+    issues = [{"kind": "upgrade", "severity": 5, "count": 1}]
+    if extra_issue is not None:
+        issues.append(extra_issue)
+    out = _swaps_for_issue_dicts(classes, issues, ctx)
+    return [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]]
+
+
+def test_a_full_jobs_repick_is_not_settled(monkeypatch):
+    """Murder's full-job slot keeps Path to Exile (Evolution Sage, the theme's,
+    is dearer); the recheck drops Path (a stand-in fuel read) and repicks
+    Hero's Downfall, Swords to Plowshares past the share. The repick fills the
+    same full job's slot, so it is not settled up into Swords."""
+    _fuel_refusing(monkeypatch, "Path to Exile")
+    sage = {**_played("Evolution Sage", 9000), "prices": {"usd": "3.00"}}
+    job = [
+        _priced("Swords to Plowshares", 10, "5.00"),
+        _priced("Path to Exile", 14, "1.00"),
+        _priced("Hero's Downfall", 50, "1.00"),
+    ]
+    assert _full_job_then(theme_page=[sage], job_page=job) == [
+        ("Murder", "Hero's Downfall")
+    ]
+
+
+def test_a_full_jobs_flag_is_its_own_swaps():
+    """Murder's full-job slot keeps Path to Exile; the next cut, a rock trimmed
+    from an over ramp row, takes Cheap Theme ($3), Dear Theme ($15) past its
+    purse cap. That swap is no full job's, so it settles up into Dear Theme."""
+    rock = _real_cc("Mind Stone", "spine", roles=["ramp"], edhrec_rank=8000)
+    theme = [
+        {**_plain("Dear Theme", 5), "cmc": 2.0, "prices": {"usd": "15.00"}},
+        {**_plain("Cheap Theme", 50), "cmc": 2.0, "prices": {"usd": "3.00"}},
+    ]
+    trim = {"kind": "role_over", "role": "ramp", "severity": 1, "message": "ramp"}
+    assert _full_job_then(
+        trim, rock, theme_page=theme, job_page=[_priced("Path to Exile", 14, "1.00")]
+    ) == [("Murder", "Path to Exile"), ("Mind Stone", "Dear Theme")]
+
+
+def test_a_repicked_slot_keeps_its_avenues_support_share(monkeypatch):
+    """Five dead-weight slots take five Artifacts members, Support Card ($17)
+    past the share; the recheck drops the first (a stand-in fuel read) and
+    repicks another member. Settled up, the repick is still the avenue's
+    member: it may not take Support Card, which would leave one support card
+    in five adds counted as four members' share."""
+    _fuel_refusing(monkeypatch, "Member 0")
+    sig = _type_sig("artifacts_matter")
+    label = spec_for(sig).label
+    members = [
+        {**_plain(f"Member {i}", 100 + i), "prices": {"usd": "0.50"}} for i in range(7)
+    ]
+    support = {**_plain("Support Card", 10), "prices": {"usd": "17.00"}}
+
+    def search(**kw):
+        return members if kw.get("card_type") else [support, *members]
+
+    classes = [_cc(f"Junk {i}", "filler", cmc=3.0) for i in range(5)]
+    issue = {"kind": "dead_weight", "severity": 7, "count": 5, "message": "x"}
+    ctx = SwapContext(
+        budgets={},
+        focus_result=_focus(viable=[{"label": label, "tier": "main", "depth": 20}]),
+        deck_signals=[sig],
+        search_fn=search,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=20.0,
+        max_swaps=10,
+        top_heavy=False,
+    )
+    out = _swaps_for_issue_dicts(classes, [issue], ctx)["swaps"]
+    adds = [s["add"]["name"] for s in out]
+    assert adds == ["Member 5", "Member 1", "Member 2", "Member 3", "Member 4"]
+
+
+def test_a_repicked_slot_is_counted_once_on_its_avenue(monkeypatch):
+    """Four dead-weight slots take four Artifacts members (Support Card held
+    out by the one-in-five share, Dear Member past the share); the recheck
+    drops the first (a stand-in fuel read). The dropped add leaves the
+    avenue's counts, so the repick is its fourth add, not a fifth, and may not
+    take Support Card (one in four); settled up, it takes Dear Member."""
+    _fuel_refusing(monkeypatch, "Member 0")
+    sig = _type_sig("artifacts_matter")
+    label = spec_for(sig).label
+    members = [
+        {**_plain("Dear Member", 20), "prices": {"usd": "17.00"}},
+        *(
+            {**_plain(f"Member {i}", 100 + i), "prices": {"usd": "0.50"}}
+            for i in range(6)
+        ),
+    ]
+    support = {**_plain("Support Card", 10), "prices": {"usd": "1.00"}}
+
+    def search(**kw):
+        return members if kw.get("card_type") else [support, *members]
+
+    classes = [_cc(f"Junk {i}", "filler", cmc=3.0) for i in range(4)]
+    issue = {"kind": "dead_weight", "severity": 7, "count": 4, "message": "x"}
+    ctx = SwapContext(
+        budgets={},
+        focus_result=_focus(viable=[{"label": label, "tier": "main", "depth": 20}]),
+        deck_signals=[sig],
+        search_fn=search,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=20.0,
+        max_swaps=10,
+        top_heavy=False,
+    )
+    out = _swaps_for_issue_dicts(classes, [issue], ctx)["swaps"]
+    assert [s["add"]["name"] for s in out] == [
+        "Dear Member",
+        "Member 1",
+        "Member 2",
+        "Member 3",
+    ]
+
+
+def test_a_settle_up_loses_no_bomb_under_a_polymorph_commander():
+    """Under Jace a dead-weight slot passes over Dear Relic ($17, no flip) for
+    Big Construct, a seven-mana artifact creature: a flip at the bombs' band.
+    Settled up, the money is left, but the settle-up takes no flip above the
+    floor out of the deck: the slot keeps Big Construct."""
+    sig = _type_sig("artifacts_matter")
+    label = spec_for(sig).label
+    relic = {
+        **_plain("Dear Relic", 10),
+        "type_line": "Artifact",
+        "prices": {"usd": "17.00"},
+    }
+    big = {
+        **_plain("Big Construct", 100),
+        "type_line": "Artifact Creature — Construct",
+        "cmc": 7.0,
+        "mana_cost": "{7}",
+        "prices": {"usd": "0.50"},
+    }
+    ctx = SwapContext(
+        budgets={},
+        focus_result=_focus(viable=[{"label": label, "tier": "main", "depth": 20}]),
+        deck_signals=[sig, _WANTS_FODDER],
+        commander_idents=_POLYMORPH_IDENTS,
+        search_fn=lambda **_: [relic, big],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=20.0,
+        max_swaps=10,
+        top_heavy=False,
+    )
+    out = _swaps_under_polymorph(
+        [*_polymorph_bombs(), _cc("Junk", "filler", cmc=3.0)],
+        [{"kind": "dead_weight", "severity": 7, "count": 1, "message": "x"}],
+        ctx,
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == ["Big Construct"]
+
+
+def test_settling_up_meets_the_curve_cap():
+    """A settle-up's search passes every gate its swap's did, the curve cap
+    (ADR-0066) included: Blightsteel Colossus ($10) is past a deck topping at
+    seven, however much money is left; with no cap the settle-up buys it."""
+    pool = [
+        {**_played("Blightsteel Colossus", 946), "prices": {"usd": "10.00"}},
+        _played("Grizzly Bears", 2150),
+    ]
+    common = {"budget": 20.0, "max_swaps": 5}
+    assert _capped_add([_top(7.0)], pool, **common) == ["Grizzly Bears"]
+    assert _capped_add([_top(7.0)], pool, curve_room=None, **common) == [
+        "Blightsteel Colossus"
+    ]
 
 
 def test_specs_that_differ_after_the_search_are_one_search():
