@@ -48,6 +48,7 @@ fakes).
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import pickle
 import re
@@ -59,7 +60,7 @@ from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import click
 
@@ -287,7 +288,11 @@ def impostor_census(
     already one of the ``recorded`` impostor rows. Sorted: likely impostors
     needing a decision, then already-recorded ones, then errata drift.
     Report-only; never applied. Records whose oracle_id is absent from the bulk
-    are not flagged (nothing to compare against)."""
+    are not flagged (nothing to compare against), nor is a meld result's copy
+    under one of its halves' oracle ids, which every consumer already drops
+    (``build.is_meld_result_copy``)."""
+    from mtg_utils._card_ir.build import is_meld_result_copy
+
     known = set(recorded)
     faces: dict[str, set[str]] = {}
     names: dict[str, set[str]] = {}
@@ -309,7 +314,7 @@ def impostor_census(
     for rec in card_data_records(card_data):
         oid = rec.get("scryfall_oracle_id") or ""
         text = rec.get("oracle_text") or ""
-        if not oid or oid not in faces or not text:
+        if not oid or oid not in faces or not text or is_meld_result_copy(rec):
             continue
         if _norm(text) not in faces[oid]:
             others = sorted(owners.get(_norm(text), set()) - {oid})
@@ -633,10 +638,18 @@ def graduation_rows(pytest_output: str) -> tuple[str, ...]:
 
 GAINS_SHOWN = 25  # per key; the rest are counted
 
+#: A section whose step neither ran in this process nor left its findings in the
+#: report dir (:func:`_recall_early_findings`).
+NOT_RUN = "not run in this pass, and no earlier run of this bump left its findings"
+
 
 def render_rosters(
-    variants_before: int, variants_after: int, zero_instance: Sequence[str]
+    variants_before: int | None,
+    variants_after: int | None,
+    zero_instance: Sequence[str] | None,
 ) -> list[str]:
+    if variants_before is None or variants_after is None or zero_instance is None:
+        return ["## Rosters", f"- {NOT_RUN}"]
     return [
         "## Rosters",
         f"- EFFECT_VARIANTS: {variants_before} → {variants_after}",
@@ -645,9 +658,12 @@ def render_rosters(
 
 
 def render_census(
-    census: Sequence[ImpostorRow], dead_impostors: Sequence[tuple[str, str]]
+    census: Sequence[ImpostorRow] | None, dead_impostors: Sequence[tuple[str, str]]
 ) -> list[str]:
     lines = ["## Impostor census (report only — never auto-applied)"]
+    if census is None:
+        lines.append(f"- {NOT_RUN}")
+        return lines
     if census:
         n_imp = sum(r.likely_impostor for r in census)
         n_known = sum(r.likely_impostor and r.already_recorded for r in census)
@@ -959,10 +975,12 @@ class ReportData:
     old_tag: str
     new_tag: str
     notes: list[str] = field(default_factory=list)
-    variants_before: int = 0
-    variants_after: int = 0
-    zero_instance: tuple[str, ...] = ()
-    census: tuple[ImpostorRow, ...] = ()
+    #: The roster and census findings, ``None`` when their step did not run (and
+    #: no earlier run's findings were recalled: :func:`_recall_early_findings`).
+    variants_before: int | None = None
+    variants_after: int | None = None
+    zero_instance: tuple[str, ...] | None = None
+    census: tuple[ImpostorRow, ...] | None = None
     dead_impostors: tuple[tuple[str, str], ...] = ()
     #: The short cards at the new pin (``tree_losses``), ``None`` when the
     #: tree-coverage step did not run (and no earlier run's finding was
@@ -1059,6 +1077,75 @@ def _write(ctx: BumpContext, rel: Path, text: str) -> None:
 class StepFailed(click.ClickException):
     """A step found something the bump must not go past. Unlike any other error,
     :func:`run` writes the report first, so the step's section shows what it found."""
+
+
+def _early_findings_path(ctx: BumpContext) -> Path:
+    return ctx.report_dir / f"early-{ctx.new_tag}.json"
+
+
+#: The steps whose findings :func:`_save_early_findings` keeps for a resumed run.
+EARLY_FINDING_STEPS = frozenset({"variants", "substrate", "impostor-census"})
+
+
+def _save_early_findings(ctx: BumpContext) -> None:
+    """Keep what the roster and census steps found in the report dir. A schema
+    change forces a resume past them (:data:`IN_PROCESS_TREE_STEP`), and a
+    resumed process would otherwise report an empty census and a 0 → 0 roster
+    (v0.131.0 and v0.133.0 did)."""
+    r = ctx.report
+    atomic_write_json(
+        _early_findings_path(ctx),
+        {
+            "variants_before": r.variants_before,
+            "variants_after": r.variants_after,
+            "zero_instance": r.zero_instance,
+            "census": None
+            if r.census is None
+            else [dataclasses.asdict(row) for row in r.census],
+            "dead_impostors": r.dead_impostors,
+        },
+    )
+
+
+def _impostor_row(saved: dict[str, Any]) -> ImpostorRow:
+    """One census row read back from :func:`_save_early_findings`'s JSON: its
+    list fields as the tuples the row holds, a field it doesn't know left out."""
+    fields = {f.name for f in dataclasses.fields(ImpostorRow)}
+    kwargs: dict[str, Any] = {
+        k: tuple(v) if isinstance(v, list) else v
+        for k, v in saved.items()
+        if k in fields
+    }
+    return ImpostorRow(**kwargs)
+
+
+def _recall_early_findings(ctx: BumpContext, from_step: int) -> None:
+    """A run resumed past the roster or census steps reports what they last
+    found, read back from the report dir; a step this run takes again
+    overwrites its part, and a section with nothing kept says so."""
+    skipped = sorted(
+        (n for n in EARLY_FINDING_STEPS if _step_number(n) < from_step),
+        key=_step_number,
+    )
+    path = _early_findings_path(ctx)
+    if not skipped or not path.is_file():
+        return
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    r = ctx.report
+    r.variants_before = saved.get("variants_before")
+    r.variants_after = saved.get("variants_after")
+    zeros = saved.get("zero_instance")
+    r.zero_instance = None if zeros is None else tuple(zeros)
+    census = saved.get("census")
+    if census is not None:
+        r.census = tuple(_impostor_row(row) for row in census)
+    r.dead_impostors = tuple(
+        (oid, text) for oid, text in saved.get("dead_impostors") or ()
+    )
+    r.notes.append(
+        f"{', '.join(skipped)}: as an earlier run of this bump found them (this "
+        "run skipped them)"
+    )
 
 
 def _coverage_path(ctx: BumpContext, tag: str) -> Path:
@@ -1486,6 +1573,7 @@ def run(ctx: BumpContext, *, from_step: int = 1, echo: Callable[[str], None]) ->
             ctx.old_tag + "\n", encoding="utf-8"
         )
     mirror_at_start = _generated_fingerprint(ctx.repo)
+    _recall_early_findings(ctx, from_step)
     for i, (name, fn) in enumerate(STEPS, start=1):
         if i < from_step:
             continue
@@ -1503,6 +1591,8 @@ def run(ctx: BumpContext, *, from_step: int = 1, echo: Callable[[str], None]) ->
         except StepFailed as exc:
             exc.message += f"\nreport: {_write_report(ctx)}"
             raise
+        if name in EARLY_FINDING_STEPS:
+            _save_early_findings(ctx)
     if from_step > _step_number(IN_PROCESS_TREE_STEP):
         _recall_tree_coverage(ctx)
     return _write_report(ctx)

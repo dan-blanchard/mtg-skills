@@ -470,23 +470,26 @@ def creature_types(parsed: dict[str, Any]) -> frozenset[str]:
     return frozenset(out)
 
 
-# The CR rule listing each non-creature permanent type's subtypes: artifact types
-# (205.3g), enchantment types (205.3h), planeswalker types (205.3j) and the battle
-# type (205.3q). Keyed by the card type those subtypes belong to.
+# The CR rule listing each non-creature card type's subtypes: artifact types
+# (205.3g), enchantment types (205.3h), planeswalker types (205.3j), the battle
+# type (205.3q), and the spell types instants and sorceries share (205.3k). Keyed
+# by the card type those subtypes belong to ("Spell" for the shared list).
 _CARD_SUBTYPE_RULES: dict[str, str] = {
     "Artifact": "205.3g",
     "Enchantment": "205.3h",
     "Planeswalker": "205.3j",
     "Battle": "205.3q",
+    "Spell": "205.3k",
 }
 
 
 def card_subtypes(parsed: dict[str, Any]) -> dict[str, frozenset[str]]:
-    """The subtype lists of the non-creature permanent types, lowercased, keyed by
-    card type (``"Artifact"`` → CR 205.3g's artifact types, …). Each rule ends with
-    its list: "The artifact types are Attraction (see rule 717), Blood, …, and
-    Vibranium." / "That battle type is Siege." — the "(see rule …)" pointers
-    dropped. The source of ``_card_ir.card_subtypes`` (``rules-lookup
+    """The subtype lists of the non-creature card types, lowercased, keyed by card
+    type (``"Artifact"`` → CR 205.3g's artifact types, …, ``"Spell"`` → CR
+    205.3k's spell types). Each rule ends with its list: "The artifact types are
+    Attraction (see rule 717), Blood, …, and Vibranium." / "That battle type is
+    Siege." / "The spell types are Adventure, Arcane, …" — the "(see rule …)"
+    pointers dropped. The source of ``_card_ir.card_subtypes`` (``rules-lookup
     --card-subtypes`` prints it)."""
     out: dict[str, frozenset[str]] = {}
     for card_type, number in _CARD_SUBTYPE_RULES.items():

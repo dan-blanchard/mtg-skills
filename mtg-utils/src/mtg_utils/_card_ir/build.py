@@ -30,6 +30,16 @@ from mtg_utils._card_ir.load import (
 from mtg_utils._sidecar import atomic_write_json
 
 
+def is_meld_result_copy(rec: dict) -> bool:
+    """Whether ``rec`` is a meld result phase copied under one of its halves'
+    oracle ids. Phase v0.104.0 copies each meld result under every half's oracle
+    id ("chittering host [<Graf Rats' oid>]", ``face_index: 1``). The melded
+    permanent exists only once both halves meld (CR 701.42a), so it is never a
+    face of either half; its own record (its own oracle id) stays, for the
+    commander fold (ADR-0025)."""
+    return rec.get("layout") == "meld" and rec.get("face_index") not in (None, 0)
+
+
 def group_by_oracle_id(data: object) -> dict[str, list[dict]]:
     """Group phase face-records by ``scryfall_oracle_id`` (insertion order kept,
     so a DFC's front face precedes its back face as listed in card-data.json).
@@ -49,12 +59,7 @@ def group_by_oracle_id(data: object) -> dict[str, list[dict]]:
     for rec in records:
         if not isinstance(rec, dict):
             continue
-        if rec.get("layout") == "meld" and rec.get("face_index") not in (None, 0):
-            # Phase v0.104.0 copies each meld result under every half's oracle id
-            # ("chittering host [<Graf Rats' oid>]", ``face_index: 1``). The
-            # melded permanent exists only once both halves meld (CR 701.42a), so
-            # it is never a face of either half; its own record (its own oracle
-            # id) stays, for the commander fold (ADR-0025).
+        if is_meld_result_copy(rec):
             continue
         oid = rec.get("scryfall_oracle_id")
         if isinstance(oid, str) and oid and not _phase.is_impostor_record(rec):

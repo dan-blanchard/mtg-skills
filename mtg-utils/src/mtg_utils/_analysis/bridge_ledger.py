@@ -2474,10 +2474,11 @@ BRIDGES: dict[str, Bridge] = {
                 "Chronomantic Escape",
                 # Web of Inertia and Champions of Minas Tirith graduated at phase
                 # v0.131.0: an AddRestriction ProhibitActivity (Attack) on the
-                # opponent's turn.
+                # opponent's turn. Immortal Obligation graduated at v0.133.0: its
+                # duty-counter clause is typed (phase #11303), a CantAttack
+                # granted to the returned creature.
                 "Mirri, Weatherlight Duelist",
                 "Varchild, Betrayer of Kjeldor",
-                "Immortal Obligation",
                 "Illusionist's Gambit",
             ),
             gap=_parked_attack_you_gap,

@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``inner`` .. ``modification``
-(39 keys).
+(40 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_amount,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         U_chooser,
         U_condition,
     )
@@ -282,6 +282,11 @@ class T_inner__HasCityBlessing(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_inner__IsInitiative(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "IsInitiative"
+
+
+@dataclass(frozen=True)
 class T_inner__IsMonarch(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IsMonarch"
 
@@ -405,8 +410,8 @@ class T_keep_on_top__Fixed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_keeper_constraint__exact_count(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "exact_count"
+class T_keeper_constraint__count(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "count"
     count: U_count
 
 
@@ -446,6 +451,11 @@ class T_kind__TappedFish(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_kind__Treasure(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Treasure"
+
+
+@dataclass(frozen=True)
+class T_land_filter__CostPaidObject(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CostPaidObject"
 
 
 @dataclass(frozen=True)
@@ -605,6 +615,12 @@ class T_matched_disposition__RevealOnly(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_matcher__OfType(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OfType"
+    data: str
+
+
+@dataclass(frozen=True)
 class T_materials__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
@@ -730,6 +746,7 @@ type U_inner = (
     | T_inner__EventOutcomeWon
     | T_inner__Fixed
     | T_inner__HasCityBlessing
+    | T_inner__IsInitiative
     | T_inner__IsMonarch
     | T_inner__Max
     | T_inner__Multiply
@@ -751,7 +768,7 @@ type U_iteration_kind_binding = T_iteration_kind_binding__RebindToIteratedKind
 type U_journal = T_journal__SpellsCast
 type U_keep_count_expr = T_keep_count_expr__Ref
 type U_keep_on_top = T_keep_on_top__Fixed
-type U_keeper_constraint = T_keeper_constraint__exact_count
+type U_keeper_constraint = T_keeper_constraint__count
 type U_kept_destination_if = T_kept_destination_if__Typed
 type U_keyword = T_keyword__Equip
 type U_kind = (
@@ -761,7 +778,9 @@ type U_kind = (
     | T_kind__TappedFish
     | T_kind__Treasure
 )
-type U_land_filter = T_land_filter__HasChosenName | T_land_filter__Typed
+type U_land_filter = (
+    T_land_filter__CostPaidObject | T_land_filter__HasChosenName | T_land_filter__Typed
+)
 type U_left = T_left__Ref
 type U_letters = T_letters__Letter | T_letters__UniqueVowels
 type U_lhs = T_lhs__Difference | T_lhs__Fixed | T_lhs__Ref | T_lhs__Sum
@@ -785,6 +804,7 @@ type U_mana_value_limit = T_mana_value_limit__Fixed | T_mana_value_limit__Ref
 type U_matched_disposition = (
     T_matched_disposition__ChooseAnyNumber | T_matched_disposition__RevealOnly
 )
+type U_matcher = T_matcher__OfType
 type U_materials = T_materials__Or
 type U_max = T_max__Difference | T_max__Fixed | T_max__Offset | T_max__Ref | T_max__Sum
 type U_max_ticket_cost = T_max_ticket_cost__Ref

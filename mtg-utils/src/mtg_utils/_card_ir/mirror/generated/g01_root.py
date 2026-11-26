@@ -31,7 +31,7 @@ if TYPE_CHECKING:
         U_additional_cost,
         U_amount,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         S_card_type,
         S_casting_options,
         S_cleave_variant,
@@ -317,7 +317,7 @@ class S_ExileCastPermission(TypedMirrorNode):
     cost: str
     frequency: str
     play_mode: str
-    pool: str
+    pool: str | MirrorVariant
     timing: str
     enters_with_counter: str = MISSING
     extra_cost: S_extra_cost = MISSING

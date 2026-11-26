@@ -81,6 +81,7 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_mode,
     modify_cost_spell_filter,
     oil_counter_kind_refs,
+    opponent_only_nodes,
     permission_tag,
     player_counter_kind,
     power_threshold_preds,
@@ -1136,6 +1137,7 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
     """
     out: list[Signal] = []
     seen: set[str] = set()
+    theirs_only = opponent_only_nodes(tree)
 
     def fire(key: str, raw: str) -> None:
         if key not in seen:
@@ -1148,7 +1150,9 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
         it — colorless hate, not a build-around, unless the target is yours),
         or ``"your_library"`` (a cast-from-the-top permission: the cards are
         yours though the filter names no controller)."""
-        if filt is None:
+        if filt is None or id(filt) in theirs_only:
+            # A filter that lands only on another player's cards (a hand
+            # attack's discard — Shatter Assumptions) names no plan of yours.
             return
         ctrl = filter_controller(filt)
         you = ctrl == "You" or (site == "your_library" and ctrl is None)

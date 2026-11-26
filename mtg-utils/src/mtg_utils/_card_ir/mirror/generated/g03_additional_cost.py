@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``additional_cost`` .. ``by``
-(29 keys).
+``__init__.py``). This module holds content keys ``additional_cost`` .. ``cap``
+(31 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         S_characteristics,
         U_colors,
         U_condition,
@@ -220,12 +220,6 @@ class T_additional_modifications__AddCounterOnEnter(TypedMirrorNode):
 class T_additional_modifications__AddKeyword(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AddKeyword"
     keyword: str | MirrorVariant
-
-
-@dataclass(frozen=True)
-class T_additional_modifications__AddStaticMode(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddStaticMode"
-    mode: MirrorVariant
 
 
 @dataclass(frozen=True)
@@ -876,6 +870,19 @@ class T_by__Typed(TypedMirrorNode):
     type_filters: list[MirrorVariant]
 
 
+@dataclass(frozen=True)
+class T_candidate_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_cap__OnlyOnceEachTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OnlyOnceEachTurn"
+
+
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_additional_cost = (
@@ -896,7 +903,6 @@ type U_additional_modifications = (
     T_additional_modifications__AddColor
     | T_additional_modifications__AddCounterOnEnter
     | T_additional_modifications__AddKeyword
-    | T_additional_modifications__AddStaticMode
     | T_additional_modifications__AddSubtype
     | T_additional_modifications__AddSupertype
     | T_additional_modifications__AddType
@@ -1016,3 +1022,5 @@ type U_base = (
 type U_blocker = T_blocker__Typed
 type U_blockers = T_blockers__Typed
 type U_by = T_by__Typed
+type U_candidate_filter = T_candidate_filter__Typed
+type U_cap = T_cap__OnlyOnceEachTurn

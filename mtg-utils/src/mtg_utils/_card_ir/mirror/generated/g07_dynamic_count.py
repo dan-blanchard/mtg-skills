@@ -41,7 +41,7 @@ if TYPE_CHECKING:
         U_attacker,
         U_attacker_restriction,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         S_cards,
         S_cast_cost_modifier,
         S_chosen_pile_effect,

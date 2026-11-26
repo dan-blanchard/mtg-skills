@@ -80,8 +80,12 @@ Pure reports, which retire nothing on our side: 16b, 20, 21, 23, 24f, 24h, 24i, 
 | 32-per-count-cost-reduction-parked.md | A cost change "for each [count]" parked as `static_structure` | Battlefield Thaumaturge, Thrasta (fragments); 8 more listed | v0.131.0 pin bump |
 | 33-damage-to-creatures-and-players-parked.md | Damage to a player and their creatures in one clause parked | Disorder, Incite Rebellion, Mob Verdict | v0.131.0 pin bump |
 | 34-thought-dissector-compound-reveal-until.md | Reveal-until with two stop conditions parked as `compound_reveal_until` | Thought Dissector | v0.131.0 pin bump |
-| 35-this-way-set-reference-parked.md | A clause over the cards chosen or moved "this way" parked | Revivify, Raiding Party (fragments); 15 more listed | v0.131.0 pin bump |
-| 36-revealed-hand-discard-parked.md | "Reveals their hand and discards all … cards": the discard parked, its player cut | Amnesia, Persecute, Shatter Assumptions (fragments); 12 more listed | v0.131.0 pin bump |
+| 35-this-way-set-reference-parked.md | A clause over the cards chosen or moved "this way" parked | Revivify, Raiding Party (fragments); 14 more listed (Starfall Invocation fixed in v0.133.0) | v0.131.0 pin bump |
+| 36-revealed-hand-discard-parked.md | "Reveals their hand and discards all … cards": the discard parked, its player cut | Persecute, Mind Extraction (fragments); 9 more listed (Amnesia, Shatter Assumptions, Trapfinder's Trick, Tsabo's Decree fixed in v0.133.0) | v0.131.0 pin bump |
+
+## Fixed at v0.133.0
+
+Found by the pin bump of 2026-11-25 (every drafted card whose v0.133.0 record changed; the other drafts were not re-verified card by card). Fixed in v0.133.0 and removed from the drafts' card lists, each draft saying so: 36's Amnesia and Shatter Assumptions (two of its three fragments; Persecute and Mind Extraction are its fragments now, quoted from v0.133.0), Trapfinder's Trick and Tsabo's Decree; 35's Starfall Invocation. Retired on our side: Immortal Obligation's `attack_you_parse_failure` ledger pin (not a drafted card). See `../phase-upstream-reports.md`, "Fixed at v0.133.0".
 
 ## Fixed at v0.131.0
 

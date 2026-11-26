@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_attr,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         S_characteristics,
         U_condition,
     )

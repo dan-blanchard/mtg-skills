@@ -30,9 +30,9 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_affected,
         U_amount,
-    )
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
         U_candidate_filter,
+    )
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -167,6 +167,7 @@ class S_definition(TypedMirrorNode):
     multi_target: S_multi_target = MISSING
     optional: bool = MISSING
     optional_targeting: bool = MISSING
+    origin: str = MISSING
     player_scope: U_player_scope = MISSING
     sub_ability: S_sub_ability | None = MISSING
     target_choice_timing: str = MISSING

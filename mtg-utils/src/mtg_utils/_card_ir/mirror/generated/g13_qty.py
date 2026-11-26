@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         U_colors,
     )
     from mtg_utils._card_ir.mirror.generated.g06_costs import (

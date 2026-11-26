@@ -25,10 +25,10 @@ from mtg_utils._card_ir.mirror.runtime import (
 if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_alt_ability_cost,
-    )
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
-        S_cast_cost_modifier,
         U_cap,
+    )
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
+        S_cast_cost_modifier,
         U_card_filter,
         U_colors,
         U_condition,

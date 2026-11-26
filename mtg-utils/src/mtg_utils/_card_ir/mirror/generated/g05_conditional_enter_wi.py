@@ -27,7 +27,7 @@ if TYPE_CHECKING:
         U_amount,
         U_base,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         U_color,
         U_condition,
     )
@@ -101,6 +101,7 @@ class T_conditional_enter_with_counters__Typed(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_conditions__AdditionalCostPaid(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AdditionalCostPaid"
+    origin: str = MISSING
 
 
 @dataclass(frozen=True)

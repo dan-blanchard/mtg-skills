@@ -241,24 +241,26 @@ def test_an_ultimates_sweep_is_out_of_reach():
 
 
 def test_a_parked_discard_after_anothers_revealed_hand_is_theirs():
-    """Shatter Assumptions: "Target opponent reveals their hand and discards
-    all multicolored cards" — each mode is a typed reveal plus a parked,
-    subject-less "discard …"; the seam reads the revealing player as its
-    actor, so it is no discard outlet of yours."""
+    """Persecute: "Target player reveals their hand and discards all cards of
+    that color" — a typed reveal plus a parked, subject-less "discard …"; the
+    seam reads the revealing player as its actor, so it is no discard outlet
+    of yours. (Shatter Assumptions, this test's card until phase v0.133.0,
+    types its discards now, on the revealing player.)"""
     from mtg_utils._card_ir.recovery import OTHER_PLAYER
     from mtg_utils._card_ir.trees import trees_for
     from mtg_utils.testkit import test_card
 
     discards = [
         c
-        for tree in trees_for(test_card("Shatter Assumptions"))
+        for tree in trees_for(test_card("Persecute"))
         for unit in tree.units
         for c in unit.effects
         if c.recovered_by == "discard"
     ]
     assert discards
     assert all(OTHER_PLAYER in c.reading for c in discards)
-    assert "discard_outlet" not in {i[0] for i in _idents("Shatter Assumptions")}
+    for name in ("Persecute", "Shatter Assumptions"):
+        assert "discard_outlet" not in {i[0] for i in _idents(name)}
 
 
 @pytest.mark.parametrize(

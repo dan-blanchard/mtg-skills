@@ -28,7 +28,7 @@ if TYPE_CHECKING:
         U_amount,
         U_announced_x,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (

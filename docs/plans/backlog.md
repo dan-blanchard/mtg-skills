@@ -25,6 +25,48 @@ are already known to it (each draft says where).
   parked-pump and "it" rows of `misparsed_shapes`, `test_parked_card_boost_canary`)
   is named in a draft. `ranking.md` §D lists them for the next drafting pass.
 
+**From the phase v0.133.0 pin bump (2026-11-25)**
+
+- **Phase gaps the bump found** (report upstream, Dan posts; not drafted):
+  - *Silent misparses* (phase types it wrong): Hive Mind's "Each of those
+    players may choose new targets for their copy" is a `TargetOnly` of a
+    `Typed` filter with the subtype `New` (new at v0.133.0). Read past by the
+    CR subtype check (`reads._SUBTYPE_WORDS` over a filter's subtypes), which
+    also drops stray words phase types as subtypes on older cards: `A`
+    (Transgress the Mind, Appetite for Brains, Pelakka Predation), `If` (Syr
+    Joshua and Syr Saxon), `Any` (Quest for Pure Flame), `Instant` (Cast
+    Through Time, Pestilent Spirit, Soulfire Grand Master and three more),
+    `Historic`, `Colorless`, `Multicolored`, `Face-down`, lowercase
+    `artifact`. Five of them hold a real subtype the check can't keep, since
+    phase wrote it inside a longer word: `Each Vehicle` (Depala, Pilot
+    Exemplar), `Each Equipment` (Ekthi, Contaminator Priest), `Each Skeleton`
+    (Skeletal Swarming), `Equipped Warrior` (Kor Blademaster), `Eldrazi Spawn`
+    (Broodwarden: two creature types as one); `non-angel` (Skyline Savior) is a
+    negation typed as a subtype.
+  - *Parked clauses*: Soul Partition's "A spell cast by an opponent this way
+    costs {2} more to cast" parks as `unrecognized_clause_head` (recovered by
+    the `opponent_spell_tax` token, canary
+    `test_parked_opponent_spell_tax_canary`), and its "for as long as that
+    card remains exiled" is an `Unrecognized` duration condition. Issue 36 is
+    fixed for four cards; Persecute, Mind Extraction and nine more still park
+    the discard.
+- **Dan's rulings applied** (2026-11-25): quoted static grants are read in
+  phase's new `GrantStaticAbility` form through `reads.added_static_mode`,
+  and one is an ability grant only where it serves the creature
+  (`reads.grants_an_ability`); what can land only on an opponent's cards
+  names nothing of yours (`reads.opponent_only_nodes`: a hand attack's
+  discarded cards, a static handed to an opponent's creature); Soul
+  Partition keeps a tax read (`stax_taxes|opponents|` only: its surcharge is
+  on opponents' spells alone, so no `symmetric_stax`).
+- **Settled (Dan, 2026-11-25; don't re-suggest):** Whipgrass Entangler's lost
+  `keyword_grant_target|you|ability` stands: "target creature gains 'This
+  creature can't attack or block unless its controller pays {1} for each
+  Cleric on the battlefield'" hands it a drawback, and a granted drawback is
+  no grant (`reads.HANDICAP_MODES`). The `cant_block_grant|you|` gains on
+  Bower Passage, Champion of Lambholt, Heat Wave and Storm, Windrider stay:
+  "… can't block creatures you control" (a `BlockRestriction` over `Not` your
+  creatures) forces blockers off your attackers.
+
 **From the phase v0.131.0 pin bump (2026-11-24)**
 
 - **Phase gaps the bump found** (report upstream, Dan posts; none worked around

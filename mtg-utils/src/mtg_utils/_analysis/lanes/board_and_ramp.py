@@ -96,6 +96,7 @@ from mtg_utils._card_ir.crosswalk import (
     mana_spell_types,
     mod_keyword_name,
     normalised_keyword_name,
+    opponent_only_nodes,
     or_arms,
     ref_count_filter,
     reveal_until_player,
@@ -3407,9 +3408,13 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     # CR 113.12 makes either a stated quality rather than a granted ability
     # — so this is the same team-evasion payoff as a ``CantBeBlockedBy``
     # over the team, read from the blocker's side.
+    theirs_only = opponent_only_nodes(tree)
     for unit in tree.units:
         for sdef in _iter_creatures_matter_static_defs(unit.node):
-            if static_mode_tag(sdef) != "BlockRestriction":
+            # One handed to an opponent's creature ("it … can't block creatures
+            # you control" — Immortal Obligation's returned creature) is no
+            # team payoff of yours.
+            if static_mode_tag(sdef) != "BlockRestriction" or id(sdef) in theirs_only:
                 continue
             blocked = static_mode_field(sdef, "filter")
             if tag_of(blocked) == "Not" and _is_generic_creature_filter(

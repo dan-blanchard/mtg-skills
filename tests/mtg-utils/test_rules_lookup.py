@@ -695,7 +695,7 @@ def test_committed_creature_types_match_the_newest_local_cr():
 
 
 def test_card_subtypes_reads_each_rules_list():
-    """``card_subtypes`` reads the list each of CR 205.3g/h/j/q ends with, dropping
+    """``card_subtypes`` reads the list each of CR 205.3g/h/j/k/q ends with, dropping
     the "(see rule …)" pointers: "The artifact types are …, and Vibranium." / "That
     battle type is Siege." (the CR's own sentence shapes, abbreviated)."""
     from mtg_utils.rules_lookup import card_subtypes
@@ -717,6 +717,11 @@ def test_card_subtypes_reads_each_rules_list():
                 "text": "Battles have a unique subtype, called a battle type. That "
                 "battle type is Siege."
             },
+            "205.3k": {
+                "text": "Instants and sorceries share their lists of subtypes; "
+                "these subtypes are called spell types. The spell types are "
+                "Adventure, Arcane, Lesson, Omen, and Trap."
+            },
         }
     }
     assert card_subtypes(parsed) == {
@@ -724,6 +729,7 @@ def test_card_subtypes_reads_each_rules_list():
         "Enchantment": frozenset({"aura", "background", "shrine"}),
         "Planeswalker": frozenset({"ajani", "jace", "zariel"}),
         "Battle": frozenset({"siege"}),
+        "Spell": frozenset({"adventure", "arcane", "lesson", "omen", "trap"}),
     }
 
 
@@ -744,6 +750,7 @@ def test_committed_card_subtypes_match_the_newest_local_cr():
         "Enchantment": committed.ENCHANTMENT_TYPES,
         "Planeswalker": committed.PLANESWALKER_TYPES,
         "Battle": committed.BATTLE_TYPES,
+        "Spell": committed.SPELL_TYPES,
     }
 
 

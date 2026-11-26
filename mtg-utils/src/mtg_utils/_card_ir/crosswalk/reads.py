@@ -32,6 +32,7 @@ from mtg_utils._card_ir.card_subtypes import (
     BATTLE_TYPES,
     ENCHANTMENT_TYPES,
     PLANESWALKER_TYPES,
+    SPELL_TYPES,
 )
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.mirror.runtime import (
@@ -2715,9 +2716,10 @@ def modify_cost_mode(static_node: TypedMirrorNode) -> str | None:
     list is empty — the cost change rides ``mode``, not a P/T modification). The
     ``cost_reduction`` lane reads the inner ``S_ModifyCost.mode`` STRUCTURALLY to
     gate direction — a ``Raise`` tax (Thalia) is excluded without the live path's raw
-    ``_COST_INCREASE`` screen. ``None`` for any non-``ModifyCost`` static.
+    ``_COST_INCREASE`` screen. ``None`` for any non-``ModifyCost`` static. A
+    granted mode reads through :func:`added_static_mode`.
     """
-    mode = getattr(static_node, "mode", MISSING)
+    mode = getattr(_mode_carrier(static_node), "mode", MISSING)
     if isinstance(mode, MirrorVariant) and mode.key == "ModifyCost":
         inner_mode = getattr(mode.inner, "mode", None)
         return inner_mode if isinstance(inner_mode, str) else None
@@ -3154,6 +3156,39 @@ def node_lure_mode(node: object) -> bool:
 # ── Batch-8 typed accessors (removal / card-flow / library-top cluster) ──────
 
 
+def added_static_mode(mod: object) -> object | None:
+    """The node carrying the static MODE a modification hands the object it
+    lands on, or ``None`` when it hands none: an ``AddStaticMode`` (the mode is
+    its own), or a ``GrantStaticAbility`` whose granted static is about that
+    object (``affected: SelfRef``) — the whole definition, with what it carries
+    beside the mode (its ``active_zones``, ``description``, ``condition``,
+    ``origin``: a resolving spell's or ability's own continuous effect).
+    Phase v0.133.0 writes a quoted static ("gains 'This creature
+    can't block'", "Enchanted land has 'Untap this land during each other
+    player's untap step'") that second way, where it collapsed one with no
+    condition and no modifications to ``AddStaticMode`` before (phase #11286).
+    The one accessor every read of a granted mode goes through, so both forms
+    read alike; :func:`static_mode_tag` and :func:`static_mode_field` look
+    through it. A granted static about other objects ("Equipped creature has
+    'Other creatures you control get +1/+1'") hands this object no mode."""
+    tag = tag_of(mod)
+    if tag == "AddStaticMode":
+        return mod
+    if tag == "GrantStaticAbility":
+        definition = getattr(mod, "definition", None)
+        if tag_of(getattr(definition, "affected", None)) == "SelfRef":
+            return definition
+    return None
+
+
+def _mode_carrier(node: object) -> object:
+    """``node``, or the granted static a ``GrantStaticAbility`` carries
+    (:func:`added_static_mode`), whose ``mode`` is the one read."""
+    if tag_of(node) == "GrantStaticAbility":
+        return added_static_mode(node)
+    return node
+
+
 def static_mode_tag(node: object) -> str | None:
     """The MODE discriminator of a static ability (CR 604.3), across shapes.
 
@@ -3163,9 +3198,11 @@ def static_mode_tag(node: object) -> str | None:
     Citadel, Future Sight; ``{ModifyCost: …}`` — the cost_reduction seam). The
     play_from_top lane reads the variant KEY so the ongoing top-play permission
     is a pure typed read (the live path needed a recovered ``from:library``
-    zone marker).
+    zone marker). A modification's mode is read through
+    :func:`added_static_mode`: an ``AddStaticMode``'s own, or a whole granted
+    static's.
     """
-    mode = getattr(node, "mode", MISSING)
+    mode = getattr(_mode_carrier(node), "mode", MISSING)
     if isinstance(mode, str):
         return mode
     if isinstance(mode, MirrorVariant):
@@ -6632,10 +6669,29 @@ def static_mode_field(node: object, field: str) -> object:
     ``defender`` (``MaxAttackersEachCombat``). ``None`` for a plain-string
     mode or an absent field.
     """
-    mode = getattr(node, "mode", MISSING)
+    mode = getattr(_mode_carrier(node), "mode", MISSING)
     if isinstance(mode, MirrorVariant):
         return _variant_field(mode.inner, field)
     return None
+
+
+def exile_pile_counter_kind(node: object) -> str | None:
+    """The counter kind marking the pile in exile a play-from-exile static lets
+    you play from ("you may play cards you don't own with stash counters on them
+    from exile" — Tinybones, Bauble Burglar: phase v0.133.0's
+    ``ExileCastPermission`` over a ``CounterLinked`` pool), or ``None`` when
+    ``node`` is no such static. The exile zone is the mode's own, so the
+    affected filter names none."""
+    if static_mode_tag(node) != "ExileCastPermission":
+        return None
+    pool = static_mode_field(node, "pool")
+    if not (isinstance(pool, MirrorVariant) and pool.key == "CounterLinked"):
+        return None
+    matcher = pool.inner
+    if isinstance(matcher, MirrorVariant):
+        matcher = matcher.inner
+    kind = getattr(matcher, "data", None)
+    return kind if isinstance(kind, str) else ""
 
 
 def distribute_counter_kind(node: TypedMirrorNode) -> str:
@@ -8262,8 +8318,9 @@ def unit_keyword_grants(
     ``keyword_grant_target`` /
     ``protection_grant`` lane and ``crosswalk.protection`` read this one walk;
     ``mod_tags`` projects it to another grant (:data:`ABILITY_GRANT_MOD_TAGS`:
-    a quoted ability — Feign Death, Retraction Helix). CR 613.1f (layer 6,
-    ability-adding effects)."""
+    a quoted ability — Feign Death, Retraction Helix; a granted static only
+    where :func:`grants_an_ability`). CR 613.1f (layer 6, ability-adding
+    effects)."""
     grants = list(iter_deep_target_grants(unit.node, mod_tags=mod_tags))
     if unit.origin in ("ability", "trigger"):
         grants.extend(
@@ -8272,7 +8329,13 @@ def unit_keyword_grants(
             for mod in getattr(static_def, "modifications", None) or ()
             if tag_of(mod) in mod_tags
         )
-    return grants
+    # A granted static is a grant only where it serves the creature
+    # (:func:`grants_an_ability`), never a restriction or a drawback.
+    return [
+        (target, mod)
+        for target, mod in grants
+        if tag_of(mod) != "GrantStaticAbility" or grants_an_ability(mod)
+    ]
 
 
 def is_spell_card(tree: ConceptTree) -> bool:
@@ -8427,7 +8490,7 @@ def limits_blockers_to_one(tree: ConceptTree) -> bool:
                 return True
         for _sdef, mod in iter_mod_sites(unit.node, deep=True):
             if (
-                tag_of(mod) == "AddStaticMode"
+                added_static_mode(mod) is not None
                 and static_mode_tag(mod) == "CantBeBlockedByMoreThan"
                 and static_mode_field(mod, "max") == 1
             ):
@@ -10719,14 +10782,15 @@ def evasion_keyword_kind(name: str) -> str | None:
 
 def _evasion_mode_kinds(sdef: TypedMirrorNode) -> list[str | None]:
     """The evasion kinds one static def confers: its own blocking-restriction
-    mode, an ``AddStaticMode`` of one, and every evasion keyword it adds."""
+    mode, one it adds (:func:`added_static_mode`), and every evasion keyword it
+    adds."""
     out: list[str | None] = []
     mode = static_mode_tag(sdef)
     if mode in _EVASION_MODE_KINDS:
         out.append(_EVASION_MODE_KINDS[mode])
     for mod in list_field(sdef, "modifications"):
         tag = tag_of(mod)
-        if tag == "AddStaticMode":
+        if added_static_mode(mod) is not None:
             added = static_mode_tag(mod)
             if added in _EVASION_MODE_KINDS:
                 out.append(_EVASION_MODE_KINDS[added])
@@ -10803,7 +10867,7 @@ def evasion_sites(tree: ConceptTree) -> tuple[EvasionSite, ...]:
                         )
                     )
                 continue
-            if tag == "AddStaticMode":
+            if added_static_mode(n) is not None:
                 continue  # read through its owning def
             kinds = _evasion_mode_kinds(n)
             if not kinds:
@@ -12636,8 +12700,8 @@ def _extra_blocker_counts(sdef: object) -> Iterator[int | None]:
     if hit:
         yield n
     for mod in list_field(sdef, "modifications"):
-        if tag_of(mod) == "AddStaticMode":
-            hit, n = _extra_blockers_count(getattr(mod, "mode", MISSING))
+        if (carrier := added_static_mode(mod)) is not None:
+            hit, n = _extra_blockers_count(getattr(carrier, "mode", MISSING))
             if hit:
                 yield n
 
@@ -13036,6 +13100,61 @@ COMBAT_RESTRICTION_MODES: frozenset[str] = frozenset(
     {"CantAttack", "CantBlock", "CantAttackOrBlock"}
 )
 
+#: The static modes that hold back the object they apply to: the attack and
+#: block restrictions (CR 508.1c / 509.1b: a creature "can't attack", "can't
+#: block", can block only some creatures), the requirements (CR 508.1d / 509.1c:
+#: it attacks or blocks if able; goaded, CR 701.15a; it can't attack or block
+#: alone; it attacks the opponent with the most life — Galactus), and the rest
+#: that only take from it (it doesn't untap, can't be tapped, can't be
+#: regenerated, can't phase in, keeps its damage, assigns no combat damage —
+#: Carrion Rats; its activated abilities can't be activated — Arrest; it can't
+#: crew — Revoke Privileges; it can't have a keyword — Archetype of Courage; it
+#: can't be turned face up — Karlov Watchdog). Handed to a creature they are its
+#: drawback.
+HANDICAP_MODES: frozenset[str] = COMBAT_RESTRICTION_MODES | frozenset(
+    {
+        "BlockRestriction",
+        "CombatAlone",
+        "MustAttack",
+        "MustAttackAwayFromSource",
+        "MustAttackDefender",
+        "MustBlock",
+        "AssignNoCombatDamage",
+        "CantBeActivated",
+        "CantCrew",
+        "CantHaveKeyword",
+        "CantBeTurnedFaceUp",
+        "Goaded",
+        "CantUntap",
+        "CantTap",
+        "CantBeRegenerated",
+        "CantPhaseIn",
+        "DamageNotRemovedDuringCleanup",
+    }
+)
+
+
+def grants_an_ability(mod: object) -> bool:
+    """Whether a modification gives the object it lands on an ability that
+    serves it: a granted activated or triggered ability, or a granted static
+    (``GrantStaticAbility``) that phase types as the object's own ability —
+    no ``origin: Resolution``, phase's mark (#11286) of a continuous effect a
+    resolving spell or ability generates (CR 611.2c: "Target creature can't
+    block this turn", Teferi, Time Raveler's "you may cast sorcery spells as
+    though they had flash"), which is that effect, not an ability the object
+    gains, so "loses all abilities" leaves it in place (CR 613.1f) — and that
+    hands it no handicap
+    (:data:`HANDICAP_MODES`: Incite Hysteria's "This creature can't block" is
+    a drawback, Chomping Kavu's backup "can't be blocked by creatures with
+    power 2 or less" a gift, CR 702.165a)."""
+    tag = tag_of(mod)
+    if tag != "GrantStaticAbility":
+        return tag in ABILITY_GRANT_MOD_TAGS
+    definition = getattr(mod, "definition", None)
+    if getattr(definition, "origin", None) == "Resolution":
+        return False
+    return static_mode_tag(definition) not in HANDICAP_MODES
+
 
 #: The fields a node names a zone in.
 _ZONE_FIELDS: tuple[str, ...] = ("zone", "origin", "destination")
@@ -13400,9 +13519,11 @@ def spared_types(tree: ConceptTree) -> SparedTypes:
     return memo_on(tree, "_xw_spared_types", _spared_types)
 
 
-#: Every subtype word a type grant may hand an object (CR 205.3): a misparsed
-#: grant's stray word ("except it's a 4/4 Dragon creature with flying" read as
-#: the subtypes ``With`` and ``Flying`` — Will of the Temur) names none.
+#: Every subtype word of the CR (205.3): a type grant may hand an object only
+#: one, and a filter names only one. A misparse's stray word names none: a
+#: grant's ("except it's a 4/4 Dragon creature with flying" read as the subtypes
+#: ``With`` and ``Flying`` — Will of the Temur) or a filter's (Hive Mind's "may
+#: choose new targets for their copy" read as a ``New`` filter, phase v0.133.0).
 _SUBTYPE_WORDS: frozenset[str] = (
     CREATURE_TYPES
     | ARTIFACT_TYPES
@@ -13410,7 +13531,96 @@ _SUBTYPE_WORDS: frozenset[str] = (
     | PLANESWALKER_TYPES
     | BATTLE_TYPES
     | LAND_SUBTYPE_WORDS
+    | SPELL_TYPES
 )
+
+
+#: The players a ``Discard`` names that are someone other than you: a target
+#: player, an opponent, the player a reveal or trigger named, the defending
+#: player, a target's controller or owner. Your own discard names ``Controller``
+#: or no player; "each player discards" is a ``ScopedPlayer`` under a scope that
+#: holds you.
+_OTHER_DISCARDER_TAGS: frozenset[str] = frozenset(
+    {
+        "Player",
+        "TriggeringPlayer",
+        "DeclaredPlayer",
+        "DefendingPlayer",
+        "ParentTarget",
+        "ParentTargetController",
+        "ParentTargetOwner",
+        "PostReplacementDamageTarget",
+    }
+)
+
+
+def _another_players_discard(node: object) -> bool:
+    """Whether ``node`` is a ``Discard`` another player makes (a hand attack:
+    "Target opponent reveals their hand and discards all colorless nonland
+    cards" — Shatter Assumptions; "Target player … discards all Trap cards" —
+    Trapfinder's Trick)."""
+    if tag_of(node) != "Discard":
+        return False
+    who = getattr(node, "target", None)
+    return tag_of(who) in _OTHER_DISCARDER_TAGS or (
+        tag_of(who) == "Typed" and filter_controller_side(who) == "opponents"
+    )
+
+
+def _discarded_card_nodes(discard: object) -> Iterator[object]:
+    """The nodes of a ``Discard`` that name the cards discarded: its ``filter``,
+    and a count of those cards in the discarder's hand ("discards all colorless
+    nonland cards" counts them there). A count of anything else is the card's
+    own ("discards a card for each Swamp you control" — Mind Sludge; "for each
+    Shrine you control" — Honden of Night's Reach)."""
+    yield from iter_typed_nodes(getattr(discard, "filter", None))
+    count = getattr(discard, "count", None)
+    if any(
+        tag_of(q) == "ZoneCardCount" and getattr(q, "zone", None) == "Hand"
+        for q in iter_typed_nodes(count)
+    ):
+        yield from iter_typed_nodes(count)
+
+
+def _lands_on_opponents(target: object, mover: object) -> bool:
+    """Whether a chosen object is an opponent's: a filter of their objects, or
+    a card of theirs the ``mover`` puts onto the battlefield under its owner's
+    control ("Return target creature card from an opponent's graveyard to the
+    battlefield under their control" — Immortal Obligation)."""
+    if filter_controller_side(target) == "opponents":
+        return True
+    return getattr(mover, "enters_under", None) == "ParentTargetOwner" and (
+        "Opponent" in filter_owners(target)
+    )
+
+
+def _opponent_only_nodes(tree: ConceptTree) -> frozenset[int]:
+    ids: set[int] = set()
+    for unit in tree.units:
+        for n in unit.iter_typed():
+            if _another_players_discard(n):
+                ids.update(id(m) for m in _discarded_card_nodes(n))
+        if unit.origin not in ("ability", "trigger"):
+            continue
+        movers = {
+            id(target): n
+            for n in unit.iter_typed()
+            if isinstance(target := getattr(n, "target", None), TypedMirrorNode)
+        }
+        for target, sdef in _chosen_target_statics(unit.node):
+            if _lands_on_opponents(target, movers.get(id(target))):
+                ids.update(id(m) for m in iter_typed_nodes(sdef))
+    return frozenset(ids)
+
+
+def opponent_only_nodes(tree: ConceptTree) -> frozenset[int]:
+    """The ids of the nodes a card holds that can land only on another
+    player's cards, so name nothing of yours: what a hand attack makes another
+    player discard (the cards in their hand — a colour or type named only
+    there is no plan of your deck's), and a static handed to an opponent's
+    object (:func:`_lands_on_opponents`). The one read the "is it yours?"
+    lanes ask of a filter that names no controller."""
+    return memo_on(tree, "_xw_opponent_only_nodes", _opponent_only_nodes)
 
 
 class SubtypeRefs(NamedTuple):
@@ -13438,7 +13648,10 @@ def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
     creature" — Mudbutton Clanger, Path of Ancestry's commander: a payoff for
     any tribe). ``yours`` leaves out a filter of an opponent's objects
     ("creatures your opponents control"), which names their tribe, not yours,
-    and a type the card grants, the tribe's enabler rather than its payoff.
+    and a type the card grants, the tribe's enabler rather than its payoff,
+    and one that can land only on another player's cards
+    (:func:`opponent_only_nodes`: "discards all Trap cards" — Trapfinder's
+    Trick).
     A token the card makes names its types on the token, not a filter
     (``token_maker``'s subject)."""
     # A keyword's own type parameter names its subtype too ("Goblin offering" —
@@ -13446,7 +13659,16 @@ def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
     # kicker cost ("sacrifice a Goblin" — Goblin Grenade), which sits beside the
     # units.
     keyword_types = {w for _kw, words in tree.card_keyword_types for w in words}
-    keyword_subs = {w for w in keyword_types if w not in _CORE_TYPE_WORDS}
+    # A word that is no CR subtype names none (:data:`_SUBTYPE_WORDS`, the
+    # check a filter's subtypes take): Icebreaker Kraken's "Snow land",
+    # Banish to Another Universe's "Historic permanent", Hellspur Brute's
+    # "affinity for outlaws" (outlaws are a term, CR 700.12, served by
+    # ``outlaw_matters``).
+    keyword_subs = {
+        w
+        for w in keyword_types
+        if w not in _CORE_TYPE_WORDS and w.lower() in _SUBTYPE_WORDS
+    }
     spared = spared_types(tree).subtypes
     # Named on every side alike; ``theirs`` only by an opponent's filter.
     named: set[str] = keyword_subs | spared
@@ -13454,6 +13676,7 @@ def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
     # A type the card hands an object names it too, on the main page only: a
     # grant is the tribe's enabler, not a payoff for a board of it.
     granted: set[str] = set()
+    theirs_only = opponent_only_nodes(tree)
     cost_nodes = [
         m for unit in tree.units for c in unit.costs for m in iter_typed_nodes(c.node)
     ]
@@ -13478,8 +13701,10 @@ def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
                 for w in mana_spell_type_restriction(n).split()
                 if w.lower() in CREATURE_TYPES
             )
-        elif tag == "Typed" and (subs := filter_subtypes(n)):
-            if filter_controller_side(n) == "opponents":
+        elif tag == "Typed" and (
+            subs := [s for s in filter_subtypes(n) if s.lower() in _SUBTYPE_WORDS]
+        ):
+            if filter_controller_side(n) == "opponents" or id(n) in theirs_only:
                 theirs.update(subs)
             else:
                 named.update(subs)
@@ -13855,8 +14080,8 @@ def lets_defenders_attack(unit: AbilityUnit) -> bool:
     ):
         return True
     return any(
-        tag_of(mod) == "AddStaticMode"
-        and getattr(mod, "mode", None) == "CanAttackWithDefender"
+        added_static_mode(mod) is not None
+        and static_mode_tag(mod) == "CanAttackWithDefender"
         and others(sdef)
         for sdef, mod in iter_mod_sites(unit.node, deep=True)
     )

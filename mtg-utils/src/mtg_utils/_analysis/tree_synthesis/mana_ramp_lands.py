@@ -22,6 +22,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    added_static_mode,
     change_zone_dirs,
     effect_back_reference,
     effect_filter,
@@ -288,7 +289,7 @@ def _granted_untap_surfaces(
                 ) or any(tag_of(leaf) == "Untap" for leaf in iter_cost_leaves(cost)):
                     yield unit, scope, False
             elif (
-                mtag == "AddStaticMode"
+                added_static_mode(mod) is not None
                 and static_mode_tag(mod) == "UntapsDuringEachOtherPlayersUntapStep"
             ):
                 yield unit, scope, False

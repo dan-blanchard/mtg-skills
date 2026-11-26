@@ -1156,8 +1156,26 @@ _PACIFY_SIBLING_MODES: frozenset[str] = frozenset({"CantAttack", "CantAttackOrBl
 _CANT_BLOCK_THEMEABLE: frozenset[str] = frozenset({"Typed", "ParentTarget"})
 
 
+def _cant_block_yours(sdef: object) -> bool:
+    """Whether a static is a ``BlockRestriction`` that bars its creature from
+    blocking creatures you control ("it … can't block creatures you control"
+    — Immortal Obligation, typed so by phase v0.133.0): its ``filter`` is
+    ``Not`` over your creatures, so against you it can't block at all (CR
+    509.1b)."""
+    if static_mode_tag(sdef) != "BlockRestriction":
+        return False
+    blocked = static_mode_field(sdef, "filter")
+    inner = getattr(blocked, "filter", None)
+    return (
+        tag_of(blocked) == "Not"
+        and filter_controller(inner) == "You"
+        and "Creature" in filter_core_types(inner)
+    )
+
+
 def has_structural_cant_block_grant(tree: ConceptTree) -> bool:
-    """A ``CantBlock``-mode static def with a themeable affected shape,
+    """A ``CantBlock``-mode static def (or one barred from blocking your
+    creatures, :func:`_cant_block_yours`) with a themeable affected shape,
     minus the Pacifism single-target-removal sibling shape — the lane's
     ONLY pure-typed-field read; the two marker passes always require a
     text scan, so they are NOT included here (:func:`_arm_cant_block_grant`
@@ -1171,7 +1189,7 @@ def has_structural_cant_block_grant(tree: ConceptTree) -> bool:
     ]
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
-            if static_mode_tag(sdef) != "CantBlock":
+            if not (static_mode_tag(sdef) == "CantBlock" or _cant_block_yours(sdef)):
                 continue
             aff = getattr(sdef, "affected", None)
             if tag_of(aff) not in _CANT_BLOCK_THEMEABLE:

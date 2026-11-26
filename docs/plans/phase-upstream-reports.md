@@ -262,7 +262,7 @@ Generated from `mtg-utils/src/mtg_utils/_analysis/bridge_ledger.py` at v0.118.0.
 
 - `protective_grant_parse_failure` (Darksteel Garrison; Guardian Beast; Outmuscle; Umbra Mystic; Sheltering Prayers; Guardian Archon; Jade Orb of Dragonkind; Maze's Mantle): each pin's protective grant to another permanent parks as an Unimplemented residue or a hollow static def (Darksteel Garrison's 'Fortified land has indestructible', Umbra Mystic's 'Auras attached to permanents you control have umbra armor', Guardian Beast's 'they have indestructible') — retires per card as phase parses each into an AddKeyword
 - `prevention_shield_parse_failure` (Forcefield; Hyperion, Supreme Hero; Silhouette; Ajani Steadfast): a prevention shield around you or your creatures parks as an Unimplemented residue (Light of Sanction's and Hyperion's 'Replacement pattern matched but line failed replacement parser', Forcefield's 'prevent all but 1') — retires per card as phase emits a PreventDamage / prevention replacement
-- `attack_you_parse_failure` (Teferi's Moat; Sivitri, Dragon Master; Chronomantic Escape; Mirri, Weatherlight Duelist; Varchild, Betrayer of Kjeldor; Immortal Obligation; Illusionist's Gambit): 'can't attack you' / 'no more than one creature can attack you' parks as a residue or a hollow static def (Teferi's Moat, Sivitri, Web of Inertia, Mirri) — retires per card as phase emits a CantAttack with the defended player, or MaxAttackersEachCombat
+- `attack_you_parse_failure` (Teferi's Moat; Sivitri, Dragon Master; Chronomantic Escape; Mirri, Weatherlight Duelist; Varchild, Betrayer of Kjeldor; Illusionist's Gambit; Immortal Obligation's pin retired at v0.133.0): 'can't attack you' / 'no more than one creature can attack you' parks as a residue or a hollow static def (Teferi's Moat, Sivitri, Web of Inertia, Mirri) — retires per card as phase emits a CantAttack with the defended player, or MaxAttackersEachCombat
 - `granted_unattach_prevention_parse_failure` (Blinding Powder): a granted 'Unattach ~: Prevent all combat damage that would be dealt to ~' parks as Unimplemented inside the GrantAbility — retires on the phase bump that parses an unattach cost and its PreventDamage
 - `spell_or_ability_redirect_parse_failure` (Emissary of Grudges): 'Choose new targets for target spell or ability if …' parks as an Unimplemented residue — retires on the phase bump that emits a ChangeTargets with its conditions
 - `sokrates_granted_prevention_misparse` (Sokrates, Athenian Teacher): a granted 'If this creature would deal combat damage to a player, prevent that damage' parses as an AddTargetReplacement with event CreateToken and a Half quantity modification — retires on the phase bump that emits a granted DamageDone prevention replacement
@@ -450,7 +450,19 @@ The current parse no longer shows the problem; no report is drafted. File and ro
 
 Items the backlog already marks as fixed at v0.118.0 (Osseous Sticktwister, Spitting Slug, Davriel Soul Broker, Scion of Stygia, Code of Constraint, Jace Architect of Thought, Yosei, Doom Foretold's Knight, Spry and Mighty, Underbridge Warlock's boon, Aberrant Return, Vigor Mortis, the counter-kind swallowing set Dralnu's Pet / Printlifter Ooze / March Toward Perfection, Heir of the Ancient Fang's modified condition, Flare of Fortitude, Violent Echoes' empower Jace) were not re-examined here.
 
-Nothing else failed: all 166 `retirement_canary` cases and all 931 bridge-ledger pin cases passed on the v0.118.0 tree, so no canary or ledger row was retire-ready. (On 2026-11-25 there are 100 `retirement_canary` test functions, 253 cases.)
+Nothing else failed: all 166 `retirement_canary` cases and all 931 bridge-ledger pin cases passed on the v0.118.0 tree, so no canary or ledger row was retire-ready. (On 2026-11-25, after the v0.133.0 bump, there are 101 `retirement_canary` test functions, 254 cases.)
+
+## Fixed at v0.133.0 (pin bump of 2026-11-25)
+
+Two releases (v0.132.0, v0.133.0). The bump checked its own report, every drafted card whose record changed (239 records changed), and the tests; the numbered sections were not re-read.
+
+| Card | What phase v0.133.0 emits | What was retired |
+|---|---|---|
+| Immortal Obligation | the duty-counter clause typed (phase #11303): goad, a `CantAttack` grant on the returned creature, a `BlockRestriction` | its `attack_you_parse_failure` ledger pin |
+| Amnesia, Shatter Assumptions, Trapfinder's Trick, Tsabo's Decree (issue 36) | a `Discard` by the revealing player over the named cards | nothing (trimmed from issue 36; `recovery._after_anothers_revealed_hand` still serves the rest) |
+| Starfall Invocation (issue 35) | the gift-gated return of a creature card destroyed this way, typed | nothing (trimmed from issue 35) |
+
+Changed shape, no phase gap: a quoted static granted whole is a `GrantStaticAbility` of its full definition (phase #11286), read in that form (`crosswalk.added_static_mode`, Dan's ruling 2026-11-25). New gaps the bump found: `docs/plans/backlog.md`, "From the phase v0.133.0 pin bump" (not drafted).
 
 ## Fixed at v0.131.0 — workaround retired (pin bump of 2026-11-24)
 

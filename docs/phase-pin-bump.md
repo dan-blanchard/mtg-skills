@@ -22,6 +22,11 @@ uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtes
   by (oracle id, exact text) so it retires itself. A **DEAD** row line means the
   upstream join was fixed *or flipped*: the Fast // Furious mis-join has changed
   direction between pins, so look for the flipped record before deleting the row.
+  A meld result phase copies under one of its halves' oracle ids is not flagged:
+  every consumer drops the copy (`build.is_meld_result_copy`). Until v0.133.0 a
+  resumed run (every bump whose schema changes resumes at step 7) reported "none
+  flagged" and a 0 → 0 roster, since the census and rosters were never carried
+  over; they are kept in the report dir now (`early-<tag>.json`) and read back.
 - **Face records with no tree.** Step 7 strict-loads every phase face record after
   the record-level corrections (`trees.drifted_faces`: `branches`, `dropped_keywords`,
   `shape_compat`, `misparsed_shapes`). Phase's own records always load, since the
@@ -32,11 +37,17 @@ uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtes
   Step 1 records the old pin's coverage (`trees-<old>.json` in the report dir) before
   it rewrites the pin, and step 7 **fails** on a card with fewer trees than it had
   then, or one new at this pin that is short. Cards that were as short at the old
-  pin are listed without failing. With no baseline (no old card-data at step 1),
-  every short card fails. The report is still written. Fix the correction and resume with
+  pin are listed without failing. After a correction-layer edit, the quickest
+  check is `build-card-ir-crosswalk`'s "N drift-skipped": the compat Card applies
+  the same corrections, so a non-zero count is a face this step would fail on
+  (v0.133.0: a trial write-back put an `AddStaticMode` in a token copy's
+  `additional_modifications`, which the mirror has no class for). With no
+  baseline (no old card-data at step 1), every short card fails. The report is still written. Fix the correction and resume with
   `--from-step 7`; `--from-step 8` goes on without the check, and the final report still
   carries what step 7 last found (kept as `trees-<new>.json`). Healthy is an empty
-  list: at v0.131.0 all 36,391 face records load.
+  list: at v0.131.0 and v0.133.0 all 36,391 face records load (the records
+  `build.group_by_oracle_id` keeps: v0.133.0's card-data holds 36,406, less 14
+  meld-result copies and one known impostor).
 - **Signal diff.** The "old" side is the signals index already on disk, so it is only
   a clean baseline if it was built at the commit you are bumping from. Signal-changing
   commits since its last build show up as phase changes (v0.104.0: 1,152
@@ -256,3 +267,32 @@ Each has a comment at the read that learned it.
   the chosen cards" → `GrantCastingPermission` (was `CastFromZone`); a counted
   pump → `AddDynamicPower` under a `GenericEffect` where phase wrote a fixed
   `AddPower` (a `pump` concept like the fixed form; `reads.pt_mod_signs` reads its sign).
+
+- **v0.133.0:** two releases. A quoted static ability granted whole ("gains
+  'This creature can't block'", "Enchanted land has 'Untap this land …'",
+  "perpetually gains 'This spell costs {1} less to cast'") is a
+  `GrantStaticAbility` of its full definition where phase collapsed one about
+  the object itself, with no condition and no modifications, to `AddStaticMode`
+  (phase #11286, so that "loses all abilities" can tell a granted ability from
+  the continuous effect of a resolving spell or ability, CR 611.2c, which
+  carries `origin: Resolution`); 22
+  cards. Read in the new form (Dan, 2026-11-25), never written back: every read
+  of a granted mode goes through `reads.added_static_mode` (an `AddStaticMode`,
+  or a `GrantStaticAbility` about the object itself), and `static_mode_tag` /
+  `static_mode_field` / `modify_cost_mode` look through it. A granted static is
+  an ability grant only where it serves the creature
+  (`reads.grants_an_ability`: no `origin: Resolution`, the mark of a resolving
+  spell's own effect rather than an ability the object gains; no
+  `reads.HANDICAP_MODES` drawback). Learned by the reads: a play-from-exile
+  static over a pile of cards with a named counter is an `ExileCastPermission`
+  with a `CounterLinked` pool (`reads.exile_pile_counter_kind`; Tinybones,
+  Bauble Burglar, parked before); "can't block creatures you control" is a
+  `BlockRestriction` over `Not` your creatures (the cant-block grant reads it).
+  Also new: a keep-N wrath's "up to" keeper is a `ChooseAndSacrificeRest`
+  (Covetous Elegy, Archfiend of Depravity), a conditional "add … instead" is a
+  `ConditionInstead` condition on the swapped mana (Urza's Mine, Ugin's
+  Labyrinth), and "put that many counters on each creature" is a
+  `PutCounterAll` (Nykthos Paragon). A typed subtype is checked against the CR's
+  own lists (`reads._SUBTYPE_WORDS`, regenerated with `rules-lookup
+  --creature-types` / `--card-subtypes`, spell types included): phase types
+  stray words as subtypes (Hive Mind's `New`, Transgress the Mind's `A`).

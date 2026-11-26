@@ -165,6 +165,10 @@ ALLOWLIST: dict[str, TokenRule] = {
     # recovered node with no special-casing (ADR-0038: the synth_* marker
     # namespace retires; a recovered node earns its real concept name).
     "stax_cast_lock": TokenRule(concept="stax_taxes", category="restriction"),
+    # opponent spell-tax idiom (CR 601.2f): "A spell cast by an opponent this
+    # way costs {2} more to cast" (Soul Partition, parked by phase v0.133.0)
+    # -- the same real "stax_taxes" concept the cast lock above decorates.
+    "opponent_spell_tax": TokenRule(concept="stax_taxes", category="restriction"),
     # fight ACTION idiom (CR 701.12): "~ fights up to one target creature"
     # (Gimli, Mournful Avenger's third-resolution rider) / a Saga modal
     # bullet ("Fight! — ~ fights up to one target creature an opponent

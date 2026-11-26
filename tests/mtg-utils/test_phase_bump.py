@@ -222,6 +222,19 @@ def test_impostor_census_marks_an_already_recorded_impostor():
     assert "already in `_IMPOSTOR_RECORDS` — no decision needed" in text
 
 
+def test_impostor_census_skips_a_meld_results_copy_under_a_half():
+    """Phase copies a meld result under each half's oracle id (``face_index: 1``);
+    every consumer drops the copy (``build.is_meld_result_copy``), so it is no
+    impostor to decide on."""
+    bulk = [{"oracle_id": "oid-half", "name": "Test Half", "oracle_text": "Draw."}]
+    card_data = [
+        _rec("Test Melded", "oid-half", "Flying.", layout="meld", face_index=1),
+        _rec("Test Half", "oid-half", "Haste."),  # a real mismatch: still flagged
+    ]
+    rows = impostor_census(card_data, bulk)
+    assert [r.record_name for r in rows] == ["Test Half"]
+
+
 def test_dead_impostor_rows_reads_the_raw_records():
     card_data = {
         "a": _rec("Test Blade", "oid-legal", "Haste."),
@@ -325,6 +338,7 @@ def test_render_report_asks_for_a_verdict_on_every_unexplained_loss():
             new_tag="v0.2.0",
             variants_before=1,
             variants_after=1,
+            census=(),
             diff=(
                 KeyDiff(
                     "ramp",
@@ -783,6 +797,75 @@ def test_a_run_resumed_past_the_step_still_reports_what_it_found(tmp_path):
     fresh = dataclasses.replace(ctx, report_dir=tmp_path / "other-report")
     phase_bump._recall_tree_coverage(fresh)
     assert fresh.report.tree_losses is None
+
+
+def test_a_resumed_run_reports_the_rosters_and_census_an_earlier_run_found(
+    tmp_path,
+):
+    """A schema change forces every bump to resume past the roster and census
+    steps (the generated-mirror guard), so their findings are kept in the report
+    dir and read back; a run that never took them says so instead of reporting
+    an empty census and a 0 → 0 roster (v0.131.0, v0.133.0)."""
+    ctx = _tree_ctx(tmp_path, {})
+    row = phase_bump.ImpostorRow(
+        "oid-legal", "Test Blade", "Haste.", ("Test Blade",), ("Test Sheath",)
+    )
+    ctx.report.variants_before, ctx.report.variants_after = 240, 241
+    ctx.report.zero_instance = ("Cascade",)
+    ctx.report.census = (row,)
+    ctx.report.dead_impostors = (("oid-play", "Draw two."),)
+    phase_bump._save_early_findings(ctx)
+
+    resumed = dataclasses.replace(ctx)  # a new process: a fresh report
+    assert resumed.report.census is None
+    phase_bump._recall_early_findings(resumed, phase_bump._step_number("rebuild"))
+    assert resumed.report.census == (row,)
+    text = phase_bump._write_report(resumed).read_text()
+    assert "- EFFECT_VARIANTS: 240 → 241" in text
+    assert "LIKELY IMPOSTOR — the text of Test Sheath" in text
+    assert "DEAD `_IMPOSTOR_RECORDS` row: `oid-play`" in text
+    assert (
+        "variants, substrate, impostor-census: as an earlier run of this bump "
+        "found them"
+    ) in text
+
+    fresh = dataclasses.replace(ctx, report_dir=tmp_path / "other-report")
+    phase_bump._recall_early_findings(fresh, phase_bump._step_number("rebuild"))
+    text = phase_bump._write_report(fresh).read_text()
+    assert text.count("not run in this pass") == 2
+
+
+def test_run_keeps_the_early_findings_and_a_resume_reads_them_back(
+    tmp_path, monkeypatch
+):
+    """``run`` saves what the census step found after it runs, and a later run
+    resumed past it reads that back into its report (the wiring, end to end);
+    a resume that takes the census again names no recalled step."""
+    row = phase_bump.ImpostorRow("oid-x", "Test Blade", "Haste.", ("Test Blade",))
+
+    def fake_census(ctx):
+        ctx.report.census = (row,)
+
+    steps = tuple(
+        (name, fake_census if name == "impostor-census" else (lambda _ctx: None))
+        for name, _fn in phase_bump.STEPS
+    )
+    monkeypatch.setattr(phase_bump, "STEPS", steps)
+    ctx = _tree_ctx(tmp_path, {})
+    run(ctx, from_step=phase_bump._step_number("impostor-census"), echo=lambda _s: None)
+    first = (ctx.report_dir / "report.md").read_text()
+    assert "as an earlier run" not in first
+
+    resumed = dataclasses.replace(ctx)
+    run(
+        resumed,
+        from_step=phase_bump._step_number("tree-coverage"),
+        echo=lambda _s: None,
+    )
+    text = (ctx.report_dir / "report.md").read_text()
+    assert "[errata drift]" in text  # no text owner
+    assert "`oid-x` record 'Test Blade'" in text
+    assert "impostor-census: as an earlier run of this bump found them" in text
 
 
 def test_the_signal_diff_reads_the_record_ids_an_earlier_parse_noted(

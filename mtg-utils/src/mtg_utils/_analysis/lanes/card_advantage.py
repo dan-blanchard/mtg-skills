@@ -54,6 +54,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_owner_player_scope,
     effects_by_actor,
     event_source_side,
+    exile_pile_counter_kind,
     exiled_library_side,
     explicit_recipient_scope,
     feeds_own_static,
@@ -3245,6 +3246,15 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
             kind = getattr(kind_node, "data", None)
             if kind == "time":
                 continue  # the Suspend-mechanic reuse — never guess
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # The same pile behind a play-from-exile static (phase v0.133.0 types
+    # Tinybones, Bauble Burglar's "play cards you don't own with stash counters
+    # on them from exile", which it parked before): the zone is the mode's own.
+    for unit in tree.units:
+        if unit.origin == "static" and exile_pile_counter_kind(unit.node) not in (
+            None,
+            "time",
+        ):
             return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0038 W3 batch 6 — the RemoveCounter-from-an-exiled-card arm: Mari,
     # the Killing Quill's granted ability ("remove a hit counter from a card

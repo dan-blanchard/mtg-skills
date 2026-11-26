@@ -14821,6 +14821,16 @@
        "activation_restrictions": [
         {
          "type": "AsSorcery"
+        },
+        {
+         "data": {
+          "counters": {
+           "data": "charge",
+           "type": "OfType"
+          },
+          "minimum": 12
+         },
+         "type": "CounterThreshold"
         }
        ],
        "condition": null,
@@ -14928,7 +14938,6 @@
       "type": "NoCost"
      },
      "metadata": {
-      "confirmed_misparse": "condition_wrong",
       "related_token_ids": [
        "3ae3c4af-2b85-5943-bab1-760e1b7da047"
       ],
@@ -32350,7 +32359,8 @@
        "phase": null,
        "secondary": false,
        "trigger_zones": [
-        "Graveyard"
+        "Graveyard",
+        "Exile"
        ],
        "valid_card": {
         "type": "SelfRef"
@@ -43238,7 +43248,8 @@
              "description": null,
              "effect_zone": null,
              "mode": "CastWithFlash",
-             "modifications": []
+             "modifications": [],
+             "origin": "Resolution"
             },
             "type": "GrantStaticAbility"
            }
@@ -45554,7 +45565,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_player",
       "source_printing_ids": [
        "4f4187f1-05bd-4db6-a2e7-d677eff588ee",
        "6f995764-3fd8-40f6-8102-fb9e4679b04f",
@@ -55991,9 +56001,42 @@
         "description": null,
         "duration": null,
         "effect": {
-         "description": "discard all nonland cards",
-         "name": "unparsed_verb_arguments",
-         "type": "Unimplemented"
+         "count": {
+          "qty": {
+           "card_types": [],
+           "filter": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Card",
+             {
+              "Non": "Land"
+             }
+            ]
+           },
+           "scope": "ScopedPlayer",
+           "type": "ZoneCardCount",
+           "zone": "Hand"
+          },
+          "type": "Ref"
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Card",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "target": {
+          "group": 2147483648,
+          "type": "DeclaredPlayer"
+         },
+         "type": "Discard"
         },
         "forward_result": false,
         "kind": "Spell",
@@ -56037,7 +56080,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "missing_effect",
       "source_printing_ids": [
        "23d6dbd3-652f-4dc3-9453-24299332938d",
        "e07df65c-ebcc-4873-b928-d99040d1f2f6"
@@ -82295,7 +82337,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_object",
       "source_printing_ids": [
        "06bd7be3-20cb-4982-94d4-1f879f91654c",
        "0ec85db7-c8ec-4730-b692-c140977436aa",
@@ -82351,47 +82392,47 @@
        "execute": {
         "condition": null,
         "cost": null,
-        "declares_chosen_group": 0,
         "description": null,
         "duration": null,
         "effect": {
-         "target": {
-          "controller": "ScopedPlayer",
+         "categories": [],
+         "choose_filter": {
+          "controller": null,
           "properties": [],
           "type": "Typed",
           "type_filters": [
            "Creature"
           ]
          },
-         "type": "TargetOnly"
+         "chooser_scope": "EachPlayerSelf",
+         "keeper_constraint": {
+          "count": {
+           "max": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "type": "UpTo"
+          },
+          "type": "count"
+         },
+         "sacrifice_filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChooseAndSacrificeRest"
         },
         "forward_result": false,
         "kind": "Spell",
         "optional": false,
         "optional_targeting": false,
-        "sub_ability": {
-         "condition": null,
-         "cost": null,
-         "description": null,
-         "duration": null,
-         "effect": {
-          "count": {
-           "type": "Fixed",
-           "value": 1
-          },
-          "target": {
-           "id": 0,
-           "type": "TrackedSet"
-          },
-          "type": "Sacrifice"
-         },
-         "forward_result": false,
-         "kind": "Spell",
-         "optional": false,
-         "optional_targeting": false,
-         "sub_ability": null,
-         "target_prompt": null
+        "player_scope": {
+         "type": "TriggeringPlayer"
         },
+        "sub_ability": null,
         "target_prompt": null
        },
        "mode": "Phase",
@@ -136771,7 +136812,8 @@
        "phase": null,
        "secondary": false,
        "trigger_zones": [
-        "Graveyard"
+        "Graveyard",
+        "Exile"
        ],
        "valid_card": {
         "type": "SelfRef"
@@ -153039,7 +153081,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_player",
       "source_printing_ids": [
        "38d39cac-e6df-4b3a-826b-b040d80a5fde",
        "4cf6c13b-d898-4066-b006-9a7fa896d55a",
@@ -188753,7 +188794,8 @@
              "description": null,
              "effect_zone": null,
              "mode": "CastWithFlash",
-             "modifications": []
+             "modifications": [],
+             "origin": "Resolution"
             },
             "type": "GrantStaticAbility"
            }
@@ -220165,7 +220207,7 @@
          "duration": null,
          "effect": {
           "description": "discard all cards with that name",
-          "name": "unparsed_verb_arguments",
+          "name": "discard_chosen_name_characteristic",
           "type": "Unimplemented"
          },
          "forward_result": false,
@@ -228875,7 +228917,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_object",
       "source_printing_ids": [
        "115f4e85-9e33-4999-bcae-27f32fade773",
        "4fcc34db-60be-4017-adfa-6bdfacec793f"
@@ -250227,26 +250268,6 @@
          "type": "Fixed",
          "value": 1
         },
-        "static_abilities": [
-         {
-          "active_zones": [],
-          "affected": {
-           "type": "SelfRef"
-          },
-          "affected_zone": null,
-          "characteristic_defining": false,
-          "condition": null,
-          "description": "gain haste",
-          "effect_zone": null,
-          "mode": "Continuous",
-          "modifications": [
-           {
-            "keyword": "Haste",
-            "type": "AddKeyword"
-           }
-          ]
-         }
-        ],
         "tapped": false,
         "toughness": {
          "type": "Fixed",
@@ -250268,40 +250289,79 @@
         "description": null,
         "duration": null,
         "effect": {
-         "condition": {
-          "phase": "End",
-          "type": "AtNextPhase"
-         },
-         "effect": {
-          "condition": null,
-          "cost": null,
-          "description": null,
-          "duration": null,
-          "effect": {
-           "count": {
-            "type": "Fixed",
-            "value": 1
-           },
-           "target": {
+         "duration": "Permanent",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
             "type": "LastCreated"
            },
-           "type": "Sacrifice"
-          },
-          "forward_result": false,
-          "kind": "Activated",
-          "optional": false,
-          "optional_targeting": false,
-          "sub_ability": null,
-          "target_prompt": null
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain haste",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "Haste",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "type": "LastCreated"
          },
-         "type": "CreateDelayedTrigger",
-         "uses_tracked_set": false
+         "type": "GenericEffect"
         },
         "forward_result": false,
         "kind": "Spell",
         "optional": false,
         "optional_targeting": false,
-        "sub_ability": null,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "condition": {
+           "phase": "End",
+           "type": "AtNextPhase"
+          },
+          "effect": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "type": "LastCreated"
+            },
+            "type": "Sacrifice"
+           },
+           "forward_result": false,
+           "kind": "Activated",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "type": "CreateDelayedTrigger",
+          "uses_tracked_set": false
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
         "sub_link": "SequentialSibling",
         "target_prompt": null
        },
@@ -261753,6 +261813,319 @@
     "oracle_id": "057fa60b-10b0-4612-be0d-157076c82241",
     "oracle_text": "Islands don't untap during their controllers' untap steps.",
     "type_line": "Enchantment"
+   }
+  },
+  "Chomping Kavu": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Kavu"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Backup": 1
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "31c249d9-37c0-451d-866b-e834c4c57214"
+      ]
+     },
+     "name": "Chomping Kavu",
+     "non_ability_text": null,
+     "oracle_text": "Backup 1 (When this creature enters, put a +1/+1 counter on target creature. If that's another creature, it gains the following ability until end of turn.)\nThis creature can't be blocked by creatures with power 2 or less.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "MOM"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-04-14",
+       "text": "Backup confers only abilities that are actually printed below it. Any abilities that are gained by the permanent are ignored, including abilities gained due to a resolving spell or ability or copy effects."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a backup ability causes another creature to gain abilities, the creature with backup will still have those abilities."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a backup ability targets the creature with backup, that creature will get +1/+1 counters, but it won’t gain additional abilities."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a permanent enters the battlefield as a copy of a card with a backup ability or a token is created that is a copy of that card, the order of the printed abilities is maintained."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Once Chomping Kavu has been legally blocked by a creature, changing that creature’s power to 2 or less won’t undo that block."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "The abilities that backup grants to the target creature are determined only once, at the time the ability triggers. They won’t change if the permanent with backup loses any abilities before the backup ability resolves."
+      }
+     ],
+     "scryfall_oracle_id": "20a362c3-d278-437f-881c-e7d9fe78fc2d",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "~ can't be blocked by creatures with power 2 or less.",
+       "effect_zone": null,
+       "mode": {
+        "CantBeBlockedBy": {
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "comparator": "LE",
+            "scope": "Current",
+            "stat": "Power",
+            "type": "PtComparison",
+            "value": {
+             "type": "Fixed",
+             "value": 2
+            }
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         }
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.165: Backup 1 — when this creature enters, put 1 +1/+1 counter on target creature. If that's another creature, it gains this creature's non-backup abilities printed below backup until end of turn.",
+       "destination": "Battlefield",
+       "execute": {
+        "ability_tag": {
+         "type": "Backup"
+        },
+        "condition": null,
+        "cost": null,
+        "description": "Put 1 +1/+1 counter on target creature",
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "condition": {
+           "filter": {
+            "type": "SelfRef"
+           },
+           "type": "TargetMatchesFilter",
+           "use_lki": false
+          },
+          "type": "Not"
+         },
+         "cost": null,
+         "description": "If that's another creature, it gains this creature's non-backup abilities printed below backup until end of turn.",
+         "duration": null,
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "type": "ParentTarget"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": null,
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "definition": {
+               "active_zones": [],
+               "affected": {
+                "type": "SelfRef"
+               },
+               "affected_zone": null,
+               "characteristic_defining": false,
+               "condition": null,
+               "description": "~ can't be blocked by creatures with power 2 or less.",
+               "effect_zone": null,
+               "mode": {
+                "CantBeBlockedBy": {
+                 "filter": {
+                  "controller": null,
+                  "properties": [
+                   {
+                    "comparator": "LE",
+                    "scope": "Current",
+                    "stat": "Power",
+                    "type": "PtComparison",
+                    "value": {
+                     "type": "Fixed",
+                     "value": 2
+                    }
+                   }
+                  ],
+                  "type": "Typed",
+                  "type_filters": [
+                   "Creature"
+                  ]
+                 }
+                }
+               },
+               "modifications": []
+              },
+              "type": "GrantStaticAbility"
+             }
+            ]
+           }
+          ],
+          "target": null,
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Backup"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Chomping Kavu",
+    "oracle_id": "20a362c3-d278-437f-881c-e7d9fe78fc2d",
+    "oracle_text": "Backup 1 (When this creature enters, put a +1/+1 counter on target creature. If that's another creature, it gains the following ability until end of turn.)\nThis creature can't be blocked by creatures with power 2 or less.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Kavu"
    }
   },
   "Chorale of the Void": {
@@ -280599,25 +280972,6 @@
      "name": "Combat Celebrant",
      "non_ability_text": null,
      "oracle_text": "If this creature hasn't been exerted this turn, you may exert it as it attacks. When you do, untap all other creatures you control and after this phase, there is an additional combat phase. (An exerted creature won't untap during your next untap step.)",
-     "parse_warnings": [
-      {
-       "description": "If this creature hasn't been exerted this turn, you may exert it as it attacks. When you do, untap all other creatures you control and after",
-       "detector": "Duration_ThisTurn",
-       "items": [
-        0
-       ],
-       "line_index": 0,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 252,
-        "first_line": 0,
-        "last_line": 0,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 0
-       }
-      }
-     ],
      "power": {
       "type": "Fixed",
       "value": 4
@@ -287774,7 +288128,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_object",
       "source_printing_ids": [
        "4bc855d3-817c-4748-a7f5-1533d8b0e930"
       ]
@@ -301996,29 +302349,41 @@
       {
        "condition": null,
        "cost": null,
-       "declares_chosen_group": 0,
        "description": "Each player chooses up to two creatures they control, then sacrifices the rest. Then you create a tapped Treasure token for each creature your opponents control.",
        "duration": null,
        "effect": {
-        "target": {
-         "controller": "ScopedPlayer",
+        "categories": [],
+        "choose_filter": {
+         "controller": null,
          "properties": [],
          "type": "Typed",
          "type_filters": [
           "Creature"
          ]
         },
-        "type": "TargetOnly"
+        "chooser_scope": "EachPlayerSelf",
+        "keeper_constraint": {
+         "count": {
+          "max": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "type": "UpTo"
+         },
+         "type": "count"
+        },
+        "sacrifice_filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChooseAndSacrificeRest"
        },
        "forward_result": false,
        "kind": "Spell",
-       "multi_target": {
-        "max": {
-         "type": "Fixed",
-         "value": 2
-        },
-        "min": 0
-       },
        "optional": false,
        "optional_targeting": false,
        "player_scope": {
@@ -302030,73 +302395,48 @@
         "description": null,
         "duration": null,
         "effect": {
+         "colors": [],
          "count": {
+          "qty": {
+           "filter": {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Treasure",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
           "type": "Fixed",
-          "value": 1
+          "value": 0
          },
-         "target": {
-          "id": 0,
-          "type": "TrackedSet"
+         "tapped": true,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
          },
-         "type": "Sacrifice"
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Treasure"
+         ]
         },
         "forward_result": false,
         "kind": "Spell",
         "optional": false,
         "optional_targeting": false,
-        "player_scope": {
-         "type": "All"
-        },
-        "sub_ability": {
-         "condition": null,
-         "cost": null,
-         "description": null,
-         "duration": null,
-         "effect": {
-          "colors": [],
-          "count": {
-           "qty": {
-            "filter": {
-             "controller": "Opponent",
-             "properties": [],
-             "type": "Typed",
-             "type_filters": [
-              "Creature"
-             ]
-            },
-            "type": "ObjectCount"
-           },
-           "type": "Ref"
-          },
-          "enters_attacking": false,
-          "keywords": [],
-          "name": "Treasure",
-          "owner": {
-           "type": "Controller"
-          },
-          "power": {
-           "type": "Fixed",
-           "value": 0
-          },
-          "tapped": true,
-          "toughness": {
-           "type": "Fixed",
-           "value": 0
-          },
-          "type": "Token",
-          "types": [
-           "Artifact",
-           "Treasure"
-          ]
-         },
-         "forward_result": false,
-         "kind": "Spell",
-         "optional": false,
-         "optional_targeting": false,
-         "sub_ability": null,
-         "sub_link": "SequentialSibling",
-         "target_prompt": null
-        },
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
         "target_prompt": null
        },
        "target_prompt": null
@@ -302137,7 +302477,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_object",
       "related_token_ids": [
        "02de53f1-cef2-51b6-b98e-93dfed407d19"
       ],
@@ -311753,6 +312092,7 @@
         "optional_targeting": false,
         "sub_ability": {
          "condition": {
+          "origin": "Gift",
           "type": "AdditionalCostPaid"
          },
          "cost": null,
@@ -340294,21 +340634,68 @@
       {
        "condition": null,
        "cost": null,
+       "declares_chosen_group": 0,
        "description": "Each player other than target player creates a 5/5 red Dragon creature token with flying.",
        "duration": null,
        "effect": {
-        "description": "other than target player creates a 5/5 red Dragon creature token with flying",
-        "name": "unrecognized_clause_head",
-        "type": "Unimplemented"
+        "target": {
+         "type": "Player"
+        },
+        "type": "TargetOnly"
        },
        "forward_result": false,
        "kind": "Spell",
        "optional": false,
        "optional_targeting": false,
-       "player_scope": {
-        "type": "All"
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Red"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "Flying"
+         ],
+         "name": "Dragon",
+         "owner": {
+          "type": "ScopedPlayer"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 5
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 5
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Dragon"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "exclude": {
+          "type": "TargetPlayer"
+         },
+         "type": "AllExcept"
+        },
+        "sub_ability": null,
+        "target_prompt": null
        },
-       "sub_ability": null,
        "target_prompt": null
       }
      ],
@@ -365081,7 +365468,8 @@
        "phase": null,
        "secondary": false,
        "trigger_zones": [
-        "Graveyard"
+        "Graveyard",
+        "Exile"
        ],
        "valid_card": {
         "type": "SelfRef"
@@ -368255,7 +368643,8 @@
        "phase": null,
        "secondary": false,
        "trigger_zones": [
-        "Graveyard"
+        "Graveyard",
+        "Exile"
        ],
        "valid_card": {
         "type": "SelfRef"
@@ -382680,29 +383069,6 @@
      "name": "Double Major",
      "non_ability_text": null,
      "oracle_text": "Copy target creature spell you control, except it isn't legendary if the spell is legendary. (A copy of a creature spell becomes a token.)",
-     "parse_warnings": [
-      {
-       "description": "Copy target creature spell you control, except it isn't legendary if the spell is legendary. (A copy of a creature spell becomes a token.)",
-       "detector": "Condition_If",
-       "gap": {
-        "guard": "the spell is legendary",
-        "kind": "unparsed_condition"
-       },
-       "items": [
-        0
-       ],
-       "line_index": 0,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 138,
-        "first_line": 0,
-        "last_line": 0,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 0
-       }
-      }
-     ],
      "power": null,
      "printings": [
       "PRM",
@@ -396916,7 +397282,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_duration",
       "source_printing_ids": [
        "6ef580f8-efec-4d31-8dc3-2018dd48b6f4"
       ]
@@ -419202,7 +419567,8 @@
              "description": null,
              "effect_zone": null,
              "mode": "CastWithFlash",
-             "modifications": []
+             "modifications": [],
+             "origin": "Resolution"
             },
             "type": "GrantStaticAbility"
            }
@@ -507171,12 +507537,24 @@
             "value": 2
            },
            {
-            "mode": {
-             "CantBeBlockedByMoreThan": {
-              "max": 1
-             }
+            "definition": {
+             "active_zones": [],
+             "affected": {
+              "type": "SelfRef"
+             },
+             "affected_zone": null,
+             "characteristic_defining": false,
+             "condition": null,
+             "description": "~ can't be blocked by more than one creature",
+             "effect_zone": null,
+             "mode": {
+              "CantBeBlockedByMoreThan": {
+               "max": 1
+              }
+             },
+             "modifications": []
             },
-            "type": "AddStaticMode"
+            "type": "GrantStaticAbility"
            },
            {
             "keyword": "Trample",
@@ -516697,7 +517075,7 @@
         "amount": 0,
         "type": "Loyalty"
        },
-       "description": "[0]: Create two 2/2 black and green Wolf creature tokens with \"When ~ dies, put a loyalty counter on each ~ you control.\"",
+       "description": "[0]: Create two 2/2 black and green Wolf creature tokens with \"When ~ dies, put a loyalty counter on each Garruk you control.\"",
        "duration": null,
        "effect": {
         "colors": [
@@ -516737,7 +517115,7 @@
              "condition": null,
              "constraint": null,
              "damage_kind": "Any",
-             "description": "When ~ dies, put a loyalty counter on each ~ you control.",
+             "description": "When ~ dies, put a loyalty counter on each Garruk you control.",
              "destination": "Graveyard",
              "execute": {
               "condition": null,
@@ -516745,9 +517123,22 @@
               "description": null,
               "duration": null,
               "effect": {
-               "description": "put a loyalty counter on each ~ you control",
-               "name": "put_counter_tail",
-               "type": "Unimplemented"
+               "count": {
+                "type": "Fixed",
+                "value": 1
+               },
+               "counter_type": "loyalty",
+               "target": {
+                "controller": "You",
+                "properties": [],
+                "type": "Typed",
+                "type_filters": [
+                 {
+                  "Subtype": "Garruk"
+                 }
+                ]
+               },
+               "type": "PutCounterAll"
               },
               "forward_result": false,
               "kind": "Spell",
@@ -523112,7 +523503,8 @@
        "phase": null,
        "secondary": false,
        "trigger_zones": [
-        "Graveyard"
+        "Graveyard",
+        "Exile"
        ],
        "valid_card": {
         "type": "SelfRef"
@@ -523365,7 +523757,8 @@
        "phase": null,
        "secondary": false,
        "trigger_zones": [
-        "Graveyard"
+        "Graveyard",
+        "Exile"
        ],
        "valid_card": {
         "type": "SelfRef"
@@ -598359,7 +598752,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "condition_wrong",
       "source_printing_ids": [
        "6b913e79-a9f6-44d4-bb37-c4f6f66b8151"
       ]
@@ -598465,12 +598857,15 @@
       {
        "batched": false,
        "condition": {
-        "counters": {
-         "data": "charge",
-         "type": "OfType"
+        "condition": {
+         "counters": {
+          "data": "charge",
+          "type": "OfType"
+         },
+         "minimum": 8,
+         "type": "HasCounters"
         },
-        "minimum": 8,
-        "type": "HasCounters"
+        "type": "EventTime"
        },
        "constraint": null,
        "damage_kind": "Any",
@@ -616634,6 +617029,239 @@
     "type_line": "Enchantment — Saga"
    }
   },
+  "Hive Mind": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "target_wrong",
+      "source_printing_ids": [
+       "6bff89a1-f7e7-4da9-9020-8618afdffda2",
+       "88d50518-5cfc-45de-a125-acabf97b8743",
+       "e6a5103d-104c-45d0-a726-faad354934c4"
+      ]
+     },
+     "name": "Hive Mind",
+     "non_ability_text": null,
+     "oracle_text": "Whenever a player casts an instant or sorcery spell, each other player copies that spell. Each of those players may choose new targets for their copy.",
+     "power": null,
+     "printings": [
+      "M10",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2009-10-01",
+       "text": "A copy’s controller can’t choose to pay any additional costs for the copy. However, effects based on any additional costs that were paid for the original spell are copied as though those same costs were paid for the copy too."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "Each copy will have the same targets as the spell it’s copying unless its controller chooses new ones. That player may change any number of the targets, including all of them or none of them. If, for one of the targets, the player can’t choose a new legal target, then it remains unchanged (even if the current target is illegal)."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "Hive Mind will copy any instant or sorcery spell, not just one with targets."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "Hive Mind’s effect is mandatory. Each other player must copy the spell whether they want to or not."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "If a copy says that it affects “you,” it affects the controller of the copy, not the controller of the original spell. Similarly, if a copy says that it affects an “opponent,” it affects an opponent of the copy’s controller, not an opponent of the original spell’s controller."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "If a player casts an instant or sorcery spell, Hive Mind’s ability triggers and is put on the stack on top of that spell. Hive Mind’s ability will resolve first. When it does, it creates a number of copies of that spell equal to the number of players in the game minus one. First the player whose turn it is (or, if that’s the player who cast the original spell, the player to that player’s left) puts their copy on the stack, choosing new targets for it if they like. Then each other player in turn order does the same. The last copy put on the stack will be the first one that resolves. (Note that the very last thing to happen is that the original spell resolves.)"
+      },
+      {
+       "date": "2009-10-01",
+       "text": "If the spell that’s copied has an X whose value was determined as it was cast (like Earthquake does), the copy has the same value of X."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "If the spell that’s copied is modal (that is, it says “Choose one —” or the like), the copy will have the same mode. A player can’t choose a different one."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "The copies that Hive Mind’s ability creates are created on the stack, so they’re not “cast.” Abilities that trigger when a player casts a spell (like Hive Mind’s ability itself) won’t trigger."
+      }
+     ],
+     "scryfall_oracle_id": "f97e405d-4c24-4d4d-9e19-e349c073113c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a player casts an instant or sorcery spell, each other player copies that spell. Each of those players may choose new targets for their copy.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "retarget": {
+          "type": "KeepOriginalTargets"
+         },
+         "starting_loyalty_from_casualty_sacrifice": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "CopySpell"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "exclude": {
+          "type": "TriggeringPlayer"
+         },
+         "type": "AllExcept"
+        },
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "declares_chosen_group": 1,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "New"
+            }
+           ]
+          },
+          "type": "TargetOnly"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Instant"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Sorcery"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{U}",
+    "name": "Hive Mind",
+    "oracle_id": "f97e405d-4c24-4d4d-9e19-e349c073113c",
+    "oracle_text": "Whenever a player casts an instant or sorcery spell, each other player copies that spell. Each of those players may choose new targets for their copy.",
+    "type_line": "Enchantment"
+   }
+  },
   "Hivestone": {
    "phase_records": [
     {
@@ -622202,6 +622830,193 @@
     "power": "2",
     "toughness": "3",
     "type_line": "Creature — Human Pirate"
+   }
+  },
+  "Hostile Realm": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "e172b353-7a16-4831-b735-206230b22e59"
+      ]
+     },
+     "name": "Hostile Realm",
+     "non_ability_text": null,
+     "oracle_text": "Enchant land\nEnchanted land has \"{T}: Target creature can't block this turn.\"",
+     "power": null,
+     "printings": [
+      "MOR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "e7c3bd74-959c-4b07-b13d-30fe0f0ede2a",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted land has \"{T}: Target creature can't block this turn.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "definition": {
+          "condition": null,
+          "cost": {
+           "type": "Tap"
+          },
+          "description": "{T}: Target creature can't block this turn.",
+          "duration": "UntilEndOfTurn",
+          "effect": {
+           "duration": "UntilEndOfTurn",
+           "static_abilities": [
+            {
+             "active_zones": [],
+             "affected": {
+              "type": "ParentTarget"
+             },
+             "affected_zone": null,
+             "characteristic_defining": false,
+             "condition": null,
+             "description": "can't block",
+             "effect_zone": null,
+             "mode": "CantBlock",
+             "modifications": [
+              {
+               "mode": "CantBlock",
+               "type": "AddStaticMode"
+              }
+             ]
+            }
+           ],
+           "target": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "GenericEffect"
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Hostile Realm",
+    "oracle_id": "e7c3bd74-959c-4b07-b13d-30fe0f0ede2a",
+    "oracle_text": "Enchant land\nEnchanted land has \"{T}: Target creature can't block this turn.\"",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Hostility": {
@@ -635735,7 +636550,195 @@
   "Immortal Obligation": {
    "phase_records": [
     {
-     "abilities": [],
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Return target creature card from an opponent's graveyard to the battlefield under their control with a duty counter on it. For as long as that creature has a duty counter on it, it is goaded, can't attack you or a permanent you control, and can't block creatures you control.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enter_with_counters": [
+         [
+          "duty",
+          {
+           "type": "Fixed",
+           "value": 1
+          }
+         ]
+        ],
+        "enters_attacking": false,
+        "enters_under": "ParentTargetOwner",
+        "origin": null,
+        "owner_library": false,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "controller": "Opponent",
+           "type": "Owned"
+          },
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": true,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": {
+         "ForAsLongAs": {
+          "condition": {
+           "counters": {
+            "data": "duty",
+            "type": "OfType"
+           },
+           "minimum": 1,
+           "type": "RecipientHasCounters"
+          }
+         }
+        },
+        "effect": {
+         "duration": {
+          "ForAsLongAs": {
+           "condition": {
+            "counters": {
+             "data": "duty",
+             "type": "OfType"
+            },
+            "minimum": 1,
+            "type": "RecipientHasCounters"
+           }
+          }
+         },
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "goaded",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "mode": "Goaded",
+             "type": "AddStaticMode"
+            }
+           ]
+          },
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "can't attack you or a permanent you control",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "definition": {
+              "active_zones": [],
+              "affected": {
+               "type": "SelfRef"
+              },
+              "affected_zone": null,
+              "attack_defended": "PlayerOrPermanents",
+              "characteristic_defining": false,
+              "condition": null,
+              "description": null,
+              "effect_zone": null,
+              "mode": "CantAttack",
+              "modifications": [],
+              "origin": "Resolution"
+             },
+             "type": "GrantStaticAbility"
+            }
+           ]
+          },
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "can't block creatures you control",
+           "effect_zone": null,
+           "mode": {
+            "BlockRestriction": {
+             "filter": {
+              "filter": {
+               "controller": "You",
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Creature"
+               ]
+              },
+              "type": "Not"
+             }
+            }
+           },
+           "modifications": [
+            {
+             "mode": {
+              "BlockRestriction": {
+               "filter": {
+                "filter": {
+                 "controller": "You",
+                 "properties": [],
+                 "type": "Typed",
+                 "type_filters": [
+                  "Creature"
+                 ]
+                },
+                "type": "Not"
+               }
+              }
+             },
+             "type": "AddStaticMode"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
      "card_type": {
       "core_types": [
        "Instant"
@@ -635774,29 +636777,6 @@
      "name": "Immortal Obligation",
      "non_ability_text": null,
      "oracle_text": "Return target creature card from an opponent's graveyard to the battlefield under their control with a duty counter on it. For as long as that creature has a duty counter on it, it is goaded, can't attack you or a permanent you control, and can't block creatures you control.",
-     "parse_warnings": [
-      {
-       "description": "Return target creature card from an opponent's graveyard to the battlefield under their control with a duty counter on it. For as long as th",
-       "detector": "Condition_AsLongAs",
-       "gap": {
-        "guard": "that creature has a duty counter on it",
-        "kind": "unparsed_condition"
-       },
-       "items": [
-        0
-       ],
-       "line_index": 0,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 275,
-        "first_line": 0,
-        "last_line": 0,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 0
-       }
-      }
-     ],
      "power": null,
      "printings": [
       "MKC"
@@ -635806,21 +636786,7 @@
      ],
      "replacements": [],
      "scryfall_oracle_id": "b34080fe-69d1-4cc9-9feb-c37762f26a23",
-     "static_abilities": [
-      {
-       "active_zones": [],
-       "affected": {
-        "type": "SelfRef"
-       },
-       "affected_zone": null,
-       "characteristic_defining": false,
-       "condition": null,
-       "description": "Return target creature card from an opponent's graveyard to the battlefield under their control with a duty counter on it. For as long as that creature has a duty counter on it, it is goaded, can't attack you or a permanent you control, and can't block creatures you control.",
-       "effect_zone": null,
-       "mode": "CantBlock",
-       "modifications": []
-      }
-     ],
+     "static_abilities": [],
      "toughness": null,
      "triggers": []
     }
@@ -638712,6 +639678,191 @@
     "oracle_id": "a893bee3-ea5c-4619-a875-e4af6d4396fe",
     "oracle_text": "Enchant creature\nAt the beginning of your upkeep, you may put a fuse counter on this Aura.\nWhen enchanted creature dies, this Aura deals X damage to any target, where X is the number of fuse counters on this Aura.",
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Incite Hysteria": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Radiance — Until end of turn, target creature and each other creature that shares a color with it gain \"~ can't block.\"",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "gain \"~ can't block.\"",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "definition": {
+             "active_zones": [],
+             "affected": {
+              "type": "SelfRef"
+             },
+             "affected_zone": null,
+             "characteristic_defining": false,
+             "condition": null,
+             "description": "~ can't block",
+             "effect_zone": null,
+             "mode": "CantBlock",
+             "modifications": []
+            },
+            "type": "GrantStaticAbility"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "wrong_object",
+      "source_printing_ids": [
+       "a31f5060-df9e-4665-bf60-a8e33da55c84"
+      ]
+     },
+     "name": "Incite Hysteria",
+     "non_ability_text": null,
+     "oracle_text": "Radiance — Until end of turn, target creature and each other creature that shares a color with it gain \"This creature can't block.\"",
+     "power": null,
+     "printings": [
+      "RAV"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2005-10-01",
+       "text": "A creature “shares a color” with any creature that is at least one of its colors. For example, a green-white creature shares a color with creatures that are green, white, green-white, red-white, black-green, and so on."
+      },
+      {
+       "date": "2005-10-01",
+       "text": "All creatures that share a color are affected, even your own."
+      },
+      {
+       "date": "2005-10-01",
+       "text": "If it targets a colorless creature, it doesn’t affect any other creatures. A colorless creature shares a color with nothing, not even other colorless creatures."
+      },
+      {
+       "date": "2005-10-01",
+       "text": "Only one creature is targeted. If that creature leaves the battlefield or otherwise becomes an illegal target, the entire spell doesn’t resolve. No other creatures are affected."
+      },
+      {
+       "date": "2005-10-01",
+       "text": "You check which creatures share a color with the target when the spell resolves."
+      },
+      {
+       "date": "2005-11-01",
+       "text": "The targeted creature and the creatures that share a color with it at the time Incite Hysteria resolves gain an ability that says they can’t block this turn. It doesn’t matter if those creatures change colors before blockers are declared."
+      }
+     ],
+     "scryfall_oracle_id": "0a992ad5-136f-482d-8390-fdfe745fe764",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Radiance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Incite Hysteria",
+    "oracle_id": "0a992ad5-136f-482d-8390-fdfe745fe764",
+    "oracle_text": "Radiance — Until end of turn, target creature and each other creature that shares a color with it gain \"This creature can't block.\"",
+    "type_line": "Sorcery"
    }
   },
   "Incite Rebellion": {
@@ -648039,12 +649190,15 @@
       {
        "batched": false,
        "condition": {
-        "counters": {
-         "data": "charge",
-         "type": "OfType"
+        "condition": {
+         "counters": {
+          "data": "charge",
+          "type": "OfType"
+         },
+         "minimum": 1,
+         "type": "HasCounters"
         },
-        "minimum": 1,
-        "type": "HasCounters"
+        "type": "EventTime"
        },
        "constraint": {
         "type": "OnlyDuringYourTurn"
@@ -675521,6 +676675,7 @@
         "decline": null,
         "type": "Optional"
        },
+       "token_owner_scope": "You",
        "valid_card": null
       }
      ],
@@ -687988,9 +689143,21 @@
        "description": "Each player may reveal any number of creature cards from their hand. Then each player creates a 2/2 green Bear creature token for each card they revealed this way.",
        "duration": null,
        "effect": {
-        "description": "Each player may reveal any number of creature cards from their hand",
-        "name": "non_controller_reveal_choice",
-        "type": "Unimplemented"
+        "card_filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "cardinality": "AnyNumber",
+        "count": null,
+        "reveal": true,
+        "target": {
+         "type": "Controller"
+        },
+        "type": "RevealHand"
        },
        "forward_result": false,
        "kind": "Spell",
@@ -688080,7 +689247,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "dropped_qualifier",
       "related_token_ids": [
        "76b41f36-3ec5-59c4-ae11-8f87dd4f0411"
       ],
@@ -713864,6 +715030,7 @@
         "sub_ability": {
          "condition": {
           "condition": {
+           "origin": "Gift",
            "type": "AdditionalCostPaid"
           },
           "type": "Not"
@@ -725525,7 +726692,8 @@
        "phase": null,
        "secondary": false,
        "trigger_zones": [
-        "Graveyard"
+        "Graveyard",
+        "Exile"
        ],
        "valid_card": {
         "type": "SelfRef"
@@ -754005,7 +755173,7 @@
            "type": "Fixed",
            "value": 5
           },
-          "type": "exact_count"
+          "type": "count"
          },
          "sacrifice_filter": {
           "controller": null,
@@ -757225,7 +758393,7 @@
        "condition": null,
        "constraint": null,
        "damage_kind": "Any",
-       "description": "When ~ enters, up to one other target creature loses all abilities and becomes a green ~ creature with base power and toughness 4/4.",
+       "description": "When ~ enters, up to one other target creature loses all abilities and becomes a green Lizard creature with base power and toughness 4/4.",
        "destination": "Battlefield",
        "execute": {
         "condition": null,
@@ -757243,7 +758411,7 @@
            "affected_zone": null,
            "characteristic_defining": false,
            "condition": null,
-           "description": "lose all abilities and becomes a green ~ creature with base power and toughness 4/4",
+           "description": "lose all abilities and becomes a green Lizard creature with base power and toughness 4/4",
            "effect_zone": null,
            "mode": "Continuous",
            "modifications": [
@@ -757271,6 +758439,20 @@
               "Green"
              ],
              "type": "SetColor"
+            },
+            {
+             "core_types": [
+              "Creature"
+             ],
+             "type": "SetCardTypes"
+            },
+            {
+             "set": "Creature",
+             "type": "RemoveAllSubtypes"
+            },
+            {
+             "subtype": "Lizard",
+             "type": "AddSubtype"
             }
            ]
           }
@@ -777834,7 +779016,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_duration",
       "related_token_ids": [
        "3ae3c4af-2b85-5943-bab1-760e1b7da047"
       ],
@@ -812683,6 +813864,7 @@
         "optional_targeting": false,
         "sub_ability": {
          "condition": {
+          "origin": "Gift",
           "type": "AdditionalCostPaid"
          },
          "cost": null,
@@ -872057,7 +873239,7 @@
            "type": "Fixed",
            "value": 1
           },
-          "type": "exact_count"
+          "type": "count"
          },
          "sacrifice_filter": {
           "controller": null,
@@ -886165,6 +887347,213 @@
     "oracle_text": "Whenever this creature attacks, gain control of target Equipment an opponent controls until end of turn. Attach it to this creature. When you lose control of that Equipment, unattach it.",
     "power": "4",
     "toughness": "4",
+    "type_line": "Creature — Ogre Warrior"
+   }
+  },
+  "Ogre Marauder": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Ogre",
+       "Warrior"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "f083bd50-d171-4e49-b8e6-972802879c24"
+      ]
+     },
+     "name": "Ogre Marauder",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks, it gains \"this creature can't be blocked\" until end of turn unless defending player sacrifices a creature of their choice.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "BOK"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2005-02-01",
+       "text": "Attacking with Ogre Marauder a second time would cause a second trigger. If no creature was previously sacrificed, the Marauder already can’t be blocked. Sacrificing a creature for the second trigger will not nullify the first."
+      },
+      {
+       "date": "2005-02-01",
+       "text": "Ogre Marauder’s ability requires the defending player to sacrifice a creature as the ability resolves, or Ogre Marauder can’t be blocked for the rest of the turn."
+      }
+     ],
+     "scryfall_oracle_id": "d9dafa31-41ea-4f1c-bc63-ec84b01d57fa",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, it gains \"~ can't be blocked\" until end of turn unless defending player sacrifices a creature of their choice.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "SelfRef"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain \"~ can't be blocked\"",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "definition": {
+              "active_zones": [],
+              "affected": {
+               "type": "SelfRef"
+              },
+              "affected_zone": null,
+              "characteristic_defining": false,
+              "condition": null,
+              "description": "~ can't be blocked",
+              "effect_zone": null,
+              "mode": "CantBeBlocked",
+              "modifications": []
+             },
+             "type": "GrantStaticAbility"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "unless_pay": {
+        "cost": {
+         "count": 1,
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Sacrifice"
+        },
+        "payer": {
+         "type": "DefendingPlayer"
+        }
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}{B}",
+    "name": "Ogre Marauder",
+    "oracle_id": "d9dafa31-41ea-4f1c-bc63-ec84b01d57fa",
+    "oracle_text": "Whenever this creature attacks, it gains \"this creature can't be blocked\" until end of turn unless defending player sacrifices a creature of their choice.",
+    "power": "3",
+    "toughness": "1",
     "type_line": "Creature — Ogre Warrior"
    }
   },
@@ -913209,7 +914598,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_object",
       "source_printing_ids": [
        "150a35f8-bbdc-4f6e-98e3-3bd6a3b8154a",
        "2524645e-b066-4351-885b-10faa8d819d7",
@@ -913303,7 +914691,7 @@
          "mana_value_limit": {
           "qty": {
            "scope": {
-            "type": "CostPaidObject"
+            "type": "EventSource"
            },
            "type": "Toughness"
           },
@@ -915773,6 +917161,7 @@
         "sub_ability": {
          "condition": {
           "condition": {
+           "origin": "Gift",
            "type": "AdditionalCostPaid"
           },
           "type": "Not"
@@ -921361,6 +922750,7 @@
         "optional_targeting": false,
         "sub_ability": {
          "condition": {
+          "origin": "Gift",
           "type": "AdditionalCostPaid"
          },
          "cost": null,
@@ -937125,7 +938515,7 @@
           "type": "Fixed",
           "value": 6
          },
-         "type": "exact_count"
+         "type": "count"
         },
         "sacrifice_filter": {
          "controller": null,
@@ -937267,6 +938657,167 @@
     "oracle_id": "1d45f248-5b83-4377-a3ba-4eae48e63ca1",
     "oracle_text": "Each player chooses six lands they control, then sacrifices the rest. Planetary Annihilation deals 6 damage to each creature.",
     "type_line": "Sorcery"
+   }
+  },
+  "Plasm Capture": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell. At the beginning of your next first main phase, add X mana in any combination of colors, where X is that spell's mana value.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackSpell"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "At the beginning of your next first main phase, add X mana in any combination of colors, where X is that spell's mana value",
+         "name": "unrecognized_clause_head",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green",
+       "Green",
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0ffe8485-d5fb-47cc-af53-6e0fd062b7a2",
+       "11ee15d5-1c93-4c30-911f-32e2aabf020e",
+       "37fa090d-b756-4de3-8dcb-c20c5fcd4c6a"
+      ]
+     },
+     "name": "Plasm Capture",
+     "non_ability_text": null,
+     "oracle_text": "Counter target spell. At the beginning of your next first main phase, add X mana in any combination of colors, where X is that spell's mana value.",
+     "power": null,
+     "printings": [
+      "DDO",
+      "DGM",
+      "OTC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-04-15",
+       "text": "If the countered spell had {X} in its mana cost, include the value chosen for that X when determining how much mana to produce. For example, if you counter a spell that costs {X}{R} with X equal to 5, you'll produce six mana."
+      },
+      {
+       "date": "2013-04-15",
+       "text": "Your precombat main phase is the main phase that happens immediately after your draw step, not any other main phase."
+      }
+     ],
+     "scryfall_oracle_id": "3673219d-d2b5-43ad-b0c8-58b583491158",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}{G}{U}{U}",
+    "name": "Plasm Capture",
+    "oracle_id": "3673219d-d2b5-43ad-b0c8-58b583491158",
+    "oracle_text": "Counter target spell. At the beginning of your next first main phase, add X mana in any combination of colors, where X is that spell's mana value.",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Instant"
    }
   },
   "Plate Armor": {
@@ -953620,7 +955171,7 @@
           "type": "Fixed",
           "value": 1
          },
-         "type": "exact_count"
+         "type": "count"
         },
         "keeper_counter": {
          "count": {
@@ -953701,7 +955252,8 @@
               "description": null,
               "effect_zone": null,
               "mode": "CantAttack",
-              "modifications": []
+              "modifications": [],
+              "origin": "Resolution"
              },
              "type": "GrantStaticAbility"
             }
@@ -970094,9 +971646,7 @@
         "sub_ability": null,
         "target_prompt": null
        },
-       "mode": {
-        "Unknown": "Whenever a creature you control with a mana ability attacks"
-       },
+       "mode": "Attacks",
        "optional": false,
        "origin": null,
        "phase": null,
@@ -970104,7 +971654,18 @@
        "trigger_zones": [
         "Battlefield"
        ],
-       "valid_card": null,
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "HasManaAbility"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
        "valid_source": null,
        "valid_target": null
       },
@@ -984593,7 +986154,7 @@
           "type": "Fixed",
           "value": 3
          },
-         "type": "exact_count"
+         "type": "count"
         },
         "sacrifice_filter": {
          "controller": null,
@@ -1004870,18 +1006431,37 @@
             "mode": "Continuous",
             "modifications": [
              {
-              "mode": {
-               "ModifyCost": {
-                "amount": {
-                 "generic": 1,
-                 "shards": [],
-                 "type": "Cost"
-                },
-                "mode": "Reduce",
-                "spell_filter": null
-               }
+              "definition": {
+               "active_zones": [
+                "Hand",
+                "Stack",
+                "Command",
+                "Graveyard",
+                "Exile",
+                "Library"
+               ],
+               "affected": {
+                "type": "SelfRef"
+               },
+               "affected_zone": null,
+               "characteristic_defining": false,
+               "condition": null,
+               "description": "This spell costs {1} less to cast",
+               "effect_zone": null,
+               "mode": {
+                "ModifyCost": {
+                 "amount": {
+                  "generic": 1,
+                  "shards": [],
+                  "type": "Cost"
+                 },
+                 "mode": "Reduce",
+                 "spell_filter": null
+                }
+               },
+               "modifications": []
               },
-              "type": "AddStaticMode"
+              "type": "GrantStaticAbility"
              }
             ]
            }
@@ -1044860,18 +1046440,37 @@
            "mode": "Continuous",
            "modifications": [
             {
-             "mode": {
-              "ModifyCost": {
-               "amount": {
-                "generic": 1,
-                "shards": [],
-                "type": "Cost"
-               },
-               "mode": "Reduce",
-               "spell_filter": null
-              }
+             "definition": {
+              "active_zones": [
+               "Hand",
+               "Stack",
+               "Command",
+               "Graveyard",
+               "Exile",
+               "Library"
+              ],
+              "affected": {
+               "type": "SelfRef"
+              },
+              "affected_zone": null,
+              "characteristic_defining": false,
+              "condition": null,
+              "description": "This spell costs {1} less to cast",
+              "effect_zone": null,
+              "mode": {
+               "ModifyCost": {
+                "amount": {
+                 "generic": 1,
+                 "shards": [],
+                 "type": "Cost"
+                },
+                "mode": "Reduce",
+                "spell_filter": null
+               }
+              },
+              "modifications": []
              },
-             "type": "AddStaticMode"
+             "type": "GrantStaticAbility"
             }
            ]
           }
@@ -1070441,9 +1072040,54 @@
         "description": null,
         "duration": null,
         "effect": {
-         "description": "discard all colorless nonland cards",
-         "name": "unparsed_verb_arguments",
-         "type": "Unimplemented"
+         "count": {
+          "qty": {
+           "card_types": [],
+           "filter": {
+            "controller": null,
+            "properties": [
+             {
+              "comparator": "EQ",
+              "count": 0,
+              "type": "ColorCount"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Card",
+             {
+              "Non": "Land"
+             }
+            ]
+           },
+           "scope": "ScopedPlayer",
+           "type": "ZoneCardCount",
+           "zone": "Hand"
+          },
+          "type": "Ref"
+         },
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "comparator": "EQ",
+            "count": 0,
+            "type": "ColorCount"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "target": {
+          "group": 2147483648,
+          "type": "DeclaredPlayer"
+         },
+         "type": "Discard"
         },
         "forward_result": false,
         "kind": "Spell",
@@ -1070484,9 +1072128,48 @@
         "description": null,
         "duration": null,
         "effect": {
-         "description": "discard all multicolored cards",
-         "name": "unparsed_verb_arguments",
-         "type": "Unimplemented"
+         "count": {
+          "qty": {
+           "card_types": [],
+           "filter": {
+            "controller": null,
+            "properties": [
+             {
+              "comparator": "GE",
+              "count": 2,
+              "type": "ColorCount"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Card"
+            ]
+           },
+           "scope": "ScopedPlayer",
+           "type": "ZoneCardCount",
+           "zone": "Hand"
+          },
+          "type": "Ref"
+         },
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "comparator": "GE",
+            "count": 2,
+            "type": "ColorCount"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "target": {
+          "group": 2147483649,
+          "type": "DeclaredPlayer"
+         },
+         "type": "Discard"
         },
         "forward_result": false,
         "kind": "Spell",
@@ -1070530,7 +1072213,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "missing_effect",
       "source_printing_ids": [
        "7f224f64-513f-4c01-9b1b-bb89e366f1c4"
       ]
@@ -1090256,7 +1091938,7 @@
           "type": "Fixed",
           "value": 1
          },
-         "type": "exact_count"
+         "type": "count"
         },
         "sacrifice_filter": {
          "controller": null,
@@ -1114347,6 +1116029,202 @@
     "type_line": "Instant"
    }
   },
+  "Soul Partition": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Exile target nonland permanent. For as long as that card remains exiled, its owner may play it. A spell cast by an opponent this way costs {2} more to cast.",
+       "duration": null,
+       "effect": {
+        "destination": "Exile",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": null,
+        "owner_library": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent",
+          {
+           "Non": "Land"
+          }
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": {
+         "ForAsLongAs": {
+          "condition": {
+           "text": "that card remains exiled",
+           "type": "Unrecognized"
+          }
+         }
+        },
+        "effect": {
+         "grantee": {
+          "type": "ObjectOwner"
+         },
+         "permission": {
+          "duration": "Permanent",
+          "granted_to": 0,
+          "type": "PlayFromExile"
+         },
+         "target": {
+          "id": 0,
+          "type": "TrackedSet"
+         },
+         "type": "GrantCastingPermission"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "description": "A spell cast by an opponent this way costs {2} more to cast",
+          "name": "unrecognized_clause_head",
+          "type": "Unimplemented"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "28bb8ec0-9729-4aa1-8ce4-a3a5598b0d70",
+       "4ce4150b-e370-432e-a255-730fb026037c",
+       "8798bdb6-a04e-4dce-bd4a-f54b907b9f36",
+       "dccae4b9-6970-4c36-9c69-5ab60f34fc30"
+      ]
+     },
+     "name": "Soul Partition",
+     "non_ability_text": null,
+     "oracle_text": "Exile target nonland permanent. For as long as that card remains exiled, its owner may play it. A spell cast by an opponent this way costs {2} more to cast.",
+     "power": null,
+     "printings": [
+      "BRO",
+      "PBRO",
+      "PRM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-10-14",
+       "text": "Playing the exiled card follows all normal timing rules for a card of that type, and its owner must pay all costs (including the additional {2} if applicable) to cast it this way."
+      }
+     ],
+     "scryfall_oracle_id": "2cfd5c18-47d0-4549-aacc-2428db21df2f",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Soul Partition",
+    "oracle_id": "2cfd5c18-47d0-4549-aacc-2428db21df2f",
+    "oracle_text": "Exile target nonland permanent. For as long as that card remains exiled, its owner may play it. A spell cast by an opponent this way costs {2} more to cast.",
+    "type_line": "Instant"
+   }
+  },
   "Soul Salvage": {
    "phase_records": [
     {
@@ -1133517,11 +1135395,20 @@
        "description": "Sacrifice a land: Add one mana of any type the sacrificed land could produce.",
        "duration": null,
        "effect": {
-        "description": "Add one mana of any type the sacrificed land could produce",
-        "name": "unparsed_verb_arguments",
-        "type": "Unimplemented"
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "land_filter": {
+          "type": "CostPaidObject"
+         },
+         "type": "AnyTypeProduceableBy"
+        },
+        "type": "Mana"
        },
        "forward_result": false,
+       "is_mana_ability": true,
        "kind": "Activated",
        "optional": false,
        "optional_targeting": false,
@@ -1185371,7 +1187258,8 @@
              "description": null,
              "effect_zone": null,
              "mode": "CastWithFlash",
-             "modifications": []
+             "modifications": [],
+             "origin": "Resolution"
             },
             "type": "GrantStaticAbility"
            }
@@ -1193249,10 +1195137,22 @@
              "mode": "Continuous",
              "modifications": [
               {
-               "mode": {
-                "Other": "CantBeEnchanted"
+               "definition": {
+                "active_zones": [],
+                "affected": {
+                 "type": "SelfRef"
+                },
+                "affected_zone": null,
+                "characteristic_defining": false,
+                "condition": null,
+                "description": "~ can't be enchanted",
+                "effect_zone": null,
+                "mode": {
+                 "Other": "CantBeEnchanted"
+                },
+                "modifications": []
                },
-               "type": "AddStaticMode"
+               "type": "GrantStaticAbility"
               },
               {
                "keyword": "Flying",
@@ -1200931,7 +1202831,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "wrong_duration",
       "related_token_ids": [
        "36a983ad-a481-5048-a1fc-994155b7b683",
        "3ae3c4af-2b85-5943-bab1-760e1b7da047"
@@ -1201110,7 +1203009,7 @@
            },
            "starting_loyalty_from_casualty_sacrifice": false,
            "target": {
-            "type": "ParentTarget"
+            "type": "TriggeringSource"
            },
            "type": "CopySpell"
           },
@@ -1241172,6 +1243071,304 @@
     "type_line": "Legendary Enchantment"
    }
   },
+  "Tinybones, Bauble Burglar": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 3,
+           "shards": [
+            "Black"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{3}{B}, {T}: Each opponent discards a card. Activate only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Discard"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "player_scope": {
+        "type": "Opponent"
+       },
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Skeleton",
+       "Rogue"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "25bdc11d-bef3-4823-b8bd-209cdac4ea31",
+       "daf8d5d4-b52d-42c7-aa56-c104a539133c",
+       "f01d5f4b-a780-4a89-82b1-84d4f3b62a7b",
+       "ff3d85bc-ef2d-4251-baf4-a14bd0cee61e"
+      ]
+     },
+     "name": "Tinybones, Bauble Burglar",
+     "non_ability_text": null,
+     "oracle_text": "Whenever an opponent discards a card, exile it from their graveyard with a stash counter on it.\nDuring your turn, you may play cards you don't own with stash counters on them from exile, and mana of any type can be spent to cast those spells.\n{3}{B}, {T}: Each opponent discards a card. Activate only as a sorcery.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "FDN",
+      "PFDN"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "Tinybones's second ability allows you to play all exiled cards you don't own with stash counters on them  , regardless of whether they were put there by the Tinybones you currently control or a Tinybones that was previously on the battlefield."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You pay all costs and follow all normal timing rules for cards played with the permission granted by Tinybones's second ability. For example, if the exiled card is a land card, you may play it only during your main phase while the stack is empty."
+      }
+     ],
+     "scryfall_oracle_id": "fd335b2f-e6a2-45ac-949e-a67278b21cb6",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "controller": "Opponent",
+          "type": "Owned"
+         },
+         {
+          "comparator": "GE",
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counters": {
+           "data": "stash",
+           "type": "OfType"
+          },
+          "type": "Counters"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "During your turn, you may play cards you don't own with stash counters on them from exile, and mana of any type can be spent to cast those spells.",
+       "effect_zone": null,
+       "mode": {
+        "ExileCastPermission": {
+         "cost": "PayNormalCost",
+         "frequency": "Unlimited",
+         "mana_spend_permission": "AnyTypeOrColor",
+         "play_mode": "Play",
+         "pool": {
+          "CounterLinked": {
+           "matcher": {
+            "data": "stash",
+            "type": "OfType"
+           }
+          }
+         },
+         "timing": "YourTurnOnly"
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an opponent discards a card, exile it from their graveyard with a stash counter on it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enter_with_counters": [
+          [
+           "stash",
+           {
+            "type": "Fixed",
+            "value": 1
+           }
+          ]
+         ],
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "Discarded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Tinybones, Bauble Burglar",
+    "oracle_id": "fd335b2f-e6a2-45ac-949e-a67278b21cb6",
+    "oracle_text": "Whenever an opponent discards a card, exile it from their graveyard with a stash counter on it.\nDuring your turn, you may play cards you don't own with stash counters on them from exile, and mana of any type can be spent to cast those spells.\n{3}{B}, {T}: Each opponent discards a card. Activate only as a sorcery.",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Skeleton Rogue"
+   }
+  },
   "Tinybones, Pocket Nuisance": {
    "phase_records": [
     {
@@ -1259045,6 +1261242,212 @@
     "type_line": "Enchantment Creature — Griffin"
    }
   },
+  "Transgress the Mind": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 2147483648,
+       "description": "Target player reveals their hand. You choose a card from it with mana value 3 or greater and exile that card.",
+       "duration": null,
+       "effect": {
+        "card_filter": {
+         "controller": null,
+         "properties": [
+          {
+           "comparator": "GE",
+           "type": "Cmc",
+           "value": {
+            "type": "Fixed",
+            "value": 3
+           }
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          {
+           "Subtype": "A"
+          }
+         ]
+        },
+        "count": null,
+        "reveal": true,
+        "target": {
+         "type": "Player"
+        },
+        "type": "RevealHand"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": [],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Devoid"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "extra_effect",
+      "source_printing_ids": [
+       "f5742910-3d0f-4710-a5f5-f7a7908833dc"
+      ]
+     },
+     "name": "Transgress the Mind",
+     "non_ability_text": null,
+     "oracle_text": "Devoid (This card has no color.)\nTarget player reveals their hand. You choose a card from it with mana value 3 or greater and exile that card.",
+     "power": null,
+     "printings": [
+      "BFZ"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2015-08-25",
+       "text": "A card with devoid is just colorless. It’s not colorless and the colors of mana in its mana cost."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "Cards with devoid use frames that are variations of the transparent frame traditionally used for Eldrazi. The top part of the card features some color over a background based on the texture of the hedrons that once imprisoned the Eldrazi. This coloration is intended to aid deckbuilding and game play."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "Devoid works in all zones, not just on the battlefield."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "If a card loses devoid, it will still be colorless. This is because effects that change an object’s color (like the one created by devoid) are considered before the object loses devoid."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "Other cards and abilities can give a card with devoid color. If that happens, it’s just the new color, not that color and colorless."
+      }
+     ],
+     "scryfall_oracle_id": "9a9bc316-9652-46d9-9448-57b8902f5d6f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": true,
+       "condition": null,
+       "description": null,
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "colors": [],
+         "type": "SetColor"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [],
+    "keywords": [
+     "Devoid"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Transgress the Mind",
+    "oracle_id": "9a9bc316-9652-46d9-9448-57b8902f5d6f",
+    "oracle_text": "Devoid (This card has no color.)\nTarget player reveals their hand. You choose a card from it with mana value 3 or greater and exile that card.",
+    "type_line": "Sorcery"
+   }
+  },
   "Transmutation Font": {
    "phase_records": [
     {
@@ -1259429,6 +1261832,177 @@
     "oracle_id": "a68e57f3-f138-4c26-b8d5-55d1adec44a8",
     "oracle_text": "{T}: Create your choice of a Blood token, a Clue token, or a Food token.\n{3}, {T}, Sacrifice three artifact tokens with different names: Search your library for an artifact card, put it onto the battlefield, then shuffle. Activate only as a sorcery.",
     "type_line": "Artifact"
+   }
+  },
+  "Trapfinder's Trick": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 2147483648,
+       "description": "Target player reveals their hand and discards all Trap cards.",
+       "duration": null,
+       "effect": {
+        "card_filter": {
+         "type": "None"
+        },
+        "count": null,
+        "reveal": true,
+        "target": {
+         "type": "Player"
+        },
+        "type": "RevealHand"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "card_types": [],
+           "filter": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Trap"
+             }
+            ]
+           },
+           "scope": "ScopedPlayer",
+           "type": "ZoneCardCount",
+           "zone": "Hand"
+          },
+          "type": "Ref"
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Trap"
+           }
+          ]
+         },
+         "target": {
+          "group": 2147483648,
+          "type": "DeclaredPlayer"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0c9dfda7-c034-478e-a52a-e4a272c7d160"
+      ]
+     },
+     "name": "Trapfinder's Trick",
+     "non_ability_text": null,
+     "oracle_text": "Target player reveals their hand and discards all Trap cards.",
+     "power": null,
+     "printings": [
+      "ZEN"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "9792ae99-7b3a-46cb-bd22-0b33c499ce1a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Trapfinder's Trick",
+    "oracle_id": "9792ae99-7b3a-46cb-bd22-0b33c499ce1a",
+    "oracle_text": "Target player reveals their hand and discards all Trap cards.",
+    "type_line": "Sorcery"
    }
   },
   "Trapped in the Tower": {
@@ -1267694,9 +1270268,44 @@
          "description": null,
          "duration": null,
          "effect": {
-          "description": "discard all creature cards of that type",
-          "name": "unparsed_verb_arguments",
-          "type": "Unimplemented"
+          "count": {
+           "qty": {
+            "card_types": [],
+            "filter": {
+             "controller": null,
+             "properties": [
+              {
+               "type": "IsChosenCreatureType"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "scope": "ScopedPlayer",
+            "type": "ZoneCardCount",
+            "zone": "Hand"
+           },
+           "type": "Ref"
+          },
+          "filter": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "IsChosenCreatureType"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "target": {
+           "group": 2147483648,
+           "type": "DeclaredPlayer"
+          },
+          "type": "Discard"
          },
          "forward_result": false,
          "kind": "Spell",
@@ -1267774,7 +1270383,6 @@
       "type": "Cost"
      },
      "metadata": {
-      "confirmed_misparse": "missing_effect",
       "source_printing_ids": [
        "0c1a0ebd-1add-49e6-b5e6-5b26abb1de88",
        "ea674ba3-71a9-4955-b9d7-d1fa97eff18c"
@@ -1286164,7 +1288772,8 @@
                 "pool": "AnyGraveyard"
                }
               },
-              "modifications": []
+              "modifications": [],
+              "origin": "Resolution"
              },
              "type": "GrantStaticAbility"
             }
@@ -1286804,6 +1289413,171 @@
     "power": "4",
     "toughness": "2",
     "type_line": "Artifact Creature — Phyrexian Wizard"
+   }
+  },
+  "Urban Burgeoning": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "393c230f-5bc3-4b71-b5ac-81d5ce227df5"
+      ]
+     },
+     "name": "Urban Burgeoning",
+     "non_ability_text": null,
+     "oracle_text": "Enchant land\nEnchanted land has \"Untap this land during each other player's untap step.\"",
+     "power": null,
+     "printings": [
+      "RTR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2012-10-01",
+       "text": "Effects that state that the enchanted land doesn’t untap during your untap step won’t apply during another player’s untap step."
+      },
+      {
+       "date": "2012-10-01",
+       "text": "The enchanted land untaps at the same time as the active player’s permanents. You can’t choose to not untap it at that time."
+      }
+     ],
+     "scryfall_oracle_id": "2772e3cc-10e0-420f-b183-71ebaf3580e1",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted land has \"Untap ~ during each other player's untap step.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "definition": {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "Untap ~ during each other player's untap step",
+          "effect_zone": null,
+          "mode": "UntapsDuringEachOtherPlayersUntapStep",
+          "modifications": []
+         },
+         "type": "GrantStaticAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Urban Burgeoning",
+    "oracle_id": "2772e3cc-10e0-420f-b183-71ebaf3580e1",
+    "oracle_text": "Enchant land\nEnchanted land has \"Untap this land during each other player's untap step.\"",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Urban Retreat": {
@@ -1289627,37 +1292401,40 @@
        "optional_targeting": false,
        "sub_ability": {
         "condition": {
-         "conditions": [
-          {
-           "filter": {
-            "controller": "You",
-            "properties": [],
-            "type": "Typed",
-            "type_filters": [
-             "Land",
-             {
-              "Subtype": "Mine"
-             }
-            ]
+         "inner": {
+          "conditions": [
+           {
+            "filter": {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Land",
+              {
+               "Subtype": "Mine"
+              }
+             ]
+            },
+            "type": "ControllerControlsMatching"
            },
-           "type": "ControllerControlsMatching"
-          },
-          {
-           "filter": {
-            "controller": "You",
-            "properties": [],
-            "type": "Typed",
-            "type_filters": [
-             "Land",
-             {
-              "Subtype": "Tower"
-             }
-            ]
-           },
-           "type": "ControllerControlsMatching"
-          }
-         ],
-         "type": "And"
+           {
+            "filter": {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Land",
+              {
+               "Subtype": "Tower"
+              }
+             ]
+            },
+            "type": "ControllerControlsMatching"
+           }
+          ],
+          "type": "And"
+         },
+         "type": "ConditionInstead"
         },
         "cost": null,
         "description": null,
@@ -1289666,7 +1292443,7 @@
          "produced": {
           "count": {
            "type": "Fixed",
-           "value": 1
+           "value": 2
           },
           "type": "Colorless"
          },
@@ -1289749,25 +1292526,6 @@
      "name": "Urza's Power Plant",
      "non_ability_text": null,
      "oracle_text": "{T}: Add {C}. If you control an Urza's Mine and an Urza's Tower, add {C}{C} instead.",
-     "parse_warnings": [
-      {
-       "description": "{T}: Add {C}. If you control an Urza's Mine and an Urza's Tower, add {C}{C} instead.",
-       "detector": "Replacement_Instead",
-       "items": [
-        0
-       ],
-       "line_index": 0,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 84,
-        "first_line": 0,
-        "last_line": 0,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 0
-       }
-      }
-     ],
      "power": null,
      "printings": [
       "2XM",
@@ -1323138,29 +1325896,6 @@
      "name": "Vraska, Betrayal's Sting",
      "non_ability_text": null,
      "oracle_text": "Compleated ({B/P} can be paid with {B} or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n[0]: You draw a card and lose 1 life. Proliferate.\n[−2]: Target creature becomes a Treasure artifact with \"{T}, Sacrifice this artifact: Add one mana of any color\" and loses all other card types and abilities.\n[−9]: If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference.",
-     "parse_warnings": [
-      {
-       "description": "[−9]: If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference.",
-       "detector": "Condition_If",
-       "gap": {
-        "guard": "target player has fewer than nine poison counters",
-        "kind": "unparsed_condition"
-       },
-       "items": [
-        2
-       ],
-       "line_index": 3,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 462,
-        "first_line": 3,
-        "last_line": 3,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 339
-       }
-      }
-     ],
      "power": null,
      "printings": [
       "ECC",
@@ -1336470,7 +1339205,10 @@
       },
       {
        "batched": false,
-       "condition": null,
+       "condition": {
+        "minimum": 2,
+        "type": "LoyaltyCountersRemovedAtLeast"
+       },
        "constraint": null,
        "damage_kind": "Any",
        "description": "Whenever you activate a loyalty ability, if you removed two or more loyalty counters to activate it, draw a card.",
@@ -1336481,9 +1339219,14 @@
         "description": null,
         "duration": null,
         "effect": {
-         "description": "if you removed two or more loyalty counters to activate it, draw a card",
-         "name": "unparsed_condition",
-         "type": "Unimplemented"
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
         },
         "forward_result": false,
         "kind": "Spell",
@@ -1387186,6 +1389929,6 @@
   }
  },
  "crosswalk_sidecar_version": 1,
- "phase_tag": "v0.131.0",
+ "phase_tag": "v0.133.0",
  "schema": 2
 }

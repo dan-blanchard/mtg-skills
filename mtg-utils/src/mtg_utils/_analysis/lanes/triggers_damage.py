@@ -90,6 +90,7 @@ from mtg_utils._card_ir.crosswalk import (
     named_permanent_refs,
     normalised_keyword,
     normalised_keyword_name,
+    opponent_only_nodes,
     or_arms,
     parked_prevention,
     player_filter_tag,
@@ -1488,7 +1489,8 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
         if ability_ident not in seen_kw and any(
             filter_names_creatures(resolved)
             and filter_controller(resolved) != "Opponent"
-            for resolved, _mod in unit_keyword_grants(
+            and id(mod) not in opponent_only_nodes(tree)
+            for resolved, mod in unit_keyword_grants(
                 unit, mod_tags=ABILITY_GRANT_MOD_TAGS
             )
         ):

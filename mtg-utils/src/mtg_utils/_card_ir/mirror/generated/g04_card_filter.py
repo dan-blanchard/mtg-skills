@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``candidate_filter`` ..
-``condition`` (18 keys).
+``__init__.py``). This module holds content keys ``card_filter`` ..
+``condition`` (16 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -157,19 +157,6 @@ class S_cleave_variant(TypedMirrorNode):
 
 
 # --- tagged shapes (discriminated enum nodes) ---
-
-
-@dataclass(frozen=True)
-class T_candidate_filter__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: str
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_cap__OnlyOnceEachTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "OnlyOnceEachTurn"
 
 
 @dataclass(frozen=True)
@@ -868,6 +855,12 @@ class T_condition__IsYourTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_condition__LoyaltyCountersRemovedAtLeast(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LoyaltyCountersRemovedAtLeast"
+    minimum: int
+
+
+@dataclass(frozen=True)
 class T_condition__ManaColorSpent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ManaColorSpent"
     color: U_color
@@ -1410,8 +1403,6 @@ class T_condition__ZoneCoreTypeCardCountAtLeast(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
-type U_candidate_filter = T_candidate_filter__Typed
-type U_cap = T_cap__OnlyOnceEachTurn
 type U_card_filter = (
     T_card_filter__Any
     | T_card_filter__None
@@ -1538,6 +1529,7 @@ type U_condition = (
     | T_condition__IsRingBearer
     | T_condition__IsTapped
     | T_condition__IsYourTurn
+    | T_condition__LoyaltyCountersRemovedAtLeast
     | T_condition__ManaColorSpent
     | T_condition__ManaSpentCondition
     | T_condition__MinCoAttackers

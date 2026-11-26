@@ -123,6 +123,13 @@ class T_properties__CanEnchant(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_properties__CardTypeCount(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CardTypeCount"
+    comparator: str
+    count: int
+
+
+@dataclass(frozen=True)
 class T_properties__CastThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CastThisTurn"
     caster: str
@@ -667,6 +674,7 @@ type U_properties = (
     | T_properties__Blocking
     | T_properties__BlockingSource
     | T_properties__CanEnchant
+    | T_properties__CardTypeCount
     | T_properties__CastThisTurn
     | T_properties__Cmc
     | T_properties__ColorCount

@@ -31,7 +31,7 @@ if TYPE_CHECKING:
         U_affected_players,
         U_attr,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+    from mtg_utils._card_ir.mirror.generated.g04_card_filter import (
         U_cast_filter,
         U_condition,
     )

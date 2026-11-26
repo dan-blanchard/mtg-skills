@@ -761,6 +761,23 @@ STATIC_TOKENS: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"\bopponents? can'?t cast\b", re.IGNORECASE),
         "stax_cast_lock",
     ),
+    # opponent spell-tax idiom (CR 601.2f: a cost increase is part of the total
+    # cost): "A spell cast by an opponent this way costs {2} more to cast" (Soul
+    # Partition — phase v0.133.0 types the exile and the play permission and
+    # parks this sentence as ``unrecognized_clause_head``). Only a surcharge on
+    # an opponent's spells: "This spell costs {1} more" (a self-tax) and an owner's
+    # "costs more" name no opponent. Corpus (phase v0.133.0, every parked clause
+    # with "costs … more"): Soul Partition, Elspeth Conquers Death, Hinata,
+    # Dawn-Crowned, Stalwart Realmwarden, Tax Collector; all but Soul Partition
+    # already read stax_taxes by another arm.
+    (
+        re.compile(
+            r"\bspells?\b[^.]*\b(?:by (?:an|target|your) opponents?|"
+            r"opponents? casts?)\b[^.]*\bcosts? (?:\{[^}]+\})+ more\b",
+            re.IGNORECASE,
+        ),
+        "opponent_spell_tax",
+    ),
     # hand-revealed idiom (CR 402.3's disclosure family): "plays with
     # {their/its} hand revealed" (Sen Triplets' "can't cast spells ... and
     # plays with their hand revealed" restriction fragment, Stromgald

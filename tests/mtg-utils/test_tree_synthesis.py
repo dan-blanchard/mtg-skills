@@ -5578,17 +5578,27 @@ def test_cant_block_grant_synth_registered():
     assert "cant_block_grant" in SYNTHESIS_ARM_IDS
 
 
-def test_cant_block_grant_fires_on_sole_static_raw_residue():
-    """Immortal Obligation: a SOLE static ability whose own ``description``
-    carries the full face text (the projection's ``_fill_sole_empty``) —
-    "that creature ... can't block creatures you control" matches the
-    per-unit raw marker with no typed CantBlock static anywhere. The real
-    tree from the testkit snapshot."""
-    tree = _real_tree("Immortal Obligation")
+def test_cant_block_grant_fires_on_a_granted_ability_residue():
+    """Hostile Realm: "Enchanted land has '{T}: Target creature can't block
+    this turn.'" — the granted ability's ``CantBlock`` is no static def of the
+    card, so the per-unit raw marker is the read. The real tree from the
+    testkit snapshot."""
+    tree = _real_tree("Hostile Realm")
     assert not has_structural_cant_block_grant(tree)
     node = _arm_cant_block_grant(tree)
     assert node is not None
     assert node.concept == "synth_cant_block_grant"
+
+
+def test_cant_block_grant_reads_a_block_restriction_off_your_creatures():
+    """Immortal Obligation: "it is goaded, can't attack you or a permanent you
+    control, and can't block creatures you control" — phase v0.133.0 types the
+    last as a ``BlockRestriction`` whose filter is ``Not`` over your creatures
+    (until then the whole card was one parked static the raw marker read), so
+    the structural read serves it and the residue arm stands down."""
+    tree = _real_tree("Immortal Obligation")
+    assert has_structural_cant_block_grant(tree)
+    assert _arm_cant_block_grant(tree) is None
 
 
 def test_cant_block_grant_gap_gated_when_structural_present():
@@ -6051,7 +6061,9 @@ def test_ramp_grant_unimplemented_body_no_fire_on_structural_grant():
 @pytest.mark.parametrize(
     "name",
     [
-        "Squandered Resources",
+        # "add X mana in any combination of colors, where X is that spell's
+        # mana value" (Squandered Resources graduated at v0.133.0).
+        "Plasm Capture",
     ],
 )
 def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
@@ -6094,6 +6106,9 @@ def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
         # v0.104.0 pin bump: phase parses Neheb's "add {R} for each 1 life
         # your opponents have lost this turn" as a typed Mana node.
         "Neheb, the Eternal",
+        # v0.133.0 pin bump: "Sacrifice a land: Add one mana of any type the
+        # sacrificed land could produce" is a typed Mana node (phase #9597).
+        "Squandered Resources",
     ],
 )
 def test_ramp_dropped_add_mana_clause_graduated_structural(name):
