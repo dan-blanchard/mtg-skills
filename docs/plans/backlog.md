@@ -18,6 +18,24 @@ as posted is in `docs/plans/phase-upstream-issues/filed/`). Every other draft an
 already in phase's confirmed-misparse census, ours, or a duplicate of an open
 phase-rs issue.
 
+**From the closing precon scoreboard (2026-11-26, N18 at e25fb0d3 against N17 at 2720444a; `~/mtg/tuner-work/w-2026-11-25/`)**
+
+- **TyranidSwarm_40K lost Cyclonic Rift as an add.** The day's later commits left the
+  25 precons swap for swap identical and the held-out 20 with one neutral reshuffle,
+  but in the fresh set this deck's Exocrine → Cyclonic Rift became Exocrine → Scourge
+  of Fleets (fresh adds 50 → 49, plan 171 → 170). The trigger is right: Hierophant
+  Bio-Titan now counts as a closer (its "can't be blocked by creatures with power 2 or
+  less" is evasion), so the "≈2 closers" swap went away and five pairs reshuffled
+  behind it. What is not explained is why Rift then lost its slot: the board-wipe page
+  is unchanged (Rift first, Scourge of Fleets 24th) and neither card's board-wipe read
+  moved (0.80 against 0.66); add spend fell from $173 to $156 of $234. Look at the
+  per-swap purse and the order swaps are filled in once a closer swap drops out.
+- **Two swaps changed with no card read changing** (SilverquillInfluence_SOC: Inkshield
+  → Sphere of Safety where it was → Avacyn; CallForBackup_MOC: Path of the Pyromancer
+  → Mask of Memory where it was → High Score). Guide numbers unchanged; the tuner rule
+  that moved them was not isolated (`card_gates`, `issues`, `calibration` and `metrics`
+  all changed that day).
+
 **From ranking the upstream drafts (2026-11-25; `docs/plans/phase-upstream-issues/ranking.md`)**
 
 - **Workarounds with no draft.** 101 of the 199 bridge-ledger rows record a phase
