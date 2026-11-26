@@ -27,7 +27,7 @@ Phase holds a card unsupported when it has any coverage gap:
 
 So a parked clause was filed only as a regression. A typed misparse the census already quotes was not filed.
 
-**Outcome: 5 issues filed on 2026-11-25** as phase-rs/phase [#11359](https://github.com/phase-rs/phase/issues/11359) ("each other player" typed as each opponent), [#11360](https://github.com/phase-rs/phase/issues/11360) (type filters holding a non-subtype), [#11361](https://github.com/phase-rs/phase/issues/11361) (Variable Solutions), [#11362](https://github.com/phase-rs/phase/issues/11362) (Grim Reminder) and [#11363](https://github.com/phase-rs/phase/issues/11363) (Blood Lust); the text as posted is in `filed/` (after an independent verification pass that dropped two of the first seven; see below). The full table, with every card kept or dropped and the reason, is `vetting-2026-11-25.md`.
+**Outcome: 6 issues filed on 2026-11-25** as phase-rs/phase [#11359](https://github.com/phase-rs/phase/issues/11359) ("each other player" typed as each opponent), [#11360](https://github.com/phase-rs/phase/issues/11360) (type filters holding a non-subtype), [#11361](https://github.com/phase-rs/phase/issues/11361) (Variable Solutions), [#11362](https://github.com/phase-rs/phase/issues/11362) (Grim Reminder) and [#11363](https://github.com/phase-rs/phase/issues/11363) (Blood Lust), and from a second pass the same day [#11364](https://github.com/phase-rs/phase/issues/11364) (Territorial Strike); the text as posted is in `filed/` (after an independent verification pass that dropped two of the first seven; see below). The full table, with every card kept or dropped and the reason, is `vetting-2026-11-25.md`.
 
 | Draft | Verdict |
 |---|---|
