@@ -2272,7 +2272,7 @@ def power_damage_target(text: str) -> PowerDamageTarget | None:
 # ── "can't be the target of [some] spells": a targeting shield ─────────────────
 
 
-ShieldSubject = Literal["self", "attached", "yours", "all"]
+ShieldSubject = Literal["self", "attached", "yours", "all", "lands"]
 
 
 @dataclass(frozen=True)
@@ -2280,7 +2280,7 @@ class TargetingShield:
     """What a "can't be the target of …" line restricts: whom it shields (the
     card itself, the creature an Aura or Equipment is attached to —
     ``attachment`` ``"EnchantedBy"`` / ``"EquippedBy"`` —, the creatures you
-    control, or every creature), whether spells and abilities can't target it,
+    control, every creature, or lands), whether spells and abilities can't target it,
     the quality the line names (``spell_quality`` for the spells, ``source_quality``
     for the abilities' sources: "black", "nongreen", "black or red", "Aura",
     "artifact"; ``""`` for any), whether every source it names is your
@@ -2326,7 +2326,16 @@ _SHIELD_SUBJECTS: dict[tuple[str, ...], tuple[ShieldSubject, str | None]] = {
     ("equipped", "creature"): ("attached", "EquippedBy"),
     ("creatures", "you", "control"): ("yours", None),
     ("creatures",): ("all", None),
+    ("lands",): ("lands", None),
+    ("lands", "on", "the", "battlefield"): ("lands", None),
+    ("lands", "you", "control"): ("lands", None),
 }
+#: A conjunct of a shield's subject naming cards in a zone ("and land cards in
+#: graveyards" — Tomik, Distinguished Advokist): no permanent, so no part of
+#: whom the shield protects on the battlefield.
+_CARDS_IN_A_ZONE_RX = re.compile(
+    r"\s+and\s+\w+ cards in (?:\w+ )?graveyards?$", re.IGNORECASE
+)
 _OPPONENTS_CONTROL = ("your", "opponents", "control")
 
 
@@ -2362,13 +2371,16 @@ def targeting_shield(text: str) -> TargetingShield | None:
     (Spellbane Centaur), "Enchanted creature gets +0/+2 and can't be the target
     of spells" (Spectral Shield: the restriction's own subject is the line's),
     "~ can't be the target of spells unless it attacked or blocked this turn"
-    (Lurker: ``conditional``). ``None`` for a subject or a source this grammar
-    doesn't read ("Lands on the battlefield and land cards in graveyards" —
-    Tomik's; "spells that can target only Walls" — Wall of Shadows)."""
+    (Lurker: ``conditional``), "Lands on the battlefield and land cards in
+    graveyards can't be the targets of spells or abilities your opponents
+    control" (Tomik, Distinguished Advokist: ``lands``, the cards in graveyards
+    no permanent it shields). ``None`` for a subject or a source this grammar
+    doesn't read ("spells that can target only Walls" — Wall of Shadows)."""
     verb = _SHIELD_VERB_RX.search(text)
     if verb is None:
         return None
-    head = [comb.norm_word(w) or w for w in text[: verb.start()].split()]
+    lead = _CARDS_IN_A_ZONE_RX.sub("", text[: verb.start()].rstrip())
+    head = [comb.norm_word(w) or w for w in lead.split()]
     for at, w in enumerate(head):
         if w in ("gets", "get", "has", "have") and at > 0 and head[-1] == "and":
             head = head[:at]
@@ -2395,13 +2407,18 @@ def targeting_shield(text: str) -> TargetingShield | None:
             items[-1].append(w)
     spells = abilities = False
     spell_quality = source_quality = ""
-    opponents = True
-    for item in items:
-        read = _shield_item(item)
-        if read is None:
-            return None
-        kind, quality, theirs = read
-        opponents = opponents and theirs
+    reads = [_shield_item(item) for item in items]
+    if any(read is None for read in reads):
+        return None
+    # "spells or abilities your opponents control" (CR 702.11b's own words): the
+    # closing "your opponents control" qualifies every bare item before it
+    bare_lead = all(item[-1] in ("spells", "abilities") for item in items[:-1])
+    opponents = all(read[2] for read in reads if read) or (
+        bare_lead and bool(reads[-1] and reads[-1][2])
+    )
+    for read in reads:
+        assert read is not None
+        kind, quality, _theirs = read
         if kind == "spells":
             spells, spell_quality = True, quality
         else:
@@ -2613,4 +2630,77 @@ def opens_with_choice(description: str) -> bool:
         m is not None
         and not m.group("rest").lstrip().startswith("—")
         and "target" not in m.group("rest").lower()
+    )
+
+
+#: A choice instruction ("choose", "chooses"), read word by word.
+_CHOOSE_WORDS = frozenset({"choose", "chooses"})
+_TARGET_WORDS = frozenset({"target", "targets"})
+#: The words a modal heading counts its modes with (CR 700.2: "instructions for
+#: a player to choose a number of those options, such as 'Choose one —'"):
+#: "Choose one —", "Choose one or more —", "Choose one or both —", "Choose
+#: three.", "Choose up to two —", "Choose X —".
+_MODE_COUNT_WORDS = frozenset(
+    {
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "x",
+        "or",
+        "more",
+        "both",
+        "up",
+        "to",
+        "any",
+        "number",
+        "of",
+    }
+)
+
+
+def _modal_heading(raw_after: list[str]) -> bool:
+    """Whether the words after a "choose" are a modal heading's count: count
+    words only (:data:`_MODE_COUNT_WORDS`), up to a dash, a stop or a colon (or
+    the end), with at least one of them."""
+    count = 0
+    for raw in raw_after:
+        if raw.startswith(("—", "-")):
+            return count > 0
+        word = comb.norm_word(raw)
+        if word not in _MODE_COUNT_WORDS:
+            return False
+        count += 1
+        if raw.endswith((".", ":", "—")):
+            return True
+    return count > 0
+
+
+def chooses_without_target(description: str) -> bool:
+    """Whether an ability's text, quoted abilities left out, states a choice
+    ("choose", "chooses") that isn't a modal heading ("Choose one —", "Choose
+    one or more —", "Choose three." — CR 700.2) and names no target anywhere:
+    "Choose five permanents you control" (Clarion Ultimatum), "Choose up to X
+    creatures and/or planeswalkers you control" (Temporal Firestorm),
+    "Proliferate, then choose any number of permanents you control" (Ripples of
+    Potential), "each defending player chooses any number of creatures they
+    control" (Camouflage). CR 115.10a: "Just because an object or player is
+    being affected by a spell or ability doesn't make that object or player a
+    target of that spell or ability. Unless that object or player is
+    identified by the word 'target' in the text of that spell or ability, or
+    the rule for that keyword ability, it's not a target." So nothing such an
+    ability selects by a choice is a target; a keyword whose rule targets
+    (earthbend, CR 701.66a: "Target land you control becomes …") makes no
+    choice this reads. "Target" is tested over the whole ability, not per
+    sentence: "Choose two target creatures … Their controller chooses and
+    sacrifices one of them" (Barrin's Spite) holds a target choice the next
+    sentence's "chooses" refers back to."""
+    raw = _unquoted(description).split()
+    words = [comb.norm_word(w) for w in raw]
+    if _TARGET_WORDS & set(words):
+        return False
+    return any(
+        w in _CHOOSE_WORDS and not _modal_heading(raw[i + 1 : i + 6])
+        for i, w in enumerate(words)
     )

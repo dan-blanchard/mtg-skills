@@ -518,6 +518,37 @@ def _arm_tap_other_player(
     return out
 
 
+# "Gain control of target creature of an opponent's choice they control"
+# (Evangelize, Preacher), "An opponent chooses target creature they control"
+# (Echo Chamber): the opponent the caster picks chooses the target, which must be
+# a creature that opponent controls (Evangelize's and Preacher's rulings; Echo
+# Chamber's by its text), yet phase stamps the filter
+# ``controller: You``. The wrapper's own ``target_chooser: Opponent`` names
+# "they"; the tap arm above owns a tap's (Arena, Magus of the Arena, whose
+# "target creature you control" has no chooser and stays yours).
+def _arm_opponent_chosen_target(
+    _tree: ConceptTree, unit: AbilityUnit
+) -> list[FieldCorrection]:
+    out: list[FieldCorrection] = []
+    for c in unit.effects:
+        node = c.node
+        if tag_of(node) == "SetTapState":
+            continue
+        target = getattr(node, "target", None)
+        if (
+            isinstance(target, TypedMirrorNode)
+            and tag_of(target) == "Typed"
+            and filter_controller(target) == "You"
+            and _opponent_chooses(unit, node)
+        ):
+            out.append(
+                FieldCorrection(
+                    target, "controller", ANAPHORIC, "opponent_chosen_target"
+                )
+            )
+    return out
+
+
 # "When an opponent casts an artifact spell, if ~ is an enchantment, it becomes
 # a 5/3 Soldier creature" (Hidden Guerrillas and the Hidden / Opal / Veiled
 # cycles): "it" is the card (its ruling: "When it turns into a creature, it is
@@ -632,6 +663,7 @@ def _arm_fresh_tap_target(unit: AbilityUnit, cnode: ConceptNode) -> ConceptNode 
 _FIELD_ARMS = (
     _arm_cant_untap_object,
     _arm_tap_other_player,
+    _arm_opponent_chosen_target,
     _arm_self_animation,
     _arm_animated_object,
     _arm_player_counter_kind,

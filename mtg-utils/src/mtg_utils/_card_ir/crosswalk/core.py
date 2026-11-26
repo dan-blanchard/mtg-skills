@@ -859,7 +859,8 @@ class ConceptTree:
         mode: a line it names but doesn't model, the clause only in the def's
         ``description`` (phase v0.131.0's fail-closed form of "can't be the
         target of [some] spells" — Tomik, Distinguished Advokist's lands shield,
-        Fiendslayer Paladin). A sibling of :meth:`hollow_statics`."""
+        Fiendslayer Paladin; ``reads.targeting_shields`` reads those). A sibling
+        of :meth:`hollow_statics`."""
         for unit in self.units:
             for sdef in unit.static_defs():
                 if static_mode_tag(sdef) == "Other":

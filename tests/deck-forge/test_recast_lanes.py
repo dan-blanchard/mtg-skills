@@ -163,6 +163,70 @@ def test_recast_row_fires_and_gates():
         ("Infuriate", True),
         ("Defiant Strike", True),
         ("Shock", False),  # targeted damage, not a pump
+        # only the word "target" targets (CR 115.1, 115.10a): a mass effect's
+        # population, a sacrifice (CR 701.21a: the player's own choice) and a
+        # choice made on resolution are no target of yours
+        ("Basri's Solidarity", False),  # "each creature you control"
+        ("Scale Blessing", False),
+        ("Part the Veil", False),  # "all creatures you control"
+        ("Ghostway", False),
+        ("Liliana's Triumph", False),  # "each opponent sacrifices"
+        ("Clip Wings", False),
+        ("Balance", False),
+        ("Clarion Ultimatum", False),  # "Choose five permanents you control"
+        # one target per opponent is that opponent's ("that player controls")
+        ("Mega Flare", False),
+        ("Shellshock", False),
+        # a real "target creature you control" beside a mass effect still counts
+        ("Strength of the Coalition", True),
+        # earthbend's own rule targets a land you control (CR 701.66a)
+        ("Earthbending Lesson", True),
+        # the beneficial arm's sign gate reads "-X" and a negated count too
+        ("Death Wind", False),
+        ("Sickening Shoal", False),
+        ("Flunk", False),
+        # Dan's ruling (2026-11-26): a GenericEffect pump and a P/T-raising
+        # counter on the spell's one target creature are beneficial too
+        ("Angelic Blessing", True),
+        ("Brute Strength", True),
+        ("Battlegrowth", True),
+        ("Travel Preparations", True),
+        # a -1/-1 counter is no beneficial boost
+        ("Blight Rot", False),
+        # a cycling trigger's target is the ability's, not the spell's
+        ("Decree of Savagery", False),
+        # "the chosen creatures get +X/+X": an "it" back to a resolution choice
+        ("Spry and Mighty", False),
+        # the opponent chooses a creature they control
+        ("Evangelize", False),
+        # a boost on the creature the same spell gains control of is aimed at
+        # an opponent's creature (the coordinator's call, 2026-11-26)
+        ("Goatnap", False),
+        ("Mark of Mutiny", False),
+        ("Price of Loyalty", False),
+        # an untap-and-pump with no control change stays beneficial
+        ("Act of Heroism", True),
+        # a GenericEffect pump on "it" (the static read through its owner)
+        ("Aim High", True),
+        ("Spidery Grasp", True),
+        # ... but not on the creature the spell steals
+        ("Unwilling Recruit", False),
+        # an ability's target is not the spell's (CR 115.1a): a graveyard
+        # activation, a delayed trigger the spell creates
+        ("Wither and Bloom", False),
+        ("Fatal Fissure", False),
+        # a boost on a creature the spell destroys anyway (the coordinator's
+        # call); a conditional destroy stays a boost
+        ("Blood Frenzy", False),
+        ("Berserk", True),
+        # +N/-M lowers toughness: not beneficial
+        ("Lash of Malice", False),
+        # a counter that raises no P/T
+        ("Boon of Safety", False),
+        # forecast is an ability, not the spell
+        ("Steeling Stance", False),
+        # support's keyword rule targets (kept)
+        ("Press into Service", True),
     ],
 )
 def test_own_target_spell_emission(name, expected):
@@ -185,3 +249,49 @@ def test_own_target_row_fires_and_gates():
     assert not any(r["pair"] == "own_target_spell_x_rebate_commander" for r in rows2), (
         rows2
     )
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize("name", ["Mega Flare", "Shellshock"])
+def test_per_opponent_target_controller_canary(name):
+    """ "For each opponent, choose up to one target creature that player
+    controls": phase types the target ``controller: You`` inside a body it
+    repeats for each opponent. ``crosswalk.effect_owner_targets_per_opponent``
+    reads the repeat, so the target is that opponent's. Fails once phase types
+    the controller; then the repeat read can stay or go."""
+    from mtg_utils.testkit import test_phase_records
+
+    (rec,) = test_phase_records(name)
+    bodies = []
+    body = rec["abilities"][0]
+    while isinstance(body, dict):
+        bodies.append(body)
+        body = body.get("sub_ability")
+    (choose,) = [b for b in bodies if b["effect"]["type"] == "TargetOnly"]
+    assert choose["effect"]["target"]["controller"] == "You", (
+        f"per-opponent target controller: RETIRE-READY — phase types {name}'s "
+        "target as that player's. Delete this canary."
+    )
+    assert choose["repeat_for"]["qty"]["type"] == "PlayerCount"
+
+
+def test_effect_targets_keeps_a_spell_target_and_drops_a_chosen_one():
+    """``crosswalk.effect_targets`` builds on ``acts_on_a_group``: Redirect's
+    ``ChangeTargets`` ("change the targets of target spell", scoped ``All``)
+    stays a target; Spry and Mighty's pump of "the chosen creatures" is an "it"
+    back to a choice made on resolution, no target."""
+    from mtg_utils._card_ir.crosswalk import effect_targets, tag_of
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card
+
+    def reads(name, tag):
+        return {
+            effect_targets(u.node, c.node)
+            for t in trees_for(test_card(name))
+            for u in t.units
+            for c in u.effects
+            if tag_of(c.node) == tag
+        }
+
+    assert reads("Redirect", "ChangeTargets") == {True}
+    assert reads("Spry and Mighty", "Pump") == {False}

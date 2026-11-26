@@ -278,10 +278,13 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   to one" as ``multi_target``). ``test_bite_target_canary`` fails once phase
   types it.
 * **A choice typed as a target.** "Choose a Giant creature you control" (Crush
-  Underfoot) is a heading ``TargetOnly``, as if it targeted; the word "target"
-  names no such object (CR 115.10a), so the choice is marked as made on
-  resolution, phase's ``target_choice_timing: Resolution``
-  (``clause_grammar.opens_with_choice``). ``test_untargeted_choice_canary``
+  Underfoot) is a heading ``TargetOnly``, as if it targeted, and so is every
+  selection of an ability that states a choice and names no target ("Choose
+  five permanents you control" — Clarion Ultimatum; "then choose any number of
+  permanents you control" — Ripples of Potential); the word "target" names no
+  such object (CR 115.10a), so the choice is marked as made on resolution,
+  phase's ``target_choice_timing: Resolution`` (``clause_grammar.
+  opens_with_choice`` / ``chooses_without_target``). ``test_untargeted_choice_canary``
   fails once phase marks it.
 * **Three Alchemy "it"s and a draw trigger.** Penregon Besieged's parked
   "choose a creature with the least toughness among creatures your opponents
@@ -318,6 +321,7 @@ from mtg_utils._card_ir.clause_grammar import (
     SplitPump,
     attached_attackers_kind,
     binding_sentence,
+    chooses_without_target,
     chosen_creature,
     drawn_card_subtype,
     lead_object,
@@ -1610,29 +1614,37 @@ def _parked_choices(rec: dict) -> list[tuple[dict, dict]]:
 
 
 def _untargeted_choices(rec: dict) -> list[dict]:
-    """The heading bodies phase types as a ``TargetOnly`` for a "choose a …"
-    that names no target: "Choose a Giant creature you control. It deals damage
-    equal to its power to target creature" (Crush Underfoot; its ruling: "You
-    choose that Giant as Crush Underfoot resolves"), Gideon's Sacrifice, Guard
-    Dogs, Fortunate Few, Sculpted Sunburst, Clambassadors' trigger (7 cards at
-    v0.133.0). An object a spell or ability affects is a target only when the
-    word "target" names it (CR 115.10a), so the choice is marked as made on
-    resolution (``target_choice_timing: Resolution``, phase's mark on Daily
-    Regimen), read by ``crosswalk.effect_chosen_on_resolution``
-    (:func:`~mtg_utils._card_ir.clause_grammar.opens_with_choice`)."""
+    """The bodies phase types as a ``TargetOnly`` for a choice that names no
+    target. Two shapes: a heading "choose a …" whose clause names no target
+    (:func:`~mtg_utils._card_ir.clause_grammar.opens_with_choice`: "Choose a
+    Giant creature you control. It deals damage equal to its power to target
+    creature" — Crush Underfoot; its ruling: "You choose that Giant as Crush
+    Underfoot resolves"; Guard Dogs), and every ``TargetOnly`` of an ability
+    whose text states a choice and names no target anywhere
+    (:func:`~mtg_utils._card_ir.clause_grammar.chooses_without_target`: "Choose
+    five permanents you control" — Clarion Ultimatum; "Choose up to X …" —
+    Temporal Firestorm; "Proliferate, then choose any number of permanents you
+    control" — Ripples of Potential; "each defending player chooses …" —
+    Camouflage; 32 faces, 33 bodies, at v0.133.0). An object a spell or ability
+    affects is a target only when the word "target" names it (CR 115.10a), so
+    the choice is
+    marked as made on resolution (``target_choice_timing: Resolution``, phase's
+    mark on Daily Regimen), read by ``crosswalk.effect_chosen_on_resolution``."""
     out: list[dict] = []
     heads = [
         *((a, a.get("description")) for a in rec.get("abilities") or ()),
         *((t.get("execute"), t.get("description")) for t in rec.get("triggers") or ()),
     ]
-    for body, description in heads:
-        if (
-            isinstance(body, dict)
-            and (body.get("effect") or {}).get("type") == "TargetOnly"
-            and not body.get("target_choice_timing")
-            and opens_with_choice(str(description or ""))
-        ):
-            out.append(body)
+    for head, description in heads:
+        text = str(description or "")
+        whole = chooses_without_target(text)
+        for at, body in enumerate(_chain(head)):
+            if (
+                (body.get("effect") or {}).get("type") == "TargetOnly"
+                and not body.get("target_choice_timing")
+                and (whole or (at == 0 and opens_with_choice(text)))
+            ):
+                out.append(body)
     return out
 
 

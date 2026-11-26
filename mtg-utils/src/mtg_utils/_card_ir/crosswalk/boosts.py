@@ -451,6 +451,19 @@ def generic_effect_boosts(
                 yield object_recipient(unit, affected, st), node, st
 
 
+def named_object(unit: AbilityUnit, node: object) -> object | None:
+    """The object effect ``node`` of ``unit`` acts on: its own ``target``, or —
+    for an "it" (``ParentTarget``) — the filter the chain's target thread or the
+    last object an earlier effect named gives it, a delayed trigger's included
+    ("Destroy that creature at the beginning of the next end step" — Blood
+    Frenzy). ``None`` where the structure names none."""
+    target = getattr(node, "target", None)
+    if tag_of(target) not in ("ParentTarget", "ParentTargetSlot"):
+        return target
+    found = _anaphora(unit)
+    return found.threaded.get(id(node)) or found.named.get(id(node))
+
+
 def chosen_target(
     unit: AbilityUnit, node: object, target: object, owner: object = None
 ) -> object | None:

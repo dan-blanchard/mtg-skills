@@ -31,6 +31,7 @@ from mtg_utils._analysis.tree_synthesis import SynthesizedNode
 from mtg_utils._card_ir.crosswalk import (
     ABILITY_GRANT_MOD_TAGS,
     ATTACHED_OBJECT_PREDICATES,
+    CREATURE_SHIELD_SUBJECTS,
     DAMAGE_EFFECT_TAGS,
     INCREASE_QTY_MODS,
     OTHER,
@@ -1450,7 +1451,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
     # a narrower one (Anti-Magic Aura's spells alone) is a protection grant
     # through ``protective_grant_recipients`` below.
     for _unit, sdef, shield in targeting_shields(tree):
-        if shield.subject != "self" and shield.keyword:
+        if shield.subject in CREATURE_SHIELD_SUBJECTS and shield.keyword:
             affected = getattr(sdef, "affected", None)
             raw = getattr(sdef, "description", None) or ""
             # folded as a typed grant's keyword is (``HexproofFrom`` →

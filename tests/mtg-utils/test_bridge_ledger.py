@@ -286,10 +286,6 @@ _MISPARSE_ROWS = {
     "artifact_cast_permission_empty_effect": (
         "the cast permission parsed as an empty Unimplemented effect"
     ),
-    "land_shield_misscoped_selfref": (
-        "the lands' shield left an unmodelled Other static mode (a SelfRef "
-        "Hexproof grant to the card itself before phase v0.131.0)"
-    ),
     "sokrates_granted_prevention_misparse": (
         "the granted prevention parsed as a CreateToken replacement"
     ),

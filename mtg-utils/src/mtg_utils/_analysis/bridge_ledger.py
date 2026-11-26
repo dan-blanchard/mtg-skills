@@ -4634,21 +4634,10 @@ BRIDGES.update(
 )
 
 
-# ── land_protection: the shield and the land recursion phase loses ──────────
-# Tomik's "Lands on the battlefield and land cards in graveyards can't be the
-# targets of spells or abilities your opponents control" (CR 702.11: hexproof's
-# "can't be the target of spells or abilities your opponents control") parses
-# as a Hexproof grant to Tomik itself (a SelfRef def), the shield
-# ``lanes.stax_and_tempo._land_protection_shield`` reads off a land filter. Phase
-# v0.131.0 stops mis-typing it and leaves the line an ``Other`` static mode
-# (``ConceptTree.other_static_modes``), still no land filter.
-_LANDS_UNTARGETABLE_RX = re.compile(
-    r"\blands on the battlefield[^.]*can't be the targets? of", re.IGNORECASE
-)
-
-
-def _land_shield_on_self(tree: ConceptTree) -> bool:
-    return _says(_LANDS_UNTARGETABLE_RX, tree.other_static_modes())
+# ── land_protection: the land recursion phase loses ─────────────────────────
+# (Tomik, Distinguished Advokist's parked lands shield is read by the clause
+# grammar since phase v0.133.0's own-target block: ``crosswalk.targeting_shields``
+# in ``lanes.stax_and_tempo._land_protection_shield``.)
 
 
 # Sacred Ground's "Whenever a spell or ability an opponent controls causes a
@@ -4670,27 +4659,6 @@ BRIDGES.update(
     {
         b.bridge_id: b
         for b in (
-            Bridge(
-                bridge_id="land_shield_misscoped_selfref",
-                key="land_protection",
-                kind="upstream_parse_failure",
-                todo=(
-                    "upstream phase-rs report candidate (Dan posts): Tomik's "
-                    "'Lands on the battlefield and land cards in graveyards can't "
-                    "be the targets of spells or abilities your opponents "
-                    "control' is an unmodelled Other static mode (phase v0.131.0; "
-                    "a Hexproof grant to Tomik itself before). Retires on the "
-                    "bump that scopes it to lands"
-                ),
-                census=(
-                    "1 hit / the legal corpus (Tomik, Distinguished Advokist), "
-                    "MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-24"
-                ),
-                pins=("Tomik, Distinguished Advokist",),
-                gap=_land_shield_on_self,
-                match=_oracle_match(_LANDS_UNTARGETABLE_RX),
-                subject="shield",
-            ),
             Bridge(
                 bridge_id="land_return_trigger_unknown_mode",
                 key="permanent_recast",

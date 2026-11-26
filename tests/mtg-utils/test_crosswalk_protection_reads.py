@@ -364,6 +364,7 @@ def _protection_idents(name: str) -> set[tuple[str, str, str]]:
         ("Suq'Ata Firewalker", "self", "HexproofFrom", False),
         ("Tetsuo Umezawa", "self", "", False),
         ("Thrun, Breaker of Silence", "self", "HexproofFrom", True),
+        ("Tomik, Distinguished Advokist", "lands", "Hexproof", True),
     ],
 )
 def test_parked_targeting_shield_canary(name, subject, kind, opponents):
@@ -463,10 +464,6 @@ def test_a_parked_shield_reads_as_the_protection_it_is(name, idents):
     "text",
     [
         (
-            "Lands on the battlefield and land cards in graveyards can't be the "
-            "targets of spells or abilities your opponents control."
-        ),
-        (
             "~ can't be the target of spells that can target only Walls or of "
             "abilities that can target only Walls."
         ),
@@ -476,3 +473,21 @@ def test_a_shield_the_grammar_cannot_read_whole_is_left(text):
     from mtg_utils._card_ir.clause_grammar import targeting_shield
 
     assert targeting_shield(text) is None
+
+
+def test_tomiks_lands_shield_is_land_protection():
+    """ "Lands on the battlefield and land cards in graveyards can't be the
+    targets of spells or abilities your opponents control": hexproof's own
+    words (CR 702.11b) for every land, yours among them, read by the clause
+    grammar where a ledger row read it before."""
+    (shield,) = _shields("Tomik, Distinguished Advokist")
+    assert (shield.subject, shield.keyword, shield.opponents) == (
+        "lands",
+        "Hexproof",
+        True,
+    )
+    from mtg_utils.testkit import test_signals
+
+    idents = {(s.key, s.subject) for s in test_signals("Tomik, Distinguished Advokist")}
+    assert ("land_protection", "shield") in idents
+    assert not {i for i in idents if i[0] == "keyword_bodies"}

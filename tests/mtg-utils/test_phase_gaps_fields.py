@@ -219,6 +219,37 @@ def test_that_players_creature_is_no_own_target():
     assert "tap_down|opponents|" in _idents("Mana Web")
 
 
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Evangelize",  # "target creature of an opponent's choice they control"
+        "Preacher",
+        "Echo Chamber",  # "An opponent chooses target creature they control"
+    ],
+)
+def test_opponent_chosen_target_canary(name):
+    """The opponent chooses a creature THEY control (the rulings: "the target
+    … is a creature the chosen opponent controls"), but phase stamps the filter
+    ``controller: You`` beside ``target_chooser: Opponent``."""
+    stamped = [
+        (n.get("effect") or {}).get("target", {}).get("controller")
+        for n in _raw_nodes(name)
+        if (n.get("target_chooser") or {}).get("type") == "Opponent"
+    ]
+    assert "You" in stamped, _retire(
+        name, "_arm_opponent_chosen_target", "opponent-chosen target's controller"
+    )
+    assert _corrections(name, "opponent_chosen_target")
+
+
+def test_an_opponent_chosen_creature_is_no_own_target():
+    assert "own_target_spell|you|" not in _idents("Evangelize")
+    # Magus of the Arena's "Tap target creature you control" has no chooser:
+    # it stays yours, and only the opponent's choice is the tap arm's
+    assert not _corrections("Magus of the Arena", "opponent_chosen_target")
+
+
 def test_tapping_your_own_creatures_is_no_tapper():
     # "you may tap any number of untapped creatures you control. You gain 2 life
     # for each creature tapped this way" taps no threat.

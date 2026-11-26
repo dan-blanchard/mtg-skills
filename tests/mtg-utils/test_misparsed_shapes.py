@@ -1816,3 +1816,85 @@ def test_parked_draw_trigger_canary():
     assert ("draw_matters", "you") in {
         (s.key, s.scope) for s in test_signals("Darigaaz's Whelp")
     }
+
+
+# ── The own-target block (2026-11-26): a choice anywhere in a target-free ability ─
+
+
+def _target_only_bodies(rec: dict) -> list[dict]:
+    heads = [
+        *(rec.get("abilities") or ()),
+        *(t["execute"] for t in rec.get("triggers") or ()),
+    ]
+    out = []
+    for head in heads:
+        body = head
+        while isinstance(body, dict):
+            if (body.get("effect") or {}).get("type") == "TargetOnly":
+                out.append(body)
+            body = body.get("sub_ability")
+    return out
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Clarion Ultimatum",  # "Choose five permanents you control"
+        "Temporal Firestorm",  # "Choose up to X creatures and/or planeswalkers …"
+        "Ripples of Potential",  # "Proliferate, then choose any number of …"
+        "Camouflage",  # "each defending player chooses any number of creatures"
+    ],
+)
+def test_untargeted_choice_anywhere_canary(name):
+    """An ability that states a choice and never says "target" targets nothing
+    (CR 115.10a); phase types its selection as a ``TargetOnly`` with no
+    resolution timing. The stage marks every such body as chosen on
+    resolution."""
+    (rec,) = test_phase_records(name)
+    bodies = _target_only_bodies(rec)
+    assert bodies
+    assert not any(b.get("target_choice_timing") for b in bodies), (
+        f"misparsed_shapes untargeted choice: RETIRE-READY — phase marks {name}'s "
+        "choice. Delete its case; once none is left, the row."
+    )
+    fixed = _target_only_bodies(correct_misparsed_shapes(rec))
+    assert all(b["target_choice_timing"] == "Resolution" for b in fixed)
+
+
+@pytest.mark.parametrize(
+    ("text", "chooses"),
+    [
+        ("Choose five permanents you control. For each of those permanents …", True),
+        ("Proliferate, then choose any number of permanents you control.", True),
+        ("Choose one — • Destroy target creature. • Draw a card.", False),
+        # modal headings in every form (CR 700.2)
+        ("Choose one or more — • Put a +1/+1 counter on each creature.", False),
+        ("Choose one or both — • You gain 3 life. • Draw a card.", False),
+        ("Choose one. • You gain 3 life. • Draw a card.", False),
+        ("Choose three. • You gain 3 life.", False),
+        ("Choose up to X creatures you control.", True),
+        ("Choose two target creatures controlled by the same player.", False),
+        (
+            "Target opponent chooses a creature they control. Destroy that creature.",
+            False,
+        ),
+        ('Equipped creature has "Choose a creature you control."', False),
+    ],
+)
+def test_chooses_without_target_grammar(text, chooses):
+    from mtg_utils._card_ir.clause_grammar import chooses_without_target
+
+    assert chooses_without_target(text) is chooses
+
+
+@pytest.mark.parametrize(
+    ("name", "keys"),
+    [
+        ("Clarion Ultimatum", {"own_target_spell"}),
+        ("Ripples of Potential", {"own_target_spell"}),
+        ("Temporal Firestorm", {"per_target_payoff"}),
+    ],
+)
+def test_a_choice_is_no_target_of_yours(name, keys):
+    assert not keys & _keys(name)

@@ -109,29 +109,40 @@ phase-rs issue.
   Magus of the Mind's elided library (impulse draw); eight parked targeting
   payoffs name their source (`crosswalk.parked_targeting_payoffs`); Penregon
   Besieged, Territorial Strike, Scour the Scene and Darigaaz's Whelp are
-  corrected, each with a canary. Left: Tomik's lands (its ledger row) and Wall of
-  Shadows's "spells that can target only Walls" are not read by the shield
-  grammar; the counter keywords (training, dethrone, mentor) are not in the
-  boost-keyword rule, and flanking (a shrink) is out.
-- **The choose-not-target correction reads a heading "Choose a / an / one …"
-  only** (`misparsed_shapes`' untargeted-choice row,
-  `clause_grammar.opens_with_choice`). The same shape, unmarked: "Choose five
-  permanents you control" (Clarion Ultimatum still reads `own_target_spell`),
-  "Choose up to X" (Temporal Firestorm still reads
-  `per_target_payoff|you|variable`), and a non-heading "then choose any number"
-  (Ripples of Potential, both). Each is a `TargetOnly` the word "target" doesn't
-  name (CR 115.10a).
-- **`own_target_spell` on spells that target nothing of yours** (an older gap,
-  found by the reads block's review, 2026-11-25): about 68 of its 741 holders
-  name no target at all (the reviewer's list:
-  `~/.cache/mtg-skills/phase-bump/v0.133.0/own-target-holders.txt`). Choices
-  phase doesn't mark as made on resolution (Contractual Safeguard, Balance,
-  Balancing Act, Restore Balance, Camouflage, Devastating Mastery, Misfortune,
-  Flaming Gambit); filters that are no target but which `has_own_target_spell`
-  reads as one (`Sacrifice`: Liliana's Triumph, Clip Wings; `PutCounterAll`:
-  Basri's Solidarity, Scale Blessing; `ChangeZoneAll`: Part the Veil,
-  Ghostway); and "target creature that player controls" typed `You` (Mega
-  Flare, Shellshock — Delirium's misparse).
+  corrected, each with a canary. Left: the counter keywords (training,
+  dethrone, mentor) are not in the boost-keyword rule, and flanking (a shrink)
+  is out. (Tomik's lands shield is read by the shield grammar since the
+  own-target block, 2026-11-26, its ledger row retired; Wall of Shadows's "can't
+  be the target of spells that can target only Walls" stays unread on purpose:
+  a creature's own shield gives no signal, Dan's ruling.)
+- **`own_target_spell` holders that still target nothing of yours** (the
+  own-target block, 2026-11-26: 741 holders before, 948 after with Dan's
+  beneficial-boost ruling, 110 lost, 317 gained; the reads are
+  `crosswalk.effect_targets` and `targets_own_creature`, and a choice in an
+  ability that never says "target" is marked as made on resolution). 11 known
+  wrong, each for want of a structural tell (a text rule such as "an ability
+  that never says target targets nothing" is not one: earthbend's and
+  support's keyword rules target, CR 115.10a):
+  - a mass regenerate typed as "Regenerate target creature" (Mending Touch),
+    no `*All` variant or scope: Wrap in Vigor, Wail of the Nim, Golgari
+    Charm, Dark Dabbling's spell mastery ("each other creature you control");
+  - Teferi's Protection: "All permanents you control phase out" typed as one
+    `PhaseOut`;
+  - Contractual Safeguard: "put a shield counter on a creature you control"
+    (no "choose", no "target") and a `PutChosenCounter` on "each other
+    creature you control", both typed as one object;
+  - Awaken the Maelstrom's "a copy of a permanent you control" and Sunder the
+    Gateway's "transform an Incubator token you control", typed as targets;
+  - Windgrace's Judgment: an `Unimplemented` "For any number of opponents"
+    head, then the `Destroy` typed `controller: You` (the per-opponent read
+    needs phase's loop on the wrapper);
+  - Hustle // Bustle: "You may turn a creature you control face up", a
+    `TurnFaceUp` typed as one object;
+  - Flaming Gambit: "That player … may choose a creature they control" is a
+    `TargetOnly` beside a real target; testing "target" per sentence would
+    reach it but is unsound (Barrin's Spite, Retribution, Trial of Agony,
+    Wake to Slaughter, Deliver unto Evil: "Choose two target creatures …
+    That player chooses one of them" refers back to the target).
 - **Silent misparses to report upstream** (phase types it wrong; found by the
   reads block, 2026-11-25). Each with phase v0.133.0's coverage export
   (`supported`) and whether its confirmed-misparse census lists the face. Vetted
@@ -711,6 +722,24 @@ phase-rs issue.
 headroom and parked items.
 
 ## Settled: don't re-suggest
+
+- **`own_target_spell`'s beneficial arm** (Dan, 2026-11-26): besides a
+  non-negative targeted `Pump`, an instant or sorcery whose spell (not a
+  cycling or delayed trigger) targets one creature that can be yours with a
+  `GenericEffect` pump that raises and lowers nothing ("Target creature gets
+  +3/+3 and gains flying until end of turn" — Angelic Blessing) or a
+  power/toughness-raising counter (Battlegrowth) counts as own-directed. A
+  "+2/-1", a "-X/-X" (`negative_pt_field` reads "-X" and a negated count), a
+  -1/-1 counter and a target only an opponent's creature can be do not. The
+  coordinator's calls (2026-11-26): nor does a boost on the creature the same
+  spell gains control of (Goatnap, Mark of Mutiny, Price of Loyalty) or
+  destroys or sacrifices without a condition, a delayed trigger's included
+  (Blood Frenzy; Berserk's "if it attacked this turn" stays); and both arms
+  read only the spell's own targets, never an ability's (CR 115.1a: Wither and
+  Bloom's graveyard activation, Prishe's Wanderings' reflexive trigger, Fatal
+  Fissure's and Feral Encounter's delayed triggers, Steeling Stance's
+  forecast).
+  (`tree_synthesis.value_engines.has_own_target_spell`.)
 
 **From the backlog survey (2026-11-25: Dan's rulings, and verdicts moved here
 from Open)**

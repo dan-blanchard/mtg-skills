@@ -96,6 +96,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     tag_of,
     taps_target_object,
+    targeting_shields,
     trigger_caster_scope,
     trigger_counter_filter,
     trigger_scope,
@@ -2262,7 +2263,10 @@ def _land_protection_shield(tree: ConceptTree) -> list[Signal]:
     shroud to lands (Terra Eternal's "All lands have indestructible", Marwyn's
     "Lands you control have hexproof", Elspeth, Knight-Errant's emblem): what
     keeps a land-animation deck's creature-lands alive. A grant to an
-    opponent's lands is not. The deep walk reaches an emblem's static."""
+    opponent's lands is not. The deep walk reaches an emblem's static. A parked
+    "lands … can't be the targets of spells or abilities your opponents
+    control" (Tomik, Distinguished Advokist) is the same shield, read by the
+    clause grammar."""
     for unit in tree.units:
         for sdef, mod in iter_mod_sites(unit.node, deep=True):
             if tag_of(mod) != "AddKeyword":
@@ -2282,6 +2286,22 @@ def _land_protection_shield(tree: ConceptTree) -> list[Signal]:
                     "you",
                     "shield",
                     _site_raw(sdef),
+                    tree.name,
+                    "high",
+                )
+            ]
+    # a parked targeting shield over lands that is a protective keyword
+    # (``crosswalk.targeting_shields``): "Lands on the battlefield and land cards
+    # in graveyards can't be the targets of spells or abilities your opponents
+    # control" (Tomik, Distinguished Advokist: hexproof's own words, CR 702.11b)
+    for _unit, sdef, shield in targeting_shields(tree):
+        if shield.subject == "lands" and shield.keyword:
+            return [
+                Signal(
+                    "land_protection",
+                    "you",
+                    "shield",
+                    getattr(sdef, "description", None) or "",
                     tree.name,
                     "high",
                 )

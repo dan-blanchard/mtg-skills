@@ -6197,8 +6197,12 @@ def effect_chosen_on_resolution(root: object, effect_node: object) -> bool:
     Daily Regimen), or the effect's own ``selection: at_resolution`` — the same
     tells :func:`has_variable_target_count` reads."""
     owner = _find_owner_wrapper(root, effect_node)
-    return getattr(owner, "target_choice_timing", None) == "Resolution" or (
-        getattr(effect_node, "selection", None) == "at_resolution"
+    selection = getattr(effect_node, "selection", None)
+    if isinstance(selection, MirrorVariant):
+        selection = selection.key
+    return (
+        getattr(owner, "target_choice_timing", None) == "Resolution"
+        or selection == "at_resolution"
     )
 
 
@@ -6285,7 +6289,9 @@ def effect_owner_targets_per_opponent(root: object, effect_node: object) -> bool
     ``multi_target`` count that scales by opponent count — phase's
     structural form of "for each opponent, <single-target effect>" (Juvenile
     Mist Dragon: ``multi_target.max`` is a ``PlayerCount`` qty filtered to
-    ``Opponent``). This is a DIFFERENT tell from the effect's own target
+    ``Opponent``), or a one-target body ``repeat_for`` that count (Mega Flare's
+    "For each opponent, choose up to one target creature that player
+    controls"). This is a DIFFERENT tell from the effect's own target
     filter's ``controller`` (which reads the loop's bound iteration
     variable, e.g. ``TargetPlayer`` — ambiguous on its own); the wrapper's
     per-opponent CARDINALITY is unambiguous: one target per opponent,
@@ -6295,12 +6301,20 @@ def effect_owner_targets_per_opponent(root: object, effect_node: object) -> bool
     if owner is None:
         return False
     mt = getattr(owner, "multi_target", MISSING)
-    if not isinstance(mt, TypedMirrorNode):
+    counts = [
+        getattr(mt, "max", None) if isinstance(mt, TypedMirrorNode) else None,
+        # "For each opponent, choose up to one target creature that player
+        # controls" (Mega Flare, Shellshock): one target, repeated per opponent
+        getattr(owner, "repeat_for", None),
+    ]
+    return any(_counts_opponents(count) for count in counts)
+
+
+def _counts_opponents(count: object) -> bool:
+    """Whether a count is a ``Ref`` of ``PlayerCount`` over opponents."""
+    if not isinstance(count, TypedMirrorNode) or tag_of(count) != "Ref":
         return False
-    mx = getattr(mt, "max", None)
-    if not isinstance(mx, TypedMirrorNode) or tag_of(mx) != "Ref":
-        return False
-    qty = getattr(mx, "qty", None)
+    qty = getattr(count, "qty", None)
     if not isinstance(qty, TypedMirrorNode) or tag_of(qty) != "PlayerCount":
         return False
     return tag_of(getattr(qty, "filter", None)) == "Opponent"
@@ -8228,6 +8242,11 @@ def _read_targeting_shields(
             if shield is not None:
                 out.append((unit, sdef, shield))
     return tuple(out)
+
+
+#: The shield subjects that are creatures other than the card itself: the
+#: attached creature, your creatures, every creature (not lands).
+CREATURE_SHIELD_SUBJECTS = frozenset({"attached", "yours", "all"})
 
 
 def shield_kind(shield: TargetingShield) -> str:
@@ -11617,13 +11636,69 @@ def _fixed_count(qty: object) -> int | None:
     return None
 
 
-#: Effects whose count is a choice made without targeting: "each player
+#: Effects whose objects are a choice made without targeting: "each player
 #: chooses any number of creatures …, then sacrifices the rest" (Destined
-#: Confrontation, Slaughter the Strong).
-_CHOSEN_NOT_TARGETED_EFFECTS = frozenset({"ChooseAndSacrificeRest"})
+#: Confrontation, Slaughter the Strong), and any sacrifice — what a player
+#: sacrifices is that player's own choice among their permanents (CR 701.21a:
+#: its controller moves it), never a target (Liliana's Triumph, Balance).
+_CHOSEN_NOT_TARGETED_EFFECTS = frozenset({"ChooseAndSacrificeRest", "Sacrifice"})
 #: An effect over the objects an earlier clause named ("exile any number of
 #: those cards" — Dimir Machinations) picks among them; it targets nothing.
 _TRACKED_SET_TAGS = frozenset({"TrackedSet", "TrackedSetFiltered"})
+
+
+def effect_targets(root: object, effect_node: object) -> bool:
+    """Whether ``effect_node``'s ``target`` field holds a target (CR 115.1: one
+    chosen as the spell or ability is put on the stack; 115.10a: only an object
+    "target" names, in the text or a keyword's rule): never an effect with no
+    ``target`` field, a group (:func:`acts_on_a_group`: Basri's Solidarity's
+    "each creature you control", Part the Veil's "all creatures you control";
+    Redirect's ``ChangeTargets`` stays a target), a choice made without
+    targeting (:data:`_CHOSEN_NOT_TARGETED_EFFECTS`: a sacrifice), the objects
+    an earlier clause named (``TrackedSet``), an object chosen as the effect
+    resolves (:func:`effect_chosen_on_resolution`: Clarion Ultimatum's "Choose
+    five permanents you control"), or an "it" back to such a choice (Spry and
+    Mighty's "the chosen creatures get +X/+X") or to a group (Pride of
+    Conquerors' "those creatures"). Phase types "Regenerate each creature you
+    control" (Wrap in Vigor) exactly as it types "Regenerate target creature"
+    (Mending Touch), with no ``*All`` variant or ``All`` scope, so that group
+    still reads as one target here."""
+    target = getattr(effect_node, "target", MISSING)
+    if not _present(target) or target is None:
+        return False
+    if acts_on_a_group(effect_node) or tag_of(effect_node) in (
+        _CHOSEN_NOT_TARGETED_EFFECTS
+    ):
+        return False
+    if tag_of(target) in _TRACKED_SET_TAGS:
+        return False
+    if effect_chosen_on_resolution(root, effect_node):
+        return False
+    return not (
+        tag_of(target) == "ParentTarget" and _parent_names_no_target(root, effect_node)
+    )
+
+
+def _parent_names_no_target(root: object, effect_node: object) -> bool:
+    """Whether the earlier clause a ``ParentTarget`` names — the nearest clause
+    before ``effect_node``'s that names objects of its own — chose them as it
+    resolved (``target_choice_timing: Resolution``) or acts on a group
+    (:func:`acts_on_a_group`: "Creatures you control get +1/+1 … those creatures
+    get +2/+2 instead" — Pride of Conquerors, whose "those" phase types
+    ``ParentTarget``)."""
+    index = _owner_index(root)
+    found = index.owners.get(id(effect_node))
+    wrapper = found[0] if found is not None else None
+    while wrapper is not None:
+        wrapper = index.sub_parents.get(id(wrapper))
+        if wrapper is None:
+            return False
+        earlier = getattr(getattr(wrapper, "effect", None), "target", None)
+        if tag_of(earlier) in ("Typed", "Or", "And", "Any"):
+            return getattr(
+                wrapper, "target_choice_timing", None
+            ) == "Resolution" or acts_on_a_group(getattr(wrapper, "effect", None))
+    return False
 
 
 def has_variable_target_count(node: object) -> bool:
@@ -11690,12 +11765,24 @@ def _zero_mana_cost(cost: object) -> bool:
     return False
 
 
-def targets_own_creature(effect: object, unit: AbilityUnit | None = None) -> bool:
+def targets_own_creature(
+    effect: object, unit: AbilityUnit | None = None, *, any_type: bool = False
+) -> bool:
     """Whether ``effect`` targets a creature or permanent you control on the
-    battlefield — never a mass ``*All`` effect, never a card in a graveyard or
+    battlefield (``any_type``: a permanent of any type — "target land you
+    control") — never a mass ``*All`` effect, never a card in a graveyard or
     hand. Given the effect's ``unit``, the overlay-corrected controller reads
-    (:func:`filter_controller`)."""
+    (:func:`filter_controller`), and the target must be a real one
+    (:func:`effect_targets`: no sacrifice, no choice made on resolution) and no
+    per-opponent loop's (:func:`effect_owner_targets_per_opponent`: "For each
+    opponent, choose up to one target creature that player controls" — Mega
+    Flare, which phase types ``You``)."""
     if not _single_effect(effect):
+        return False
+    if unit is not None and (
+        not effect_targets(unit.node, effect)
+        or effect_owner_targets_per_opponent(unit.node, effect)
+    ):
         return False
     chosen = tag_of(getattr(effect, "redirect_to", None)) == "ChosenTarget"
     for field in ("target", "redirect_object_filter") if chosen else ("target",):
@@ -11705,7 +11792,7 @@ def targets_own_creature(effect: object, unit: AbilityUnit | None = None) -> boo
         # A card in a graveyard or hand is no creature you control (CR 110.1).
         if set(filter_inzone_zones(filt)) - {"Battlefield"}:
             continue
-        if set(filter_core_types(filt)) & {"Creature", "Permanent"}:
+        if any_type or set(filter_core_types(filt)) & {"Creature", "Permanent"}:
             return True
     return False
 
@@ -14042,7 +14129,7 @@ def _keyword_bodies(
         for _unit, sdef, shield in targeting_shields(tree):
             affected = getattr(sdef, "affected", None)
             if (
-                shield.subject != "self"
+                shield.subject in CREATURE_SHIELD_SUBJECTS
                 and shield.keyword
                 and filter_controller_side(affected) != "opponents"
             ):

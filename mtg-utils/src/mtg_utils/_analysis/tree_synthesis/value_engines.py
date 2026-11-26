@@ -28,23 +28,27 @@ from mtg_utils._analysis.tree_synthesis.death_life import (
 )
 from mtg_utils._card_ir.crosswalk import (
     AGGREGATE_QTY_TAGS,
-    ALL_VARIANT_EFFECT_TAGS,
-    EFFECT_CONCEPTS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    boost_delivery,
+    chosen_target,
+    counter_kind,
     counter_kind_any,
+    counter_raises,
     dynamic_pt_mod_sites,
     effect_actor_scope,
-    effect_chosen_on_resolution,
+    effect_conditional,
     effect_filter,
     effect_owner_player_scope,
     effect_player_reach,
+    effect_targets,
     filter_controller,
     filter_controller_side,
     filter_core_types,
     filter_inzone_zones,
     filter_takes_in_card,
+    generic_effect_boosts,
     hand_count_scopes,
     hand_size_scopes,
     has_nested_connive,
@@ -58,12 +62,16 @@ from mtg_utils._card_ir.crosswalk import (
     iter_mod_sites,
     iter_typed_nodes,
     mod_keyword_name,
+    named_object,
+    negative_pt_field,
+    pt_mod_signs,
     quantity_threshold,
     recipient_tag,
     settap_state,
     static_mode_tag,
     steals_card_to_cast,
     tag_of,
+    targets_own_creature,
     trigger_constraint_tag,
     trigger_def_event,
     walk_effect_chain,
@@ -71,7 +79,6 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
-    MirrorVariant,
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.text_idioms import (
@@ -512,74 +519,164 @@ def has_own_target_spell(tree: ConceptTree) -> bool:
     pair row's candidate class (iteration-4): a spell-recursion commander
     (Feather) rebates exactly these every turn. Two arms (4b widening,
     measured: the strict arm alone halved Feather's median target rank —
-    4340 to 2611 — but left top-250 recall flat, so the beneficial-pump
-    class was admitted):
+    4340 to 2611 — but left top-250 recall flat, so the beneficial class was
+    admitted):
 
-    * a ``Typed`` target with ``controller == You`` (the printed
-      own-target class — Ephemerate); or
-    * a NON-NEGATIVE targeted ``pump`` on a creature (Infuriate, Defiant
-      Strike — a beneficial pump is own-directed in practice; a "-X/-X"
-      debuff-removal spell fails the sign gate, the anthem lane's rule).
+    * a target you control (``crosswalk.targets_own_creature`` over any
+      permanent type — Ephemerate; "target land you control"); or
+    * a BENEFICIAL boost the spell itself targets one creature with
+      (:func:`_beneficial_spell_boost`): a non-negative ``Pump`` (Infuriate,
+      Defiant Strike), and — Dan's ruling, 2026-11-26 — a pump phase types as a
+      ``GenericEffect`` ("Target creature gets +3/+3 and gains flying until end
+      of turn" — Angelic Blessing) and a power/toughness-raising counter on the
+      target (Battlegrowth). A beneficial boost is own-directed in practice; a
+      "-X/-X" debuff, a -1/-1 counter or a "+2/-1" (it lowers toughness) is
+      not beneficial, and a target only an opponent's creature can be is out,
+      as is one the same spell gains control of (Goatnap, Unwilling Recruit;
+      the coordinator's call, 2026-11-26).
 
-    Both arms need a real target on the battlefield (a permanent is a card or
-    token on the battlefield, CR 110.1): a mass pump's filter (``PumpAll`` —
-    Unnerving Assault's "creatures you control", Roar of Jukai's "each blocked
-    creature") targets nothing, and a filter whose zone is explicitly off the
-    battlefield names cards, not permanents (phase v0.104.0 writes Pull from the
-    Deep's "target instant card … from your graveyard" as ``controller: You`` +
-    ``InZone: Graveyard``).
+    Both arms need a real target on the battlefield (CR 115.1, 115.10a: only
+    "target" targets; ``crosswalk.effect_targets``): a mass effect's population,
+    a sacrifice and an object chosen as the spell resolves target nothing, and a
+    filter whose zone is explicitly off the battlefield names cards, not
+    permanents (phase v0.104.0 writes Pull from the Deep's "target instant card
+    … from your graveyard" as ``controller: You`` + ``InZone: Graveyard``).
     """
     if not (tree.is_type("Instant") or tree.is_type("Sorcery")):
         return False
-    for unit in tree.units:
-        for c in unit.effects:
-            if c.concept != "pump" or _is_mass_effect(c.node):
-                continue
-            tgt = getattr(c.node, "target", None)
-            if not (
-                isinstance(tgt, TypedMirrorNode)
-                and tag_of(tgt) == "Typed"
-                and "Creature" in filter_core_types(tgt)
-            ):
-                continue
-            if not any(v < 0 for v in _pump_mod_ints(c.node)):
-                return True
+    if any(_beneficial_spell_boost(unit, tree) for unit in tree.units):
+        return True
     # The controller is read through the unit's overlay corrections: Delirium's
     # "tap target creature that player controls" phase stamps ``You``.
     return any(
-        isinstance(tgt := getattr(node, "target", None), TypedMirrorNode)
-        and tag_of(tgt) == "Typed"
-        and filter_controller(tgt, unit) == "You"
-        and not _is_mass_effect(node)
-        and not _names_cards_off_battlefield(tgt)
-        # an object chosen as the spell resolves is no target (CR 115.10a):
-        # Crush Underfoot's "Choose a Giant creature you control"
-        and not effect_chosen_on_resolution(unit.node, node)
+        targets_own_creature(node, unit, any_type=True)
+        and not _names_cards_off_battlefield(getattr(node, "target", None))
+        # the spell's own target, not an ability's (CR 115.1a): a graveyard
+        # activation (Wither and Bloom), a reflexive or delayed trigger the spell
+        # creates (Prishe's Wanderings, Fatal Fissure)
+        and boost_delivery(unit, tree, node) == "spell"
         for unit in tree.units
         for node in unit.iter_typed()
     )
 
 
-#: The mass pumps — the ``*All`` variants of a pump effect: their ``target``
-#: field is the affected filter, not a target.
-_MASS_PUMP_TAGS: frozenset[str] = frozenset(
-    t
-    for t in ALL_VARIANT_EFFECT_TAGS
-    if EFFECT_CONCEPTS.get(t) in ("pump", "double_pt")
-)
+def _non_negative(signs: tuple[int, int]) -> bool:
+    """A boost's ``(power, toughness)`` directions raise one and lower none."""
+    return min(signs) >= 0 and max(signs) > 0
 
 
-def _is_mass_effect(node: object) -> bool:
-    """An effect whose ``target`` field is no target: a mass pump (Unnerving
-    Assault's "creatures you control get +1/+0"), an effect scoped to ``All``
-    (Woodland Guidance's "untap all Forests you control"), or an object chosen as
-    the effect resolves (One Last Job's Aura or Equipment "attached to a creature
-    you control", ``selection: at_resolution``). Other ``*All`` effects are left
-    to the target read as they were."""
-    if tag_of(node) in _MASS_PUMP_TAGS or tag_of(getattr(node, "scope", None)) == "All":
+def _creature_target(
+    unit: AbilityUnit, node: object, target: object, owner: object = None
+) -> bool:
+    """Whether the spell itself targets one creature with ``node`` that can be
+    yours (``crosswalk.chosen_target``, the boost lanes' one-target test: no
+    group, attached object, resolution choice or opponent-only creature; a
+    static's ``owner`` is the effect that holds it), and neither takes control
+    of it (:func:`_stolen`) nor destroys or sacrifices it (:func:`_doomed`)."""
+    chosen = chosen_target(unit, node, target, owner)
+    return (
+        chosen is not None
+        and "Creature" in filter_core_types(chosen)
+        and not _stolen(unit, chosen)
+        and not _doomed(unit, chosen)
+    )
+
+
+#: The effects that put the boosted creature away for good.
+_DOOM_TAGS = frozenset({"Destroy", "Sacrifice"})
+
+
+def _doomed(unit: AbilityUnit, chosen: object) -> bool:
+    """Whether the spell destroys or sacrifices the creature it boosts, with no
+    condition, a delayed trigger's included (``crosswalk.named_object``): "Target
+    attacking or blocking creature gets +4/+0 until end of turn. Destroy that
+    creature at the beginning of the next end step" (Blood Frenzy). Berserk's
+    "destroy that creature if it attacked this turn" is conditional and stays a
+    boost (the coordinator's call, 2026-11-26, the theft gate's reasoning)."""
+    for node in unit.iter_typed():
+        if tag_of(node) not in _DOOM_TAGS or named_object(unit, node) is not chosen:
+            continue
+        if not _conditional(unit, node):
+            return True
+    return False
+
+
+def _conditional(unit: AbilityUnit, node: object) -> bool:
+    """Whether ``node`` happens only under a condition: its own clause's
+    (``crosswalk.effect_conditional``) or that of the delayed trigger holding
+    it ("At the beginning of the next end step, destroy that creature if it
+    attacked this turn" — Berserk, whose condition sits on the clause creating
+    the trigger)."""
+    if effect_conditional(unit.node, node):
         return True
-    sel = getattr(node, "selection", None)
-    return isinstance(sel, MirrorVariant) and sel.key == "at_resolution"
+    return any(
+        tag_of(n) == "CreateDelayedTrigger"
+        and any(m is node for m in iter_typed_nodes(n))
+        and effect_conditional(unit.node, n)
+        for n in unit.iter_typed()
+    )
+
+
+def _stolen(unit: AbilityUnit, chosen: object) -> bool:
+    """Whether the spell gains control of the creature it boosts (a
+    ``gain_control`` effect of the same unit on that target, or on the "it" its
+    thread names): "Gain control of target creature until end of turn. Untap
+    that creature. It gets +X/+0 and gains haste" (Unwilling Recruit; Goatnap,
+    Mark of Mutiny). The boost is aimed at an opponent's creature you borrow,
+    not one of yours (the coordinator's call, 2026-11-26)."""
+    for c in unit.effect_concepts("gain_control"):
+        target = getattr(c.node, "target", None)
+        if target is chosen or chosen_target(unit, c.node, target) is chosen:
+            return True
+    return False
+
+
+def _beneficial_spell_boost(unit: AbilityUnit, tree: ConceptTree) -> bool:
+    """Whether the spell ability ``unit`` (``crosswalk.boost_delivery`` "spell":
+    not a cycling trigger, not a delayed trigger it creates) targets one
+    creature with a non-negative boost: a ``Pump`` (neither field negative —
+    ``crosswalk.negative_pt_field`` reads a ``Variable "-X"`` and a negated
+    ``Multiply`` too), a ``GenericEffect`` whose P/T statics raise and lower
+    nothing (``crosswalk.generic_effect_boosts``), or a counter that raises
+    power or toughness and lowers neither (``crosswalk.counter_raises``)."""
+    for c in unit.effects:
+        node = c.node
+        tag = tag_of(node)
+        if boost_delivery(unit, tree, node) != "spell" or not effect_targets(
+            unit.node, node
+        ):
+            continue
+        target = getattr(node, "target", None)
+        if tag == "Pump":
+            if not (
+                negative_pt_field(node, "power") or negative_pt_field(node, "toughness")
+            ) and _creature_target(unit, node, target):
+                return True
+        elif tag == "PutCounter":
+            kind = counter_kind(node)
+            if (
+                counter_raises(kind)
+                and "M" not in kind.upper()
+                and _creature_target(unit, node, target)
+            ):
+                return True
+    for _recipient, ge, st in generic_effect_boosts(unit):
+        if boost_delivery(unit, tree, ge) != "spell" or not _non_negative(
+            pt_mod_signs(st)
+        ):
+            continue
+        affected = getattr(st, "affected", None)
+        if tag_of(affected) in ("ParentTarget", "ParentTargetSlot"):
+            # the static's "it", through its owner: "Untap target creature. It
+            # gets +2/+2 and gains reach" (Aim High), "Target creature gets
+            # +3/+3 and gains flying" (Angelic Blessing)
+            if _creature_target(unit, st, affected, owner=ge):
+                return True
+        elif effect_targets(unit.node, ge) and _creature_target(
+            unit, ge, getattr(ge, "target", None)
+        ):
+            return True
+    return False
 
 
 def _names_cards_off_battlefield(filt: object) -> bool:
@@ -587,22 +684,6 @@ def _names_cards_off_battlefield(filt: object) -> bool:
     (a graveyard, hand, library or exile card, not a permanent — CR 110.1)."""
     zones = filter_inzone_zones(filt)
     return bool(zones) and "Battlefield" not in zones
-
-
-def _pump_mod_ints(node: object) -> list[int]:
-    """Every literal int reachable through a pump node's power/toughness
-    fields (Fixed(value=N) wrappers peel; Variable/Ref scale nodes yield
-    nothing — a +X/+X pump is beneficial, only literal negatives gate)."""
-    out: list[int] = []
-    for fname in ("power", "toughness"):
-        v = getattr(node, fname, None)
-        if isinstance(v, int):
-            out.append(v)
-        elif isinstance(v, TypedMirrorNode):
-            inner = getattr(v, "value", None)
-            if isinstance(inner, int):
-                out.append(inner)
-    return out
 
 
 def _parenttarget_return_refers_to_source(unit: AbilityUnit, c: ConceptNode) -> bool:
