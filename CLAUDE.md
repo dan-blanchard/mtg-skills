@@ -172,7 +172,7 @@ Shared Python package (`mtg_utils`). 46 CLI script modules (28 deck + 9 cube + 3
 
 **Cube scripts:**
 
-- **`cubecobra_fetch.py`** — Fetch a cube from CubeCobra. Priority: `cubeJSON` endpoint → `cubelist` → CSV; curl fallback for 403s.
+- **`cubecobra_fetch.py`** — Fetch a cube from CubeCobra. Priority: `cubeJSON` endpoint → `cubelist` → CSV; each request is tried as the tool's own client, then with browser headers, then through curl (a 403 is reported as a refusal, a 404 as a missing cube).
 - **`parse_cube.py`** — Parse CubeCobra JSON, CubeCobra CSV, plain text, or deck JSON into canonical cube JSON.
 - **`cube_stats.py`** — Informational cube metrics: size, per-color distribution, curve, type breakdown, rarity breakdown, commander pool by color identity.
 - **`cube_balance.py`** — Informational checks (not pass/fail): color balance, curve, removal density, fixing density, commander pool.

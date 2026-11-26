@@ -151,8 +151,9 @@ message.
 
 ### CubeCobra Fetch Caveats
 
-CubeCobra returns 403 to plain Python UAs for some endpoints. `cubecobra-fetch`
-handles this transparently by falling back to curl via `web_fetch`. Fetch
+Which clients CubeCobra refuses (HTTP 403) has changed over time. `cubecobra-fetch`
+tries each request as its own client, then with browser headers, then through
+curl, and reports a refusal as a refusal and a 404 as a missing cube. Fetch
 priority: `cubeJSON` (richest — mainboard/maybeboard split, designer tags,
 per-card overrides) → CSV → plain cubelist. If all three fail, the user can
 export manually from the CubeCobra UI and pass the file to `parse-cube`.

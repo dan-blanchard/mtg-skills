@@ -310,11 +310,6 @@ phase-rs issue.
   growth on attack (Gau, Feral Youth's rage) are read at the printed number. The
   closer distribution is in
   `~/.cache/mtg-skills/phase-bump/v0.131.0/block-2026-11-25/closers-distribution.md`.
-- **`cubecobra-fetch` gets a 403 from CubeCobra and calls it "likely cube not
-  found"** (2026-11-25). CubeCobra answers 403 HTML to the tool's Chrome
-  User-Agent, and the curl fallback sends the same User-Agent; plain `curl` or a
-  default `requests` gets 200 JSON from `cubeJSON` / `cubelist` (`modovintage`,
-  `cbvc`). The message misleads: the cube exists.
 
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 

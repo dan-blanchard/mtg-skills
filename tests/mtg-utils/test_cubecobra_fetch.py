@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
+from mtg_utils._http import BROWSER_HEADERS, USER_AGENT
 from mtg_utils.cubecobra_fetch import extract_cube_id, main
 
 
@@ -70,7 +71,7 @@ class TestCLIInterface:
 
         call_count = {"n": 0}
 
-        def side_effect(url, timeout):  # noqa: ARG001
+        def side_effect(url, **_kwargs):
             call_count["n"] += 1
             resp = MagicMock()
             if "cubeJSON" in url:
@@ -94,7 +95,7 @@ class TestCLIInterface:
         assert out_file.exists()
 
     def test_403_falls_back_to_curl(self, tmp_path: Path):
-        """403 from requests triggers curl fallback via web_fetch."""
+        """Every client identity refused (403): the curl fallback is tried."""
         runner = CliRunner()
         mock_session = MagicMock()
         resp_403 = MagicMock(status_code=403)
@@ -123,6 +124,69 @@ class TestCLIInterface:
         assert result.exit_code == 0, result.output
         out_file = tmp_path / "regular.json"
         assert out_file.exists()
+
+    def test_asks_as_its_own_client_first(self, tmp_path: Path):
+        """The first request carries the tool's own User-Agent; a refusal
+        (403) moves on to browser headers before curl is tried."""
+        runner = CliRunner()
+        mock_session = MagicMock()
+        ok = MagicMock(status_code=200, text=json.dumps({"name": "Regular"}))
+        ok.raise_for_status = MagicMock()
+        mock_session.get.side_effect = [MagicMock(status_code=403), ok]
+
+        with (
+            patch(
+                "mtg_utils.cubecobra_fetch.requests.Session",
+                return_value=mock_session,
+            ),
+            patch("mtg_utils.cubecobra_fetch._fetch_with_curl") as curl,
+        ):
+            result = runner.invoke(main, ["regular", "--output-dir", str(tmp_path)])
+        assert result.exit_code == 0, result.output
+        agents = [
+            call.kwargs["headers"]["User-Agent"]
+            for call in mock_session.get.call_args_list
+        ]
+        assert agents == [USER_AGENT, BROWSER_HEADERS["User-Agent"]]
+        curl.assert_not_called()
+
+    def test_a_refusal_is_not_called_a_missing_cube(self, tmp_path: Path):
+        """Every identity refused, and curl handed the 403 page: the error
+        says CubeCobra refused, since the cube may well exist."""
+        runner = CliRunner()
+        mock_session = MagicMock()
+        mock_session.get.return_value = MagicMock(status_code=403)
+
+        with (
+            patch(
+                "mtg_utils.cubecobra_fetch.requests.Session",
+                return_value=mock_session,
+            ),
+            patch(
+                "mtg_utils.cubecobra_fetch._fetch_with_curl",
+                return_value="<!DOCTYPE html><html><body>Forbidden</body></html>",
+            ),
+        ):
+            result = runner.invoke(main, ["regular", "--output-dir", str(tmp_path)])
+        assert result.exit_code != 0
+        errors = (result.stderr_bytes or b"").decode(errors="ignore") + result.output
+        assert "refused the request (HTTP 403)" in errors
+        assert "not found" not in errors
+
+    def test_a_404_is_a_missing_cube(self, tmp_path: Path):
+        runner = CliRunner()
+        mock_session = MagicMock()
+        mock_session.get.return_value = MagicMock(
+            status_code=404, text="Cube not found."
+        )
+
+        with patch(
+            "mtg_utils.cubecobra_fetch.requests.Session", return_value=mock_session
+        ):
+            result = runner.invoke(main, ["bogus", "--output-dir", str(tmp_path)])
+        assert result.exit_code != 0
+        errors = (result.stderr_bytes or b"").decode(errors="ignore") + result.output
+        assert "no such cube (HTTP 404)" in errors
 
     def test_summary_counts_v2_shape(self, tmp_path: Path):
         """CubeCobra v2 nests mainboard under `cards`; the summary line must

@@ -2,8 +2,10 @@
 
 Priority order: cubeJSON endpoint (richest — has mainboard/maybeboard split,
 designer tags, per-card overrides, Scryfall IDs) → cubelist (plain newline
-names) → CSV. CubeCobra 403s plain Python UAs, so we use ``web_fetch``'s
-curl fallback when requests fails.
+names) → CSV. Which clients CubeCobra refuses (HTTP 403) has changed over
+time, so a request is tried as this tool's own client first, then with browser
+headers, then through curl; a refusal is reported as one, never as a missing
+cube.
 
 Both the card list and overview metadata (description, tags, designer
 intent) are fetched when using the JSON endpoint — the overview is embedded
@@ -19,7 +21,7 @@ from pathlib import Path
 import click
 import requests
 
-from mtg_utils._http import BROWSER_HEADERS, _fetch_with_curl
+from mtg_utils._http import BROWSER_HEADERS, USER_AGENT, _fetch_with_curl
 
 CUBECOBRA_JSON_URL = "https://cubecobra.com/cube/api/cubeJSON/{cube_id}"
 CUBECOBRA_LIST_URL = "https://cubecobra.com/cube/api/cubelist/{cube_id}"
@@ -52,26 +54,43 @@ def extract_cube_id(raw: str) -> str:
     return last.split("?", 1)[0]
 
 
-def _fetch_text(url: str) -> str:
-    """GET a URL with browser headers; on 403, fall back to curl.
+# Tried in order. CubeCobra answered 403 to a browser User-Agent and 200 to a
+# plain client on 2026-11-25; the reverse held when this tool was written.
+_HEADER_SETS: tuple[dict[str, str], ...] = (
+    {"User-Agent": USER_AGENT, "Accept": "application/json, text/plain, */*"},
+    BROWSER_HEADERS,
+)
 
-    CubeCobra returns HTML 404 pages with HTTP 200 status when a cube ID
-    doesn't exist, so we additionally reject any response that looks like
-    an HTML error page from the cube-not-found endpoints.
+
+def _fetch_text(url: str) -> str:
+    """GET a URL, as each client identity in turn, then through curl.
+
+    A 403 moves on to the next identity; a 404 is a missing cube. CubeCobra
+    has also returned an HTML shell with HTTP 200 for a missing ID, so a
+    response that is an HTML page is rejected: as a refusal when every
+    identity was refused, as a missing cube otherwise.
     """
     session = requests.Session()
-    session.headers.update(BROWSER_HEADERS)
-    resp = session.get(url, timeout=30)
-    if resp.status_code == 403:
-        text = _fetch_with_curl(url)
-    else:
+    text: str | None = None
+    for headers in _HEADER_SETS:
+        resp = session.get(url, headers=headers, timeout=30)
+        if resp.status_code == 403:
+            continue
+        if resp.status_code == 404:
+            msg = f"CubeCobra has no such cube (HTTP 404) for {url}"
+            raise RuntimeError(msg)
         resp.raise_for_status()
         text = resp.text
+        break
+    refused = text is None
+    if text is None:
+        text = _fetch_with_curl(url)
 
-    # Reject CubeCobra's HTML 404 shell (returned with 200 for missing IDs).
-    stripped = text.lstrip()
-    if stripped.lower().startswith(("<!doctype", "<html")):
-        msg = f"CubeCobra returned an HTML page (likely cube not found) for {url}"
+    if text.lstrip().lower().startswith(("<!doctype", "<html")):
+        if refused:
+            msg = f"CubeCobra refused the request (HTTP 403) for {url}"
+        else:
+            msg = f"CubeCobra returned an HTML page (likely cube not found) for {url}"
         raise RuntimeError(msg)
     return text
 
