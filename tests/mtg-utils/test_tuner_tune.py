@@ -1226,3 +1226,20 @@ def test_a_draft_deck_counts_its_limited_closers_and_keeps_them(captured_protect
     assert "True-Name Nemesis" in captured_protected["protected"]
     assert out["scorecard"]["focus"]["fed_only_cards"] == []
     assert not any(s["cut"]["name"] == "True-Name Nemesis" for s in out["swaps"])
+
+
+def test_the_tune_passes_the_familys_curve_room_to_the_swap_loop(monkeypatch):
+    """The curve cap's room is the family's calibration fact (ADR-0066): two
+    mana in the Commander family."""
+    from mtg_utils._tuner import swaps
+
+    seen = []
+    real = swaps.propose_swaps
+
+    def propose(classes, issues, ctx):
+        seen.append(ctx.curve_room)
+        return real(classes, issues, ctx)
+
+    monkeypatch.setattr(swaps, "propose_swaps", propose)
+    tune(_hd(), search_fn=_fake_search, params=TuneParams(max_swaps=3, budget=50.0))
+    assert seen == [2.0]

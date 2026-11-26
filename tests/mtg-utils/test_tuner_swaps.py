@@ -7,6 +7,7 @@ import pytest
 from mtg_utils._analysis.roles import is_reliable_ramp
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
+from mtg_utils._tuner.calibration import calibration_for
 from mtg_utils._tuner.classify import CardClass
 from mtg_utils._tuner.issues import (
     PROTECTION_SEARCH,
@@ -915,6 +916,342 @@ def test_dead_weight_cuts_fringe_theme_cards_keeps_played_ones():
     cut = {s["cut"]["name"] for s in out["swaps"]}
     assert {"Vanilla Beater", "Unranked Beater"} <= cut  # fringe theme cards upgraded
     assert "Good Engine" not in cut  # a well-played theme card is spared
+
+
+# ── The curve cap (ADR-0066): no add far past the deck's own top end ──
+
+
+def _capped_add(deck, pool, *, issue=None, **ctx_extra):
+    """The add for one slot (a dead-weight slot: a fringe theme card, cut after
+    its add is found, unless ``issue`` says otherwise) in a Commander deck of
+    ``deck`` (CardClasses) under the curve cap's two mana of room."""
+    sig = _prolif_sig()
+    label = spec_for(sig).label
+    classes = [*deck, _cc("Fringe Beater", "engine", served=[label], edhrec_rank=27000)]
+    out = _swaps_for_issue_dicts(
+        classes,
+        [issue or {"kind": "dead_weight", "severity": 8, "count": 1, "message": "x"}],
+        SwapContext(
+            **{
+                "budgets": {},
+                "focus_result": _focus(
+                    viable=[{"label": label, "depth": 20, "cards": []}]
+                ),
+                "deck_signals": [sig],
+                "search_fn": lambda **_: pool,
+                "identity": "",
+                "fmt": "commander",
+                "paper_only": True,
+                "owned": {},
+                "budget": 50.0,
+                "max_swaps": 1,
+                "top_heavy": False,
+                "curve_room": 2.0,
+                **ctx_extra,
+            }
+        ),
+    )
+    return [s["add"]["name"] for s in out["swaps"]]
+
+
+def _top(cmc):
+    """A deck card setting the deck's top end at ``cmc``."""
+    card = _cc("Top Card", "engine", edhrec_rank=500, cmc=cmc)
+    card.record.update(cmc=cmc, mana_cost="{" + str(int(cmc)) + "}")
+    return card
+
+
+def _big_and_bears():
+    return [_played("Blightsteel Colossus", 946), _played("Grizzly Bears", 2150)]
+
+
+def test_an_add_costs_at_most_two_more_than_the_decks_top_end():
+    """Dan's ruling (2026-11-26): the cap is the deck's top plus two. Blightsteel
+    Colossus, a twelve, is out of a deck topping at seven (Blight Curse: what
+    a generous budget would otherwise buy) and in one topping at ten (the Eldrazi
+    precon's It That Betrays, twelve, likewise)."""
+    assert _capped_add([_top(7.0)], _big_and_bears()) == ["Grizzly Bears"]
+    assert _capped_add([_top(10.0)], _big_and_bears()) == ["Blightsteel Colossus"]
+
+
+def test_a_low_curve_commander_deck_is_capped():
+    """On the record: a Commander deck topping at four is offered nothing past
+    six, Craterhoof Behemoth (eight) included, outside a thin top-end's own
+    search (the next test)."""
+    pool = [_played("Craterhoof Behemoth", 300), _played("Grizzly Bears", 2150)]
+    assert _capped_add([_top(4.0)], pool) == ["Grizzly Bears"]
+
+
+def test_a_search_for_the_top_end_is_not_capped():
+    """A thin top-end's six-and-up page asks for the top end itself."""
+    pool = [_played("Craterhoof Behemoth", 300)]
+    thin = {
+        "kind": "efficiency",
+        "subkind": "thin top-end",
+        "severity": 3,
+        "message": "curve: thin top-end",
+    }
+    assert _capped_add([_top(4.0)], pool, issue=thin) == ["Craterhoof Behemoth"]
+
+
+def test_without_curve_room_nothing_is_capped():
+    """Dan's ruling (2026-11-26): the Commander family only. A 60-card or
+    limited deck has no thin top-end path, so a ceiling would be a wall: its
+    calibration carries no room, and the swap loop caps nothing."""
+    assert calibration_for("commander").curve_room == 2.0
+    assert calibration_for("constructed").curve_room is None
+    assert calibration_for("limited").curve_room is None
+    assert _capped_add([_top(7.0)], _big_and_bears(), curve_room=None) == [
+        "Blightsteel Colossus"
+    ]
+
+
+def _reanimators(*names, zone="battlefield"):
+    """The deck cards (real, by name) returning creature cards from a graveyard
+    to ``zone`` (``creature_recursion|you|<zone>``), as the signal read's
+    emitters."""
+    cards = [_real_cc(name, "engine") for name in names]
+    return cards, {("creature_recursion", "you", zone): frozenset(names)}
+
+
+def test_a_reanimation_deck_is_not_capped_for_the_creatures_it_returns():
+    """Dan's ruling (2026-11-26): a deck that cheats cards into play keeps the
+    cards its plan reaches. Two cards returning creature cards to the
+    battlefield (Reanimate, Animate Dead) lift the cap for a creature card:
+    Emrakul, the Promised End's thirteen in a deck topping at seven. Not so for
+    a creature no reanimation returns (``curve_cap.cant_be_reanimated``:
+    Blightsteel Colossus), nor for a plan returning cards to hand (Gravedigger
+    and Reanimate counted as hand returners here) — the coordinator's scope of
+    the waiver, 2026-11-26."""
+    pool = [_played("Emrakul, the Promised End", 500), _played("Grizzly Bears", 2150)]
+    assert _capped_add([_top(7.0)], pool) == ["Grizzly Bears"]
+    deck, emitters = _reanimators("Reanimate", "Animate Dead")
+    assert _capped_add([_top(7.0), *deck], pool, emitters=emitters) == [
+        "Emrakul, the Promised End"
+    ]
+    assert _capped_add([_top(7.0), *deck], _big_and_bears(), emitters=emitters) == [
+        "Grizzly Bears"
+    ]
+    deck, emitters = _reanimators("Gravedigger", "Reanimate", zone="hand")
+    assert _capped_add([_top(7.0), *deck], pool, emitters=emitters) == ["Grizzly Bears"]
+
+
+def test_a_creature_no_reanimation_returns_is_read_off_its_front_face():
+    """A mandatory replacement of its own move to a graveyard from anywhere
+    (CR 614.1a: Blightsteel Colossus, Darksteel Colossus, Progenitus), or a
+    trigger on that move shuffling the graveyard away (Kozilek, Butcher of
+    Truth) or the card itself (Worldspine Wurm, Dread): no reanimation
+    returns it. A "would die … instead" (Possessed
+    Skaab, Gravebane Zombie) still reaches the graveyard by discard or mill, and
+    a back face's replacement (Spectral Binding) is not the card's."""
+    from mtg_utils._tuner.curve_cap import cant_be_reanimated
+
+    for name in (
+        "Blightsteel Colossus",
+        "Darksteel Colossus",
+        "Progenitus",
+        "Kozilek, Butcher of Truth",
+        "Worldspine Wurm",
+        "Dread",
+    ):
+        assert cant_be_reanimated(test_card(name)), name
+    for name in (
+        "Possessed Skaab",
+        "Gravebane Zombie",
+        "Binding Geist // Spectral Binding",
+        "Grizzly Bears",
+    ):
+        assert not cant_be_reanimated(test_card(name)), name
+
+
+def test_a_reanimator_counts_only_for_the_cards_its_target_admits():
+    """Each reanimator is read against the candidate (``reads.filter_admits``,
+    the owner and the bound included). Reanimate and Animate Dead (its Enchant
+    filter: "creature card in a graveyard") return Void Winnower; Puppeteer
+    Clique's move from an opponent's graveyard has no origin phase types, so it
+    is no reanimator here and beside Reanimate it waives nothing; Unearth's "mana value 3 or less" does not reach It That Betrays.
+    Knights' Charge returns Knights only: beside Reanimate it waives a Knight
+    (Knight of the Last Breath) and not Craterhoof Behemoth."""
+    for name in ("Unearth", "Knights' Charge"):  # the reanimators, by name
+        assert test_card(name)["name"] == name
+    winnower = [_played("Void Winnower", 500), _played("Grizzly Bears", 2150)]
+    deck, emitters = _reanimators("Reanimate", "Animate Dead")
+    assert _capped_add([_top(5.0), *deck], winnower, emitters=emitters) == [
+        "Void Winnower"
+    ]
+    deck, emitters = _reanimators("Reanimate", "Puppeteer Clique")
+    assert _capped_add([_top(5.0), *deck], winnower, emitters=emitters) == [
+        "Grizzly Bears"
+    ]
+    betrays = [_played("It That Betrays", 500), _played("Grizzly Bears", 2150)]
+    deck, emitters = _reanimators("Reanimate", "Unearth")
+    assert _capped_add([_top(7.0), *deck], betrays, emitters=emitters) == [
+        "Grizzly Bears"
+    ]
+    deck, emitters = _reanimators("Reanimate", "Knights' Charge")
+    knight = [_played("Knight of the Last Breath", 500), _played("Grizzly Bears", 2150)]
+    assert _capped_add([_top(2.0), *deck], knight, emitters=emitters) == [
+        "Knight of the Last Breath"
+    ]
+    hoof = [_played("Craterhoof Behemoth", 300), _played("Grizzly Bears", 2150)]
+    assert _capped_add([_top(2.0), *deck], hoof, emitters=emitters) == ["Grizzly Bears"]
+
+
+def test_a_reanimators_owner_must_include_you():
+    """A reanimator's graveyard must be yours: Rakshasa Debaser takes from the
+    defending player's (an opponent's) and returns no card of yours, where
+    Unearth ("from your graveyard") does; Exhume's "each player" includes you
+    (its ``ScopedPlayer`` owner under an ``All`` scope), Enslaved Horror's
+    "each other player" does not."""
+    from mtg_utils._tuner.curve_cap import _reanimator_admits, _reanimator_filters
+
+    def admits(reanimator, card):
+        return any(
+            _reanimator_admits(f, test_card(card), every_player=every)
+            for f, every in _reanimator_filters(test_card(reanimator))
+        )
+
+    assert not admits("Rakshasa Debaser", "Grizzly Bears")
+    assert admits("Unearth", "Grizzly Bears")
+    assert admits("Exhume", "Void Winnower")
+    assert not admits("Enslaved Horror", "Void Winnower")
+
+
+def test_a_commander_that_cheats_lifts_the_cap_for_what_it_reaches():
+    """The commander holding ``cheat_into_play|you|Creature`` is the plan by
+    itself (no floor of two deck cards)."""
+    idents = (("cheat_into_play", "you", "Creature"),)
+    assert _capped_add([_top(7.0)], _big_and_bears(), commander_idents=idents) == [
+        "Blightsteel Colossus"
+    ]
+
+
+def test_the_cap_changes_no_pick_it_does_not_refuse():
+    """The cap is the last gate a candidate meets, so a card over it still holds
+    its place on the page: in the window past a first pick over the even share
+    (``_CHEAPER_WINDOW`` counts every card after it), Huge Thing (a twelve the
+    page passes over anyway: past the share, no cheaper) keeps Cheap Thing
+    eleventh, outside the window, and the slot is First Pick's with the cap or
+    without it. Taking Huge Thing off the page instead (the in-search filter
+    that moved Quick Draw's interaction upgrades, 2026-11-26) let Cheap Thing in."""
+
+    def card(name, rank, usd, cmc=3.0):
+        return {
+            "name": name,
+            "type_line": "Creature",
+            "oracle_text": "",
+            "cmc": cmc,
+            "mana_cost": "{" + str(int(cmc)) + "}",
+            "prices": {"usd": usd},
+            "color_identity": [],
+            "edhrec_rank": rank,
+        }
+
+    pool = [
+        card("First Pick", 10, "5.00"),
+        card("Huge Thing", 11, "7.00", cmc=12.0),
+        *(card(f"Dear Thing {i}", 12 + i, "6.00") for i in range(9)),
+        card("Cheap Thing", 30, "1.00"),
+    ]
+    common = {"budget": 10.0, "max_swaps": 5}
+    assert _capped_add([_top(7.0)], pool, **common) == ["First Pick"]
+    assert _capped_add([_top(7.0)], pool, curve_room=None, **common) == ["First Pick"]
+
+
+def test_a_deck_with_nothing_to_set_a_top_end_has_no_cap():
+    """If every nonland card is left out of the top (a convoke card) or the
+    deck has none, there is no ceiling, not a cap of two."""
+    from mtg_utils._tuner.curve_cap import CurveCap
+
+    broodlord, forest = test_card("Hoarding Broodlord"), test_card("Forest")
+    deck = [(broodlord, 1, False), (forest, 30, False)]
+    assert CurveCap.build(deck, room=2.0, emitters={}).cap is None
+    assert CurveCap.build([(forest, 30, False)], room=2.0, emitters={}).cap is None
+    lions = test_card("Savannah Lions")
+    assert CurveCap.build([(lions, 1, False)], room=2.0, emitters={}).cap == 3.0
+
+
+def test_a_deck_cheating_a_card_type_into_play_is_not_capped_for_that_type():
+    """Two deck cards putting creatures onto the battlefield
+    (``cheat_into_play|you|Creature``) lift the cap for creature cards; one
+    does not. An untyped cheat reaches permanent cards only: an instant or a
+    sorcery can't enter the battlefield (CR 304.4, 307.4)."""
+    cheats = {("cheat_into_play", "you", "Creature"): frozenset({"A", "B"})}
+    assert _capped_add([_top(7.0)], _big_and_bears(), emitters=cheats) == [
+        "Blightsteel Colossus"
+    ]
+    one = {("cheat_into_play", "you", "Creature"): frozenset({"A"})}
+    assert _capped_add([_top(7.0)], _big_and_bears(), emitters=one) == ["Grizzly Bears"]
+    untyped = {("cheat_into_play", "you", ""): frozenset({"A", "B"})}
+    assert _capped_add([_top(7.0)], _big_and_bears(), emitters=untyped) == [
+        "Blightsteel Colossus"
+    ]
+    sorcery = [_played("Time Stretch", 500), _played("Grizzly Bears", 2150)]
+    assert _capped_add([_top(7.0)], sorcery, emitters=untyped) == ["Grizzly Bears"]
+
+
+def test_the_decks_top_end_is_read_at_the_cost_of_each_cards_big_mode():
+    """The deck's cards count at the cost the deck pays for their big mode
+    (``costs.cast_costs``' ``top``): Blasphemous Act, nine printed, is cast for
+    six beside thirty creatures (the ADR-0044 estimator's affordable turn), so
+    the cap is eight and Dread Cacodemon (ten) is out; a deck whose top is
+    Find // Finality tops at Finality's six (mana value eight, CR 709.4), so
+    Zodiac Dragon (nine) is out and a seven is in."""
+    lions = replace(_real_cc("Savannah Lions", "engine"), quantity=30)
+    pool = [_played("Dread Cacodemon", 900), _played("Grizzly Bears", 2150)]
+    act = _real_cc("Blasphemous Act", "spine", roles=["board_wipe"])
+    assert _capped_add([act, lions], pool) == ["Grizzly Bears"]
+    find = _real_cc("Find // Finality", "spine")
+    pool = [_played("Zodiac Dragon", 900), _played("Grizzly Bears", 2150)]
+    assert _capped_add([find], pool) == ["Grizzly Bears"]
+    # Read at Find's two, the cap would be four and keep Agent of Treachery
+    # (seven) out; at Finality's six it is eight.
+    pool = [_played("Agent of Treachery", 900), _played("Grizzly Bears", 2150)]
+    assert _capped_add([find], pool) == ["Agent of Treachery"]
+
+
+def test_a_card_cast_for_an_unfixed_share_of_its_cost_is_not_capped():
+    """Convoke (CR 702.51a) sets no fixed cost: Hoarding Broodlord (eight)
+    meets no cap in a deck topping at four — a known limit (ADR-0066): the cap
+    is a guard, not a ranking. Undaunted counts at three less (CR 702.125a, a
+    four-player pod): Divergent Transformations' seven is a four. An unpriced
+    "costs less" clause is capped at its printed cost (the reanimation test's
+    Emrakul, the Promised End)."""
+    for card in ("Hoarding Broodlord", "Divergent Transformations"):
+        pool = [_played(card, 900), _played("Grizzly Bears", 2150)]
+        assert _capped_add([_top(4.0)], pool) == [card]
+    pool = [_played("Divergent Transformations", 900), _played("Grizzly Bears", 2150)]
+    assert _capped_add([_top(1.0)], pool) == ["Grizzly Bears"]
+
+
+def test_a_page_of_cards_past_the_cap_does_not_lose_the_swap():
+    """A page the cap empties is searched again deeper: two hundred twelves ahead
+    of the first castable card on a card-draw fill's page (one search page is
+    150 cards, and the fake search honours its page size, as the card search
+    does) still leave the slot its add."""
+    huge = [
+        {
+            "name": f"Huge Draw {i}",
+            "type_line": "Sorcery",
+            "oracle_text": "Draw seven cards.",
+            "cmc": 12.0,
+            "mana_cost": "{12}",
+            "prices": {"usd": "1.00"},
+            "color_identity": [],
+            "edhrec_rank": 100 + i,
+        }
+        for i in range(200)
+    ]
+    cheap = {**huge[0], "name": "Cheap Draw", "cmc": 2.0, "mana_cost": "{2}"}
+    pool = [*huge, cheap]
+    short = {"kind": "role_short", "role": "card_draw", "severity": 5}
+    assert _capped_add(
+        [_top(7.0)],
+        pool,
+        issue=short,
+        budgets={"card_draw": _band(5, 10, 12)},
+        search_fn=lambda **kw: pool[: kw["limit"]],
+    ) == ["Cheap Draw"]
 
 
 def test_candidate_pool_is_paged_by_playrate_where_it_means_something():

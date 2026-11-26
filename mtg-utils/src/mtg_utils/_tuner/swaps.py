@@ -95,6 +95,7 @@ from mtg_utils._tuner.card_gates import (  # noqa: F401 — re-exported: the old
     statics_of,
 )
 from mtg_utils._tuner.classify import CardClass
+from mtg_utils._tuner.curve_cap import CurveCap
 from mtg_utils._tuner.cuts import (  # noqa: F401 — re-exported: the old import path
     CutFocus,
     _cut_why,
@@ -200,6 +201,9 @@ _SPINE_JOBS = {"protection_short": "protection"}
 _JOB_READ_PAGE = sys.maxsize
 #: The search page an add is ranked from otherwise.
 _PAGE = 150
+#: The deepest page ``find_add`` searches again when the curve cap empties a
+#: page (four times deeper each time).
+_DEEPEST_PAGE = 150 * 4**3
 #: The most of a type- or preset-searched theme's adds that may come from its
 #: serve's broader page — support that is not of the type (a tribe's Urza's
 #: Incubator, Goad's attack payoffs): one in five, never the first. The search
@@ -509,6 +513,9 @@ class SwapContext:
     #: Whether a fringe play-rate may mark a card a cut target
     #: (``Calibration.playrate_condemns`` — never in a one-on-one game).
     playrate_condemns: bool = True
+    #: How far past the deck's top end an add may cost (``Calibration.
+    #: curve_room``; None, no ceiling: ADR-0066).
+    curve_room: float | None = None
     #: Adds the builder rejected — never sourced, on any path (the issue loop, the
     #: dead-weight drain, the fill pass all pick through ``addable``).
     exclude: Collection[str] = ()
@@ -595,6 +602,27 @@ def propose_swaps(
     # The counted deck, one record per copy (a 60-card deck's four Lightning
     # Bolts are four of its spells), read by the job reads' deck fit.
     deck_records = tuple(c.record for c in classes for _ in range(max(1, c.quantity)))
+
+    # The curve cap (ADR-0066, ``curve_cap.CurveCap``): in a family with
+    # ``curve_room`` (the Commander family, Dan's ruling 2026-11-26), no add costs
+    # more than the deck's own top end plus that room, the deck's cards at the
+    # cost of their big mode and a candidate at its cheapest (``costs.
+    # cast_costs``). A deck topping at seven is offered up to nine; the Eldrazi
+    # precon's ten keeps It That Betrays (twelve); Blight Curse's seven keeps out
+    # Blightsteel Colossus, which a generous budget would otherwise buy. A search
+    # asking for the top end itself (a thin top-end's six-and-up page) is
+    # uncapped, and so are the cards a cheat plan reaches (R2). The cap is the
+    # last gate a candidate meets in ``find_add``, so it changes a pick only by
+    # refusing one; the page and its order (the job reads' percentile blend over
+    # the whole match set) are the parent's. A page the cap empties is searched
+    # again on a page four times deeper (``find_add``), so the swap is not lost.
+    curve = CurveCap.build(
+        [(c.record, c.quantity, c.bucket == "commander") for c in classes],
+        room=ctx.curve_room,
+        emitters=ctx.emitters,
+        commander_idents=ctx.commander_idents,
+    )
+
     # The rejected adds the LAST find_add passed over — so an issue that then found
     # nothing can say the rejection is why, instead of silently yielding its slot.
     rejected_hits: list[str] = []
@@ -948,6 +976,8 @@ def propose_swaps(
     # an add no search found (the mana base's).
     searches: list[tuple[dict, dict] | None] = []
     last_find: list[tuple[dict, dict] | None] = [None]
+    # Whether the curve cap refused a card on the page ``find_on_page`` just read.
+    capped_out = [False]
     ledger: _Purse = (
         _WildcardLedger(ctx.wildcard_budget)
         if ctx.wildcard_budget is not None
@@ -1348,6 +1378,36 @@ def propose_swaps(
         job: str | None = None,
         trim_of: CardClass | None = None,
     ) -> tuple[dict, float, bool] | None:
+        """:func:`find_on_page`, searched again on a page four times deeper while
+        the curve cap (ADR-0066) refused a card that passed every other gate and
+        the page found nothing: a page of costly cards never loses the swap, and
+        a page the cap refuses nothing on is answered as it was."""
+        options = {
+            "synergy_first": synergy_first,
+            "nonland_only": nonland_only,
+            "role_fix": role_fix,
+            "upgrade_of": upgrade_of,
+            "job": job,
+            "trim_of": trim_of,
+        }
+        while True:
+            capped_out[0] = False
+            picked = find_on_page(spec, limit=limit, **options)
+            if picked is not None or not capped_out[0] or limit >= _DEEPEST_PAGE:
+                return picked
+            limit = min(limit * 4, _DEEPEST_PAGE)
+
+    def find_on_page(
+        spec: dict,
+        *,
+        synergy_first: bool,
+        nonland_only: bool = False,
+        limit: int = _PAGE,
+        role_fix: bool = False,
+        upgrade_of: CardClass | None = None,
+        job: str | None = None,
+        trim_of: CardClass | None = None,
+    ) -> tuple[dict, float, bool] | None:
         """The best affordable, not-yet-used add for this spec — does NOT commit spend
         (the caller commits once a cut is secured, so an unpaired add can't inflate the
         total). Returns ``(card, cost, off_avenue_fallback)``; the third value is only
@@ -1560,6 +1620,11 @@ def propose_swaps(
                 # cuts went unmade (held-out 563 / 262 / 105 → 562 / 260 /
                 # 105); held to every theme add, eight swaps and seven guide
                 # cuts (→ 554 / 255 / 105).
+                continue
+            if curve.over(card, spec):
+                # Past the deck's top end plus its room (ADR-0066): the last
+                # gate, so it refuses a card only where the page would take it.
+                capped_out[0] = True
                 continue
             cost = acquire_cost(card)
             if cost is None:

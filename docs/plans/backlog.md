@@ -20,21 +20,75 @@ phase-rs issue.
 
 **From the closing precon scoreboard (2026-11-26, N18 at e25fb0d3 against N17 at 2720444a; `~/mtg/tuner-work/w-2026-11-25/`)**
 
-- **TyranidSwarm_40K lost Cyclonic Rift as an add.** The day's later commits left the
-  25 precons swap for swap identical and the held-out 20 with one neutral reshuffle,
-  but in the fresh set this deck's Exocrine → Cyclonic Rift became Exocrine → Scourge
-  of Fleets (fresh adds 50 → 49, plan 171 → 170). The trigger is right: Hierophant
-  Bio-Titan now counts as a closer (its "can't be blocked by creatures with power 2 or
-  less" is evasion), so the "≈2 closers" swap went away and five pairs reshuffled
-  behind it. What is not explained is why Rift then lost its slot: the board-wipe page
-  is unchanged (Rift first, Scourge of Fleets 24th) and neither card's board-wipe read
-  moved (0.80 against 0.66); add spend fell from $173 to $156 of $234. Look at the
-  per-swap purse and the order swaps are filled in once a closer swap drops out.
-- **Two swaps changed with no card read changing** (SilverquillInfluence_SOC: Inkshield
-  → Sphere of Safety where it was → Avacyn; CallForBackup_MOC: Path of the Pyromancer
-  → Mask of Memory where it was → High Score). Guide numbers unchanged; the tuner rule
-  that moved them was not isolated (`card_gates`, `issues`, `calibration` and `metrics`
-  all changed that day).
+- **TyranidSwarm_40K lost Cyclonic Rift as an add: the even share, and a held
+  settle-up pass** (traced 2026-11-26). Hierophant Bio-Titan now counts as a closer,
+  so the "≈2 closers" swap went away and the swaps behind it reshuffled. At
+  Exocrine's board-wipe upgrade, three swaps from the end with $150.59 spent, the
+  even share was ($233.73 − 150.59) / 3 = $27.71. Rift ($29.71) was past it, so the
+  first card within it that passed the gate (Scourge of Fleets, $0.49) took the
+  slot. The tune then ended $78 under budget. A settle-up pass was built, reviewed
+  and measured twice (N19, N22): once every swap is made, it re-runs each search that
+  passed a card over for its price, on the money left. It FAILED the gate's primary
+  line: held-out plan 416 → 415, guide adds 111 → 106, job-equivalents 39 → 40,
+  cuts flat, spend +24% ($110 → $136 held-out average), 10 guide adds gained and 13
+  lost. Dan's decision (2026-11-26): held as a patch,
+  `~/mtg/tuner-work/w-2026-11-26/settle-up/` (its README has the measures and the
+  fixed review findings); the commit stays on branch `tuner-rift`. Don't re-suggest
+  it as built. It gives the leftover money to the first priced-out swap in issue
+  order, and each upgrade reshuffles the swaps behind it (a freed card taken by a
+  later search, that search's own add freed in turn): that is where the 13 lost
+  guide adds come from. To pass, it would need to spend only where the swap's own
+  order holds still: a card ahead of the add that no later swap takes, the rest of
+  the proposal kept as made.
+- **Two upgrade orders turn on a card the pick never takes** (traced 2026-11-26,
+  `~/mtg/tuner-work/w-2026-11-26/rift/`; both followed a changed input, neither is a
+  defect yet). `find_add`'s cheaper window counts every candidate after the first
+  pick, the ones the upgrade gate rejects too: at v0.133.0 Immortal Obligation reads
+  as protection (0.38, from none) and sits second on Silverquill Influence's page,
+  failing the gate for Combat Calligrapher but pushing Sephara, Sky's Blade ($0.97,
+  inside the share) from tenth to eleventh, so Avacyn ($42.49) took the slot. And
+  `_theme_ties` anchors on the page's head: CallForBackup_MOC's card-draw blend had
+  Guardian Project and Sylvan Library tied exactly (2.7676), Guardian Project first;
+  0493e4e2's evasion read (`CantBeBlockedBy`) raised three creatures' quality
+  reads by 0.55, two of them (Old Fat Spider, Ox Drover's "can't be blocked by
+  Oxen") past Guardian Project's but not Sylvan Library's, so Sylvan Library led and
+  the on-theme card within `_THEME_TIE` of the head became Mask of Memory (read
+  0.339, near Sylvan Library's 0.389) instead of Tribute to the World Tree (0.58,
+  Guardian Project's). Counting only gate-passing candidates, or anchoring the tie
+  on more than one head card, would steady both; neither is measured.
+- **The named-combo-piece guard reads printed cost** (ADR-0066's known
+  inconsistency). `swaps.deck_top_mv` (2026-11-01, every family) holds a named
+  combo piece to the deck's top at printed mana value, with no room and no cheat
+  waiver. The curve cap reads cast costs with two mana of room in the Commander
+  family. Folding the named guard into the cap would loosen it there, so measure it
+  before shipping. Also unread by the cap: a reanimation bound phase drops whole
+  (Reunion of the House's "total power 10 or less" reads as none).
+- **The curve cap leaves self-paying cards uncapped** (ADR-0066, the coordinator's
+  call of 2026-11-26). A candidate with convoke, delve, improvise, affinity or emerge
+  meets no ceiling, even where the deck can't feed it: Autochthon Wurm in a
+  token-less deck, Blinkmoth Infusion with no artifacts, Icebreaker Kraken with no
+  snow lands; Organic Extinction is the likeliest to be picked. The fix it would
+  need: count them at printed cost unless the deck supplies what they feed on.
+  Likewise an untyped `cheat_into_play` lifts the cap for every permanent card,
+  though Genesis Hydra, Emergent Woodwurm and Broodcaller Scourge cheat only up to
+  a bound the signal does not carry.
+- **What a generous budget buys off the job pages: the pages' own order**
+  (2026-11-26; seen through the held settle-up pass, N19 / N22,
+  `~/mtg/tuner-work/w-2026-11-26/`; a larger budget picks the same). Not the
+  mana-value gap: both are upgrades, held to their cut's band, and cheap. Each is the
+  job page's most played card once the money reaches it. Phyrexian Altar ($54.14,
+  rank 305) upgrades Rousing Refrain on Prismari Artistry's ramp page (32nd on it;
+  3rd on the "token maker consumers" need page), over Burnished Hart: a sacrifice
+  outlet as ramp in a spells deck with no sacrifice plan. Esper Sentinel ($51.13,
+  rank 79) upgrades Shimmer Dragon on Deep Clue Sea's card-draw page (4th), over
+  Howling Mine: a draw tax on opponents' first noncreature spell, its X the
+  Sentinel's 1 power, in Morska's Clue deck. A read of the deck's plan on the
+  ramp and draw pages (what the Altar sacrifices, what the Sentinel's power is
+  worth here) would tell them apart; none exists. Counter Intelligence's card-draw
+  upgrade of Thirst for Knowledge, given $0.82, reads the blend: Silent Hallcreeper
+  ($0.80, rank 1446) 7th, Seize the Spoils ($0.25, rank 725) 13th, everything above
+  Hallcreeper costlier. That is a ranking question: the draw blend against a
+  more-played card that draws two and makes a Treasure.
 
 **From ranking the upstream drafts (2026-11-25; `docs/plans/phase-upstream-issues/ranking.md`)**
 

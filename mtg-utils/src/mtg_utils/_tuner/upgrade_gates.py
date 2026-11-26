@@ -11,7 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 
 from mtg_utils._analysis.card_quality import quality
 from mtg_utils._analysis.card_reads import has_trees
-from mtg_utils._analysis.costs import effective_mana_value
+from mtg_utils._analysis.costs import X_COST_VALUE, effective_mana_value
 from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils._analysis.signals import grant_payloads_for
@@ -77,10 +77,10 @@ _THEME_TIE = 0.1
 _CHEAPER_TIE = 0.3
 
 
-#: What an X in a mana cost is worth for banding: an X spell is cast for value at
-#: X ≥ 3 (Martial Coup wants five, Comet Storm three) — a printed mana value of 2
-#: would otherwise band Martial Coup with Swords to Plowshares. The lane's own call.
-_X_COST_VALUE = 3.0
+#: What an X in a mana cost is worth for banding (``costs.X_COST_VALUE``, the
+#: one value the curve cap's cast cost reads too): a printed mana value of 2
+#: would otherwise band Martial Coup with Swords to Plowshares.
+_X_COST_VALUE = X_COST_VALUE
 
 
 #: How many mana-value bands above its cut a JOB upgrade may cost: one. A

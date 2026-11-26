@@ -79,6 +79,13 @@ class Calibration:
     #: and the avenue it nominally feeds (True-Name Nemesis is a Rogue) says
     #: nothing about it, so the limited family keeps it off.
     fed_only_is_filler: bool = True
+    #: How far past the deck's own top end (its costliest nonland card, at the
+    #: cost each is cast for: ``costs.cast_cost``) an add may cost, or None for
+    #: no ceiling (ADR-0066). Dan's ruling (2026-11-26): two mana, in the
+    #: Commander family only — a 60-card or limited deck has no thin top-end
+    #: path, so a ceiling there would be a wall (a sealed deck topping at five
+    #: must still be offered the seven in its pool).
+    curve_room: float | None = None
     default_shape: str = field(default="midrange")
 
     def playrate_condemns(self, *, multiplayer: bool) -> bool:
@@ -126,6 +133,7 @@ COMMANDER = Calibration(
     voltron_pieces=4,
     commander_axes=True,
     playrate_meaningful=True,
+    curve_room=2.0,
 )
 
 CONSTRUCTED = Calibration(

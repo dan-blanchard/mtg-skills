@@ -622,6 +622,7 @@ def tune(
             available=pool,
             playrate=cal.playrate_meaningful,
             playrate_condemns=condemns,
+            curve_room=cal.curve_room,
             exclude=params.exclude,
             deck_mana=deck_mana,
             need_avenues=need_avenues,

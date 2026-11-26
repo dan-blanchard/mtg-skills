@@ -156640,6 +156640,366 @@
     "type_line": "Instant"
    }
   },
+  "Binding Geist // Spectral Binding": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Spirit"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Disturb": {
+        "generic": 1,
+        "shards": [
+         "Blue"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "730e4629-dc54-415d-9493-88885788ca19",
+       "82699d05-d36f-4928-9713-a985f417ea54"
+      ]
+     },
+     "name": "Binding Geist",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks, target creature an opponent controls gets -2/-0 until end of turn.\nDisturb {1}{U} (You may cast this card from your graveyard transformed for its disturb cost.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "DBL",
+      "VOW"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "5e1bd17d-3825-45c0-9e7c-6887b7e2cb5c",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, target creature an opponent controls gets -2/-0 until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Fixed",
+          "value": -2
+         },
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Pump"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": [
+      "Blue"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "730e4629-dc54-415d-9493-88885788ca19",
+       "82699d05-d36f-4928-9713-a985f417ea54"
+      ]
+     },
+     "name": "Spectral Binding",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature gets -2/-0.\nIf Spectral Binding would be put into a graveyard from anywhere, exile it instead.",
+     "power": null,
+     "printings": [
+      "DBL",
+      "VOW"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [
+      {
+       "active_zones": [
+        "Library",
+        "Hand",
+        "Battlefield",
+        "Stack",
+        "Exile",
+        "Command"
+       ],
+       "condition": null,
+       "description": "If ~ would be put into a graveyard from anywhere, exile it instead.",
+       "destination_zone": "Graveyard",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "5e1bd17d-3825-45c0-9e7c-6887b7e2cb5c",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets -2/-0.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": -2
+        },
+        {
+         "type": "AddToughness",
+         "value": 0
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "U"
+      ],
+      "keywords": [
+       "Disturb",
+       "Enchant",
+       "Transform"
+      ],
+      "mana_cost": "{2}{U}",
+      "name": "Binding Geist",
+      "oracle_text": "Whenever this creature attacks, target creature an opponent controls gets -2/-0 until end of turn.\nDisturb {1}{U} (You may cast this card from your graveyard transformed for its disturb cost.)",
+      "power": "3",
+      "toughness": "1",
+      "type_line": "Creature — Spirit"
+     },
+     {
+      "colors": [
+       "U"
+      ],
+      "keywords": [
+       "Disturb",
+       "Enchant",
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Spectral Binding",
+      "oracle_text": "Enchant creature\nEnchanted creature gets -2/-0.\nIf Spectral Binding would be put into a graveyard from anywhere, exile it instead.",
+      "type_line": "Enchantment — Aura"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "keywords": [
+     "Disturb",
+     "Enchant",
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Binding Geist // Spectral Binding",
+    "oracle_id": "5e1bd17d-3825-45c0-9e7c-6887b7e2cb5c",
+    "type_line": "Creature — Spirit // Enchantment — Aura"
+   }
+  },
   "Biomancer's Familiar": {
    "phase_records": [
     {
@@ -335839,6 +336199,212 @@
     "type_line": "Creature — Bat Cleric"
    }
   },
+  "Darksteel Colossus": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Golem"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Indestructible",
+      "Trample"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 11,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "wrong_player",
+      "source_printing_ids": [
+       "44012fb2-9dbc-408a-b84b-1302b442f699",
+       "5a3aa1ce-8757-4541-8ac7-1e7e203b60fc",
+       "70197723-c61b-4600-b61d-41380c8f3067",
+       "8b5341ab-85a6-44b2-b738-1110e699c02b",
+       "cbc27b24-f085-48b0-8757-cd11fbf25b91"
+      ]
+     },
+     "name": "Darksteel Colossus",
+     "non_ability_text": null,
+     "oracle_text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nIndestructible (Damage and effects that say \"destroy\" don't destroy this creature.)\nIf Darksteel Colossus would be put into a graveyard from anywhere, reveal Darksteel Colossus and shuffle it into its owner's library instead.",
+     "power": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "printings": [
+      "DST",
+      "FDN",
+      "M10",
+      "PW24",
+      "SLD"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "active_zones": [
+        "Library",
+        "Hand",
+        "Battlefield",
+        "Stack",
+        "Exile",
+        "Command"
+       ],
+       "condition": null,
+       "description": "If ~ would be put into a graveyard from anywhere, reveal ~ and shuffle it into its owner's library instead.",
+       "destination_zone": "Graveyard",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Library",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Reveal"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Owner"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2013-07-01",
+       "text": "Lethal damage, damage from a source with deathtouch, and effects that say \"destroy\" won't cause a creature with indestructible to be put into the graveyard. However, a creature with indestructible can be put into the graveyard for a number of reasons. The most likely reasons are if it's sacrificed or if its toughness is 0 or less. (In these cases, of course, Darksteel Colossus would be shuffled into its owner's library instead of being put into its owner's graveyard.)"
+      }
+     ],
+     "scryfall_oracle_id": "1b09d0cf-403c-4a15-aeee-602a1bdaf0c1",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 11.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Indestructible",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{11}",
+    "name": "Darksteel Colossus",
+    "oracle_id": "1b09d0cf-403c-4a15-aeee-602a1bdaf0c1",
+    "oracle_text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nIndestructible (Damage and effects that say \"destroy\" don't destroy this creature.)\nIf Darksteel Colossus would be put into a graveyard from anywhere, reveal Darksteel Colossus and shuffle it into its owner's library instead.",
+    "power": "11",
+    "toughness": "11",
+    "type_line": "Artifact Creature — Golem"
+   }
+  },
   "Darksteel Forge": {
    "phase_records": [
     {
@@ -392602,6 +393168,251 @@
     "type_line": "Snow Creature — Zombie Cleric"
    }
   },
+  "Dread": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elemental",
+       "Incarnation"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Fear"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "9b608658-9150-439b-b0a0-4a994722b95c"
+      ]
+     },
+     "name": "Dread",
+     "non_ability_text": null,
+     "oracle_text": "Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)\nWhenever a creature deals damage to you, destroy it.\nWhen Dread is put into a graveyard from anywhere, shuffle it into its owner's library.",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "LRW"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2007-10-01",
+       "text": "Although this ability triggers when the Incarnation is put into a graveyard from the battlefield, it doesn’t *specifically* trigger on leaving the battlefield, so it doesn’t behave like other leaves-the-battlefield abilities. The ability will trigger from the graveyard."
+      },
+      {
+       "date": "2007-10-01",
+       "text": "If the Incarnation had lost this ability while on the battlefield (due to Lignify, for example) and then was destroyed, the ability would still trigger and it would get shuffled into its owner’s library. However, if the Incarnation lost this ability when it was put into the graveyard (due to Yixlid Jailer, for example), the ability wouldn’t trigger and the Incarnation would remain in the graveyard."
+      },
+      {
+       "date": "2007-10-01",
+       "text": "If the Incarnation is removed from the graveyard after the ability triggers but before it resolves, it will remain in its new zone when its owner shuffles their library. Similarly, if a replacement effect has the Incarnation move to a different zone instead of being put into the graveyard, the ability won’t trigger at all."
+      },
+      {
+       "date": "2007-10-01",
+       "text": "The last ability triggers when the Incarnation is put into its owner’s graveyard from any zone, not just from on the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "09f41fac-8285-457a-bb71-8c6a93af2df9",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a creature deals damage to you, destroy it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "Destroy"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_target": {
+        "type": "Controller"
+       }
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ is put into a graveyard from anywhere, shuffle it into its owner's library.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Library",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "library_shuffle": {
+          "type": "TerminalShuffle"
+         },
+         "origin": null,
+         "owner_library": true,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Owner"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Fear"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{B}{B}",
+    "name": "Dread",
+    "oracle_id": "09f41fac-8285-457a-bb71-8c6a93af2df9",
+    "oracle_text": "Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)\nWhenever a creature deals damage to you, destroy it.\nWhen Dread is put into a graveyard from anywhere, shuffle it into its owner's library.",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Creature — Elemental Incarnation"
+   }
+  },
   "Dread Cacodemon": {
    "phase_records": [
     {
@@ -433190,6 +434001,177 @@
     "type_line": "Creature — Dwarf"
    }
   },
+  "Enslaved Horror": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Horror"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "dffca723-360d-48de-a0a8-32288627f3df"
+      ]
+     },
+     "name": "Enslaved Horror",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, each other player may return a creature card from their graveyard to the battlefield.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "MMQ"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "f7920a2c-d14a-4ed6-8341-96751322f4e7",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, each other player may return a creature card from their graveyard to the battlefield.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "controller": "ScopedPlayer",
+            "type": "Owned"
+           },
+           {
+            "type": "InZone",
+            "zone": "Graveyard"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": null,
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Enslaved Horror",
+    "oracle_id": "f7920a2c-d14a-4ed6-8341-96751322f4e7",
+    "oracle_text": "When this creature enters, each other player may return a creature card from their graveyard to the battlefield.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Horror"
+   }
+  },
   "Ensnaring Bridge": {
    "phase_records": [
     {
@@ -449554,6 +450536,159 @@
     "name": "Exhaustion",
     "oracle_id": "0e7b9caf-8285-4386-98bc-9a809827f447",
     "oracle_text": "Creatures and lands target opponent controls don't untap during their next untap step.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Exhume": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Each player puts a creature card from their graveyard onto the battlefield.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "controller": "ScopedPlayer",
+           "type": "Owned"
+          },
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "player_scope": {
+        "type": "All"
+       },
+       "sub_ability": null,
+       "target_choice_timing": "Resolution",
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "241d374b-cc8e-4916-acd0-e6bdf5229c16",
+       "5f1cdcba-a04a-4a2f-8bc1-0dd7fa03754d",
+       "a88b23ce-ce19-47da-b9f2-055a4d6bdc79",
+       "b2027588-e49f-4993-a491-5a202961c097"
+      ]
+     },
+     "name": "Exhume",
+     "non_ability_text": null,
+     "oracle_text": "Each player puts a creature card from their graveyard onto the battlefield.",
+     "power": null,
+     "printings": [
+      "BRB",
+      "DSC",
+      "JMP",
+      "PD3",
+      "PLST",
+      "TD2",
+      "USG"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "fbe61f74-1b3c-4e12-8758-7029872c9ff1",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Exhume",
+    "oracle_id": "fbe61f74-1b3c-4e12-8758-7029872c9ff1",
+    "oracle_text": "Each player puts a creature card from their graveyard onto the battlefield.",
     "type_line": "Sorcery"
    }
   },
@@ -573104,6 +574239,156 @@
     "type_line": "Creature — Zombie"
    }
   },
+  "Gravebane Zombie": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Zombie"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6e16f8bc-3200-4a0a-b298-c7e7b4e8376c",
+       "df21b384-6073-477e-bd95-fc94ca2f2f2c"
+      ]
+     },
+     "name": "Gravebane Zombie",
+     "non_ability_text": null,
+     "oracle_text": "If this creature would die, put it on top of its owner's library instead.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "6ED",
+      "MIR"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "If ~ would die, put it on top of its owner's library instead.",
+       "destination_zone": "Graveyard",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "position": {
+          "type": "Top"
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "PutAtLibraryPosition"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "d04a836b-7e42-424d-9600-42a40d0dfccd",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Gravebane Zombie",
+    "oracle_id": "d04a836b-7e42-424d-9600-42a40d0dfccd",
+    "oracle_text": "If this creature would die, put it on top of its owner's library instead.",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Zombie"
+   }
+  },
   "Gravecrawler": {
    "phase_records": [
     {
@@ -671600,6 +672885,253 @@
     "type_line": "Legendary Snow Creature — Yeti"
    }
   },
+  "It That Betrays": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Eldrazi"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Annihilator": 2
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 12,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "34d790ad-3559-4c32-9057-e2e326740bdc",
+       "5b64cfc0-dace-4f54-b2b1-c92d8cb64c35",
+       "75bc0682-f21a-4c35-bdb2-deb10a6cd8b8",
+       "ba324afd-98e0-4247-b8a4-06d35e3f6e97",
+       "ca08b369-783d-4fe4-8fc8-9cd595638550"
+      ]
+     },
+     "name": "It That Betrays",
+     "non_ability_text": null,
+     "oracle_text": "Annihilator 2 (Whenever this creature attacks, defending player sacrifices two permanents of their choice.)\nWhenever an opponent sacrifices a nontoken permanent, put that card onto the battlefield under your control.",
+     "power": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "printings": [
+      "CMM",
+      "DDP",
+      "ROE",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2010-06-15",
+       "text": "Annihilator abilities trigger and resolve during the declare attackers step. The defending player chooses and sacrifices the required number of permanents before they declare blockers. Any creatures sacrificed this way won’t be able to block."
+      },
+      {
+       "date": "2010-06-15",
+       "text": "If a creature with annihilator is attacking a planeswalker, and the defending player chooses to sacrifice that planeswalker, the attacking creature continues to attack. It may be blocked. If it isn’t blocked, it simply won’t deal combat damage to anything."
+      },
+      {
+       "date": "2010-06-15",
+       "text": "If an opponent sacrifices a nontoken permanent as part of paying the cost of a spell or ability, the second ability triggers and goes on the stack on top of it. This ability will resolve, causing you to return the card to the battlefield before the other spell or ability resolves."
+      },
+      {
+       "date": "2010-06-15",
+       "text": "If an opponent sacrifices an Aura, you’ll choose what it enchants as you return it to the battlefield. No player can respond to the choice. Since an Aura doesn’t target anything if it isn’t cast as a spell, you can enchant a permanent with shroud this way."
+      },
+      {
+       "date": "2010-06-15",
+       "text": "If the sacrificed permanent that caused the second ability to trigger somehow leaves the graveyard before the ability resolves (possibly because it was returned to the battlefield by the ability of another It That Betrays), the ability simply won’t do anything when it resolves."
+      },
+      {
+       "date": "2010-06-15",
+       "text": "It doesn’t matter whose graveyard the permanent is put into, only that it was last controlled by, and sacrificed by, an opponent."
+      },
+      {
+       "date": "2010-06-15",
+       "text": "The second ability triggers whenever an opponent sacrifices a nontoken permanent for any reason, not just due to the annihilator ability."
+      },
+      {
+       "date": "2010-06-15",
+       "text": "When the second ability resolves, you must return the card to the battlefield, even if you don’t want to."
+      }
+     ],
+     "scryfall_oracle_id": "b11187ab-f8a8-422b-b550-4495f96de0f2",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an opponent sacrifices a nontoken permanent, put that card onto the battlefield under your control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "enters_under": "You",
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Sacrificed",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "Opponent",
+        "properties": [
+         {
+          "type": "NonToken"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.86a: Annihilator 2 — whenever ~ attacks, defending player sacrifices 2 permanents.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": "Defending player sacrifices 2 permanents",
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "controller": "DefendingPlayer",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent"
+          ]
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 12.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Annihilator"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{12}",
+    "name": "It That Betrays",
+    "oracle_id": "b11187ab-f8a8-422b-b550-4495f96de0f2",
+    "oracle_text": "Annihilator 2 (Whenever this creature attacks, defending player sacrifices two permanents of their choice.)\nWhenever an opponent sacrifices a nontoken permanent, put that card onto the battlefield under your control.",
+    "power": "11",
+    "toughness": "11",
+    "type_line": "Creature — Eldrazi"
+   }
+  },
   "Ivora, Insatiable Heir": {
    "phase_records": [
     {
@@ -723426,6 +724958,292 @@
     "type_line": "Creature — Human Knight"
    }
   },
+  "Knight of the Last Breath": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 3,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "target": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "Another"
+            },
+            {
+             "type": "NonToken"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{3}, Sacrifice another nontoken creature: Create a 1/1 white and black Spirit creature token with flying.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "White",
+         "Black"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [
+         "Flying"
+        ],
+        "name": "Spirit",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Spirit"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Giant",
+       "Knight"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Afterlife": 3
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "White",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "bf20a56d-0799-512a-aa35-fa2df7e4deca",
+       "ecb4f782-2e1d-599e-b215-50205578124c"
+      ],
+      "source_printing_ids": [
+       "1438d850-1e08-4d75-a79c-d6a4738d5a67",
+       "76fccf60-2df5-4c14-893f-41d3f86c545f"
+      ]
+     },
+     "name": "Knight of the Last Breath",
+     "non_ability_text": null,
+     "oracle_text": "{3}, Sacrifice another nontoken creature: Create a 1/1 white and black Spirit creature token with flying.\nAfterlife 3 (When this creature dies, create three 1/1 white and black Spirit creature tokens with flying.)",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "MOC",
+      "RNA"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-01-25",
+       "text": "Because blockers are chosen all at once, you can't block with a creature with afterlife, wait for it to die, then block with the resulting Spirit tokens."
+      }
+     ],
+     "scryfall_oracle_id": "67791323-bf21-4c72-bf57-32197d3d5775",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.135a: When ~ is put into a graveyard from the battlefield, create 3 1/1 white and black Spirit creature tokens with flying.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": "Create 3 1/1 white and black Spirit creature tokens with flying",
+        "duration": null,
+        "effect": {
+         "colors": [
+          "White",
+          "Black"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "Flying"
+         ],
+         "name": "Spirit",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Spirit"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "9e50a908-0adb-4149-b8cf-2cfb56eab2cb",
+      "name": "Spirit",
+      "oracle_id": "18ef473d-f958-4bff-8045-154f6adc6b04",
+      "type_line": "Token Creature — Spirit"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 7.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "W"
+    ],
+    "keywords": [
+     "Afterlife"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{W}{B}",
+    "name": "Knight of the Last Breath",
+    "oracle_id": "67791323-bf21-4c72-bf57-32197d3d5775",
+    "oracle_text": "{3}, Sacrifice another nontoken creature: Create a 1/1 white and black Spirit creature token with flying.\nAfterlife 3 (When this creature dies, create three 1/1 white and black Spirit creature tokens with flying.)",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Giant Knight"
+   }
+  },
   "Knight of the Pilgrim's Road": {
    "phase_records": [
     {
@@ -724171,6 +725989,247 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Human Knight"
+   }
+  },
+  "Knights' Charge": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 6,
+           "shards": [
+            "White",
+            "Black"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{6}{W}{B}, Sacrifice ~: Return all Knight creature cards from your graveyard to the battlefield.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "origin": "Graveyard",
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature",
+          {
+           "Subtype": "Knight"
+          }
+         ]
+        },
+        "type": "ChangeZoneAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "53d74710-7396-4984-afd8-fe47059e3d12",
+       "6b86f7db-ae1d-49fe-a9c5-488bbf3afac7"
+      ]
+     },
+     "name": "Knights' Charge",
+     "non_ability_text": null,
+     "oracle_text": "Whenever a Knight you control attacks, each opponent loses 1 life and you gain 1 life.\n{6}{W}{B}, Sacrifice this enchantment: Return all Knight creature cards from your graveyard to the battlefield.",
+     "power": null,
+     "printings": [
+      "ELD",
+      "MOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-10-04",
+       "text": "In a Two-Headed Giant game, Knights' Charge's first ability causes the opposing team to lose 1 life twice, and you gain 1 life once."
+      }
+     ],
+     "scryfall_oracle_id": "b4014b7c-aa1d-4feb-ab7a-4921ad150f9a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a Knight you control attacks, each opponent loses 1 life and you gain 1 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "type": "GainLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Knight"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}{B}",
+    "name": "Knights' Charge",
+    "oracle_id": "b4014b7c-aa1d-4feb-ab7a-4921ad150f9a",
+    "oracle_text": "Whenever a Knight you control attacks, each opponent loses 1 life and you gain 1 life.\n{6}{W}{B}, Sacrifice this enchantment: Return all Knight creature cards from your graveyard to the battlefield.",
+    "type_line": "Enchantment"
    }
   },
   "Kodama of the Center Tree": {
@@ -952702,6 +954761,257 @@
     "type_line": "Creature — Bird Soldier Horror"
    }
   },
+  "Possessed Skaab": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Zombie"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Blue"
+     ],
+     "color_override": [
+      "Black",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5eed2f04-4c3c-4e85-aa1c-e27c52eabd48",
+       "6ebc94e5-a595-43ab-929b-426009190669"
+      ]
+     },
+     "name": "Possessed Skaab",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, return target instant, sorcery, or creature card from your graveyard to your hand.\nIf this creature would die, exile it instead.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "ORI",
+      "PIO"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "If ~ would die, exile it instead.",
+       "destination_zone": "Graveyard",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2015-06-22",
+       "text": "Possessed Skaab’s last ability will apply no matter what caused it to die (lethal damage, being sacrificed, enough -1/-1 counters, and so on). Possessed Skaab won’t go to the graveyard. It will be put from the battlefield into exile. Abilities that trigger whenever a creature dies won’t trigger."
+      }
+     ],
+     "scryfall_oracle_id": "a42b567d-6bfc-49e7-8f91-917e2bb3046c",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, return target instant, sorcery, or creature card from your graveyard to your hand.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "filters": [
+           {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "InZone",
+              "zone": "Graveyard"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Instant"
+            ]
+           },
+           {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "InZone",
+              "zone": "Graveyard"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Sorcery"
+            ]
+           },
+           {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "InZone",
+              "zone": "Graveyard"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}{B}",
+    "name": "Possessed Skaab",
+    "oracle_id": "a42b567d-6bfc-49e7-8f91-917e2bb3046c",
+    "oracle_text": "When this creature enters, return target instant, sorcery, or creature card from your graveyard to your hand.\nIf this creature would die, exile it instead.",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Zombie"
+   }
+  },
   "Possibility Storm": {
    "phase_records": [
     {
@@ -964982,6 +967292,259 @@
     "power": "1",
     "toughness": "2",
     "type_line": "Creature — Phyrexian Cat Cleric"
+   }
+  },
+  "Progenitus": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Hydra",
+       "Avatar"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Green",
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Protection": "Everything"
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White",
+       "White",
+       "Blue",
+       "Blue",
+       "Black",
+       "Black",
+       "Red",
+       "Red",
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4d284ddb-c1de-49a3-8a2a-8146f7c3fbeb",
+       "7fee7f2b-de71-4ab2-8104-5fb467b4100b",
+       "9bb69a2c-aefa-4cde-9560-913059002e85",
+       "a8a5d0ba-bcb1-41db-80dd-ad22b8408105",
+       "ae63d70a-9ecc-4912-aeb7-7d41c91b3b9d",
+       "bcc764b0-3046-4bde-b424-c0f4e1a6169b",
+       "e77fbc87-d78e-4602-baa0-da9b0d464dfb"
+      ]
+     },
+     "name": "Progenitus",
+     "non_ability_text": null,
+     "oracle_text": "Protection from everything\nIf Progenitus would be put into a graveyard from anywhere, reveal Progenitus and shuffle it into its owner's library instead.",
+     "power": {
+      "type": "Fixed",
+      "value": 10
+     },
+     "printings": [
+      "CON",
+      "FDN",
+      "MMA",
+      "PFDN",
+      "PGPX",
+      "PLST",
+      "SLD",
+      "V11"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "active_zones": [
+        "Library",
+        "Hand",
+        "Battlefield",
+        "Stack",
+        "Exile",
+        "Command"
+       ],
+       "condition": null,
+       "description": "If ~ would be put into a graveyard from anywhere, reveal ~ and shuffle it into its owner's library instead.",
+       "destination_zone": "Graveyard",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Library",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Reveal"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Owner"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2009-02-01",
+       "text": "\"Protection from everything\" means the following: Progenitus can't be blocked, Progenitus can't be enchanted or equipped, Progenitus can't be the target of spells or abilities, and all damage that would be dealt to Progenitus is prevented."
+      },
+      {
+       "date": "2009-02-01",
+       "text": "Progenitus can still be affected by effects that don't target it or deal damage to it (such as Day of Judgment)."
+      }
+     ],
+     "scryfall_oracle_id": "2d7e00b6-12f0-4b03-82a6-50e3d1b5395e",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 10
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 10.0,
+    "color_identity": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Protection"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}",
+    "name": "Progenitus",
+    "oracle_id": "2d7e00b6-12f0-4b03-82a6-50e3d1b5395e",
+    "oracle_text": "Protection from everything\nIf Progenitus would be put into a graveyard from anywhere, reveal Progenitus and shuffle it into its owner's library instead.",
+    "power": "10",
+    "toughness": "10",
+    "type_line": "Legendary Creature — Hydra Avatar"
    }
   },
   "Promise of Loyalty": {
@@ -985140,6 +987703,291 @@
     "oracle_id": "ddf34404-39dd-4dcf-a706-ec78d47167e9",
     "oracle_text": "When this enchantment enters, create a 1/1 red Mercenary creature token with \"{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.\"\nWhenever an outlaw you control dies, each opponent loses 1 life and you gain 1 life. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are outlaws.)",
     "type_line": "Enchantment"
+   }
+  },
+  "Rakshasa Debaser": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "activation_zone": "Graveyard",
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 6,
+           "shards": [
+            "Black",
+            "Black"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "filter": {
+           "type": "SelfRef"
+          },
+          "type": "Exile",
+          "zone": "Graveyard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "type": "Encore"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Demon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Encore": {
+        "generic": 6,
+        "shards": [
+         "Black",
+         "Black"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "3ae3c4af-2b85-5943-bab1-760e1b7da047",
+       "cf04eb05-5d99-5015-921c-d7df230b0341"
+      ],
+      "source_printing_ids": [
+       "11e16fad-925a-4b59-8612-362f650e09e1",
+       "6d28b259-a368-484d-898f-ef29219a0135",
+       "e31fd23d-e6b2-412b-b2ff-c99812365001"
+      ]
+     },
+     "name": "Rakshasa Debaser",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks, put target creature card from defending player's graveyard onto the battlefield under your control.\nEncore {6}{B}{B} ({6}{B}{B}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "CMR",
+      "PRM",
+      "SCD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-11-10",
+       "text": "Each token must attack the appropriate player if able."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Exiling the card with encore is a cost to activate the ability. Once you announce that you're activating it, no player may take actions until you've finished. They can't try to remove the card from your graveyard to stop you from paying the cost."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If a creature is attacking a planeswalker, that planeswalker's controller is the defending player."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If one of the tokens can't attack for any reason (such as being tapped), then it doesn't attack. If there's a cost associated with having it attack, you aren't forced to pay that cost, so it doesn't have to attack in that case either."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If one of the tokens somehow is under another player's control as the delayed triggered ability resolves, you can't sacrifice that token. It remains on the battlefield indefinitely, even if you regain control of it later."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If you leave the game, all creatures owned by other players that were put onto the battlefield under your control are exiled."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Opponents who have left the game aren't counted when determining how many tokens to create."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "The creatures put onto the battlefield by the triggered ability can't attack that combat, even if they have haste."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "The tokens copy only what's on the original card. Effects that modified that creature when it was previously on the battlefield won't be copied."
+      },
+      {
+       "date": "2023-07-28",
+       "text": "If an effect stops a token from attacking a specific player, that token can attack any player, planeswalker, or battle, or not attack at all. If the effect stops the token from attacking a specific player unless a cost is paid, you don't have to pay that cost unless you want to attack that player."
+      }
+     ],
+     "scryfall_oracle_id": "db286eef-f0df-4f7c-8e06-957447166950",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, put target creature card from defending player's graveyard onto the battlefield under your control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "enters_under": "You",
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "controller": "DefendingPlayer",
+            "type": "Owned"
+           },
+           {
+            "type": "InZone",
+            "zone": "Graveyard"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
+      "name": "Copy",
+      "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+      "type_line": "Token"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Encore"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{B}{B}",
+    "name": "Rakshasa Debaser",
+    "oracle_id": "db286eef-f0df-4f7c-8e06-957447166950",
+    "oracle_text": "Whenever this creature attacks, put target creature card from defending player's graveyard onto the battlefield under your control.\nEncore {6}{B}{B} ({6}{B}{B}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Creature — Demon"
    }
   },
   "Ral and the Implicit Maze": {
@@ -1182340,6 +1185188,302 @@
     "type_line": "Legendary Creature — Bird Knight"
    }
   },
+  "Syr Gwyn, Hero of Ashvale": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Knight"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Red",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Red",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Menace",
+      "Vigilance"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "White",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "a33add37-379d-4a90-9c04-529dff676986"
+      ]
+     },
+     "name": "Syr Gwyn, Hero of Ashvale",
+     "non_ability_text": null,
+     "oracle_text": "Vigilance, menace\nWhenever an equipped creature you control attacks, you draw a card and you lose 1 life.\nEquipment you control have equip Knight {0}.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "ELD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-10-04",
+       "text": "Equipment you control still have their other equip abilities in addition to equip Knight {0}."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "If Syr Gwyn leaves the battlefield after an equip Knight ability has been activated, that ability still resolves even though the Equipment has lost that ability."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "Syr Gwyn's triggered ability triggers once per attacking creature that's equipped, regardless of how many Equipment those creatures each carry."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "Whether the target creature is a Knight is checked only as the equip Knight ability is activated and as that ability resolves. If the creature somehow becomes a non-Knight creature later, the Equipment remains attached to it."
+      }
+     ],
+     "scryfall_oracle_id": "ca411184-3413-492c-ab87-08c9fa1d4806",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact",
+         {
+          "Subtype": "Equipment"
+         }
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipment you control have equip Knight {0}.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "definition": {
+          "ability_tag": {
+           "type": "Equip"
+          },
+          "activation_restrictions": [
+           {
+            "type": "AsSorcery"
+           }
+          ],
+          "condition": null,
+          "cost": {
+           "cost": {
+            "generic": 0,
+            "shards": [],
+            "type": "Cost"
+           },
+           "type": "Mana"
+          },
+          "description": "equip Knight {0}",
+          "duration": null,
+          "effect": {
+           "selection": {
+            "at_resolution": {}
+           },
+           "target": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature",
+             {
+              "Subtype": "Knight"
+             }
+            ]
+           },
+           "type": "Attach"
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an equipped creature you control attacks, you draw a card and you lose 1 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "LoseLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "B",
+     "R",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "R",
+     "W"
+    ],
+    "keywords": [
+     "Menace",
+     "Vigilance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{W}{B}",
+    "name": "Syr Gwyn, Hero of Ashvale",
+    "oracle_id": "ca411184-3413-492c-ab87-08c9fa1d4806",
+    "oracle_text": "Vigilance, menace\nWhenever an equipped creature you control attacks, you draw a card and you lose 1 life.\nEquipment you control have equip Knight {0}.",
+    "power": "5",
+    "toughness": "5",
+    "type_line": "Legendary Creature — Human Knight"
+   }
+  },
   "Syr Joshua and Syr Saxon": {
    "phase_records": [
     {
@@ -1297886,6 +1301030,236 @@
     "type_line": "Instant"
    }
   },
+  "Unearth": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Return target creature card with mana value 3 or less from your graveyard to the battlefield.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "comparator": "LE",
+           "type": "Cmc",
+           "value": {
+            "type": "Fixed",
+            "value": 3
+           }
+          },
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "ability_tag": {
+        "type": "Cycling"
+       },
+       "activation_zone": "Hand",
+       "condition": null,
+       "consumes_source": true,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": true,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Cycling": {
+        "data": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "228b4677-a00f-47f9-819b-88c003ac080b",
+       "656127b7-21c4-40ce-8fff-5cc3d38398f8",
+       "a5a1ec89-c231-409b-91e1-158ce6abf558",
+       "b1f73271-b70f-40ae-be64-f8de7805923a",
+       "b62abd0c-ec3e-45d7-989d-da269812aeef",
+       "b6cb2549-e485-44d6-9d65-7605c568909e",
+       "ed268699-e1cc-4742-b19f-7f0ceaed2733"
+      ]
+     },
+     "name": "Unearth",
+     "non_ability_text": null,
+     "oracle_text": "Return target creature card with mana value 3 or less from your graveyard to the battlefield.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+     "power": null,
+     "printings": [
+      "2X2",
+      "A25",
+      "HA7",
+      "MH1",
+      "PLST",
+      "PRM",
+      "SCH",
+      "SLD",
+      "SLZ",
+      "ULG"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-06-14",
+       "text": "If a card in a player's graveyard has {X} in its mana cost, X is considered to be 0."
+      }
+     ],
+     "scryfall_oracle_id": "4e0b647a-6e1a-421b-bca9-8d5e346bda80",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Cycling"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Unearth",
+    "oracle_id": "4e0b647a-6e1a-421b-bca9-8d5e346bda80",
+    "oracle_text": "Return target creature card with mana value 3 or less from your graveyard to the battlefield.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Unending Whisper": {
    "phase_records": [
     {
@@ -1336188,6 +1339562,180 @@
     "power": "1",
     "toughness": "2",
     "type_line": "Legendary Creature — Phyrexian Merfolk Wizard"
+   }
+  },
+  "Void Winnower": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Eldrazi"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 9,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "dropped_qualifier",
+      "source_printing_ids": [
+       "1e5ef9cd-ee4d-4cbe-a07d-89f9322e5362",
+       "8cbedb0a-34ca-4d42-bb43-cbea0f3c6d02",
+       "b88492e7-ce33-4a7f-9706-61b186e8d04e",
+       "d91101ce-517c-47eb-8ebd-20bd34fb9a1a"
+      ]
+     },
+     "name": "Void Winnower",
+     "non_ability_text": null,
+     "oracle_text": "Your opponents can't cast spells with even mana values. (Zero is even.)\nYour opponents can't block with creatures with even mana values.",
+     "power": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "printings": [
+      "BFZ",
+      "PBFZ",
+      "PIO",
+      "SCH",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2015-08-25",
+       "text": "Effects that increase or reduce the cost to cast a spell don't affect that spell's mana value."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "For creatures on the battlefield with {X} in their mana costs, the value for X is 0. Mistcutter Hydra (a creature with mana cost {X}{G}) could block, but Endless One could not."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "For spells with {X} in their mana costs, use the value chosen for X to determine if the spell's mana value is even or not. For example, your opponent could cast Endless One (with mana cost {X}) with X equal to 5, but not with X equal to 6."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "The mana value of a face-down creature spell or a face-down creature is 0. Void Winnower will stop face-down creature spells from being cast and face-down creatures from blocking."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "Yes, your opponent can't even. We know."
+      }
+     ],
+     "scryfall_oracle_id": "70ac902e-1eb5-4f83-a5a6-00ac89cfe50f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "parity": {
+           "type": "Fixed",
+           "value": "Even"
+          },
+          "type": "ManaValueParity"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": []
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Your opponents can't cast spells with even mana values.",
+       "effect_zone": null,
+       "mode": {
+        "CantBeCast": {
+         "who": "Opponents"
+        }
+       },
+       "modifications": []
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Your opponents can't block with creatures with even mana values.",
+       "effect_zone": null,
+       "mode": "CantBlock",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 9
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 9.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{9}",
+    "name": "Void Winnower",
+    "oracle_id": "70ac902e-1eb5-4f83-a5a6-00ac89cfe50f",
+    "oracle_text": "Your opponents can't cast spells with even mana values. (Zero is even.)\nYour opponents can't block with creatures with even mana values.",
+    "power": "11",
+    "toughness": "9",
+    "type_line": "Creature — Eldrazi"
    }
   },
   "Voidcalled Devotee": {
