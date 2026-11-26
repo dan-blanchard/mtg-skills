@@ -7928,11 +7928,21 @@ def parked_search_puts_onto_battlefield(tree: ConceptTree) -> bool:
 
 
 #: The blocking restrictions an attacker can carry on itself — evasion abilities
-#: in CR 509.1b's sense: "can't be blocked" (Phantom Warrior), "can't be blocked
-#: except by three or more creatures" (Pathrazer of Ulamog), "can't be blocked
-#: unless all creatures defending player controls block it" (Tromokratis).
+#: in CR 509.1b's sense ("a static ability an attacking creature has that
+#: restricts what can block it"): "can't be blocked" (Phantom Warrior), "can't be
+#: blocked except by three or more creatures" (Pathrazer of Ulamog), "can't be
+#: blocked by creatures with power 2 or less" (Rust-Shield Rampager), "can't be
+#: blocked unless all creatures defending player controls block it" (Tromokratis)
+#: — the modes :data:`_EVASION_MODE_KINDS` gives a kind. "Can't be blocked by more
+#: than one creature" (Charging Rhino) limits how many block, not what can: any
+#: one creature still blocks it, so it is no evasive body (the same verdict).
 _SELF_EVASION_MODES: frozenset[str] = frozenset(
-    {"CantBeBlocked", "CantBeBlockedExceptBy", "CantBeBlockedUnlessAllBlock"}
+    {
+        "CantBeBlocked",
+        "CantBeBlockedExceptBy",
+        "CantBeBlockedBy",
+        "CantBeBlockedUnlessAllBlock",
+    }
 )
 
 
@@ -13153,6 +13163,11 @@ class SelfDrawbacks(NamedTuple):
 
     restriction: bool  # it fights, stays or arrives only on a condition
     harm: bool  # it hurts its controller
+    #: A ``restriction`` that holds while it is on the battlefield — every one but
+    #: a one-time cost of its own enters trigger (Carnage Interpreter's "discard
+    #: your hand", Balduvian Horde's "sacrifice it unless you discard a card at
+    #: random"): once paid, the body is free to fight.
+    standing: bool = False
 
 
 def _declinable_modes(trigger: object) -> tuple[object, ...]:
@@ -13191,7 +13206,9 @@ def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
     your hand" — Grim Strider), it has cumulative upkeep (CR 702.24a — Aboroth),
     it sacrifices itself unless you pay (Arcades Sabboth's upkeep, Balduvian
     Horde's enters cost, "When you control no Islands, sacrifice ~"), or it
-    costs you a permanent as it enters (Spined Fluke).
+    costs you a permanent as it enters (Spined Fluke). ``standing`` is the same
+    without the costs of its own enters trigger (Balduvian Horde's, Spined
+    Fluke's, Carnage Interpreter's "discard your hand"): those are paid once.
 
     ``harm`` — it hurts its controller every turn or on an event: a mandatory
     trigger that makes you sacrifice another permanent, lose life, take damage,
@@ -13207,10 +13224,11 @@ def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
     a mode you need not choose (:func:`_declinable_modes`) is no drawback unless
     every mode has one."""
     if not set(tree.card_types) & PERMANENT_CARD_TYPES:
-        return SelfDrawbacks(restriction=False, harm=False)
+        return SelfDrawbacks(restriction=False, harm=False, standing=False)
     # Cumulative upkeep (CR 702.24a) and champion (CR 702.72a: sacrifice it
     # unless you exile another) — keyword costs phase may type only as a keyword.
     restriction = bool(_UPKEEP_COST_KEYWORDS & set(tree.card_keywords))
+    enters_only = False  # a restriction found only in its own enters trigger
     harm = False
     mill_is_fuel = cache(partial(_reads_a_graveyard, tree))
     for unit in tree.units:
@@ -13281,7 +13299,9 @@ def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
         if any(
             _harms_you(unit, c.node, mill_is_fuel=mill_is_fuel) for c in unit.effects
         ):
-            if unit.trigger_event in ("enters", "statecondition"):
+            if unit.trigger_event == "enters":
+                enters_only = True
+            elif unit.trigger_event == "statecondition":
                 restriction = True
             else:
                 harm = True
@@ -13290,8 +13310,11 @@ def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
             and tag_of(getattr(c.node, "target", None)) == "SelfRef"
             for c in unit.effects
         ):
-            restriction = True
-    return SelfDrawbacks(restriction, harm)
+            if unit.trigger_event == "enters":
+                enters_only = True
+            else:
+                restriction = True
+    return SelfDrawbacks(restriction or enters_only, harm, standing=restriction)
 
 
 # ── Subtype references (backlog (o)) ─────────────────────────────────────────

@@ -467,6 +467,7 @@ def tune(
             keep=keep_search(commander_records) if cal.commander_axes else None,
             commander_idents=read.commander_idents,
             poisons=wins["poisons"],
+            closer=metrics.closer_read(cal),
             need_avenues=need_avenues,
             protection_low=prot.get("status") == "low",
         ),

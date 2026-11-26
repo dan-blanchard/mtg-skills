@@ -27,6 +27,7 @@ from pathlib import Path
 
 import click
 
+from mtg_utils._analysis.budgets import LIMITED_BIG_POWER
 from mtg_utils._analysis.roles import role_of
 from mtg_utils.card_classify import (
     EVASION_KEYWORDS,
@@ -42,7 +43,6 @@ from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option, resolve_bulk_p
 _COLORS = "WUBRG"
 _RARITIES = ("common", "uncommon", "rare", "mythic")
 _BIG_TOUGHNESS = 6
-_BIG_POWER = 4
 _TOP_BODIES = 10
 
 
@@ -151,7 +151,7 @@ def pool_color_pairs(records_with_qty: Iterable[tuple[dict, int]]) -> list[dict]
                 creatures += qty
                 if has_evasion(rec):
                     evasion += qty
-                if card_pt_int(rec, "power") >= _BIG_POWER:
+                if card_pt_int(rec, "power") >= LIMITED_BIG_POWER:
                     power4 += qty
             if (rec.get("rarity") or "") in ("rare", "mythic"):
                 rares += qty

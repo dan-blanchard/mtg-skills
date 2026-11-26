@@ -1200,3 +1200,29 @@ def test_a_colorless_commanders_identity_is_colorless_not_unrestricted():
     }
     assert _deck_identity(HydratedDeck.from_parsed(deck, by_name=by_name)) == "C"
     assert _deck_identity(_hd()) == "R"  # Krenko's
+
+
+def test_a_draft_deck_counts_its_limited_closers_and_keeps_them(captured_protected):
+    """ADR-0055's 2026-11-25 amendment: a sealed or draft deck's closers are the
+    limited threat read, against the limited floor, and kept from cuts there. The
+    powered-cube deck traded True-Name Nemesis for a closer because the
+    Commander-shaped read never counted it."""
+    names = ("True-Name Nemesis", "Grizzly Bears", "Serra Angel", "Island")
+    index = {n: testkit.test_card(n) for n in names}
+    for n in names:
+        testkit.test_card_ir(n)
+    deck = {
+        "format": "draft",
+        "deck_size": 40,
+        "cards": [{"name": n, "quantity": 1} for n in names[:2]]
+        + [{"name": "Island", "quantity": 1}],
+        "pool": [{"name": n, "quantity": 1} for n in names],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    out = tune(hd, search_fn=_fake_search, params=TuneParams(max_swaps=5))
+    wins = out["scorecard"]["wincons"]
+    assert wins["cards"] == ["True-Name Nemesis"]
+    assert wins["status"] == "ok"
+    assert "True-Name Nemesis" in captured_protected["protected"]
+    assert out["scorecard"]["focus"]["fed_only_cards"] == []
+    assert not any(s["cut"]["name"] == "True-Name Nemesis" for s in out["swaps"])

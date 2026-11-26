@@ -1,10 +1,24 @@
 """Tuner Tier-2 metrics: win-condition heuristic detection (grill F6)."""
 
+from dataclasses import replace
+
 import pytest
 
+from mtg_utils._tuner.calibration import (
+    COMMANDER,
+    CONSTRUCTED,
+    LIMITED,
+    LIMITED_CLOSER_FLOOR,
+    LIMITED_CLOSER_TOP,
+)
 from mtg_utils._tuner.issues import Sourcing, top_issues
-from mtg_utils._tuner.metrics import is_wincon_card
-from mtg_utils.formats import Game
+from mtg_utils._tuner.metrics import (
+    closer_read,
+    is_limited_closer,
+    is_wincon_card,
+    limited_closer_reason,
+)
+from mtg_utils.formats import FORMATS, Game
 from mtg_utils.testkit import test_card
 
 
@@ -444,3 +458,164 @@ class TestPoisonClosers:
         alone = win_conditions([clasp], shape="aggro", combo_count=0)
         assert alone["poisons"] is False
         assert alone["cards"] == []
+
+
+# ── Limited closers (ADR-0055's 2026-11-25 amendment, Dan's ruling) ────────────
+
+DRAFT = FORMATS["draft"].game("digital")
+
+
+class TestLimitedClosers:
+    """A sealed or draft closer is a threat that's hard to block or hard to
+    answer, read off the card's keywords and parse."""
+
+    @pytest.mark.parametrize(
+        ("name", "reason"),
+        [
+            # Protection from the chosen player (CR 702.16k): it can't be blocked,
+            # targeted or damaged by that player's things.
+            ("True-Name Nemesis", "resilient"),
+            # A 4/4 flier.
+            ("Serra Angel", "evasive"),
+            # "Can't be blocked by creatures with power 2 or less" (CR 509.1b).
+            ("Rust-Shield Rampager", "evasive"),
+            # Persist brings it back to the battlefield.
+            ("Kitchen Finks", "resilient"),
+            # Trample on a big body: exactly power 4, and a 6/6.
+            ("Gnarlback Rhino", "evasive"),
+            ("Colossal Dreadmaw", "evasive"),
+            # A conditional self-grant that is simply on when its condition holds.
+            ("Waterspout Warden", "evasive"),
+            # Its enters trigger's "discard your hand" is paid once; then a 5/5
+            # menace while its hand is small.
+            ("Carnage Interpreter", "evasive"),
+            # A 2/1 menace that endures 2 as it enters (CR 701.63a).
+            ("Sandskitter Outrider", "evasive"),
+            # A double-faced card's power is its front face's: a 7/7 trampler.
+            ("Etali, Primal Conqueror", "evasive"),
+            # Noncreature engines: an upkeep token, a zero loyalty ability's 2/2,
+            # a plus ability's 2 damage to each opponent.
+            ("Bitterblossom", "creature_engine"),
+            ("Gideon, Ally of Zendikar", "creature_engine"),
+            ("Chandra, Torch of Defiance", "repeat_reach"),
+            # What closes in a 40-card deck still closes.
+            ("Overrun", "finisher"),
+        ],
+    )
+    def test_threats_that_count(self, name, reason):
+        assert limited_closer_reason(test_card(name), game=DRAFT) == reason
+        assert is_limited_closer(test_card(name), game=DRAFT) is True
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            # Evasive, but too small to end a 20-life game: power under 3.
+            "Wind Drake",
+            "Phantom Warrior",
+            # Trample on a 3-power body is no evasion.
+            "Garruk's Companion",
+            # "Can't be blocked by more than one creature": any one blocks it.
+            "Charging Rhino",
+            # Big but blockable and answerable; vanilla.
+            "Craw Wurm",
+            "Grizzly Bears",
+            # A creature that makes tokens or pings is judged by its body.
+            "Young Pyromancer",
+            "Prodigal Sorcerer",
+            # A noncreature source of one damage at a time.
+            "Goblin Bombardment",
+            # Can't close: decayed (CR 702.147a), defender (CR 702.3b).
+            "Rot-Curse Rakshasa",
+            "Wall of Swords",
+            # Indestructible only on a turn it pays for (expend 4).
+            "Bark-Knuckle Boxer",
+            # Back to hand at a cost: removal still buys a turn.
+            "Furious Forebear",
+            # Planeswalkers: a plus ability's 0/1 Plant; a minus ability's token
+            # and a minus ultimate's emblem.
+            "Nissa, Voice of Zendikar",
+            "The Wandering Emperor",
+            "Ajani, Adversary of Tyrants",
+            # An alternative win a 40-card deck doesn't reach.
+            "Thassa's Oracle",
+        ],
+    )
+    def test_threats_that_do_not(self, name):
+        assert limited_closer_reason(test_card(name), game=DRAFT) is None
+
+    @pytest.mark.parametrize(
+        ("name", "at_20", "at_40"),
+        [
+            # The Commander-shaped finisher read: no resilience, no engines,
+            # trample on any body past its life-scaled power floor (3 at 20 life,
+            # 6 at the 40-life pod), an alternative win, and its enters costs
+            # still hold a body back (Inverter of Truth, Carnage Interpreter).
+            ("True-Name Nemesis", False, False),
+            ("Kitchen Finks", False, False),
+            ("Bitterblossom", False, False),
+            ("Chandra, Torch of Defiance", False, False),
+            ("Garruk's Companion", True, False),
+            ("Serra Angel", True, False),
+            ("Colossal Dreadmaw", True, True),
+            ("Wind Drake", False, False),
+            ("Grizzly Bears", False, False),
+            ("Thassa's Oracle", True, True),
+            ("Inverter of Truth", False, False),
+            ("Carnage Interpreter", False, False),
+            # The shared blocking-restriction read and the front face's power.
+            ("Rust-Shield Rampager", True, False),
+            ("Etali, Primal Conqueror", True, True),
+        ],
+    )
+    def test_the_finisher_read(self, name, at_20, at_40):
+        assert is_wincon_card(test_card(name), game=DRAFT) is at_20
+        assert is_wincon_card(test_card(name)) is at_40
+
+    def test_a_one_time_enters_cost_holds_no_limited_body_back(self):
+        inverter = test_card("Inverter of Truth")
+        assert limited_closer_reason(inverter, game=DRAFT) == "evasive"
+
+    def test_closer_read_follows_the_family(self):
+        assert closer_read(LIMITED) is is_limited_closer
+        assert closer_read(COMMANDER) is is_wincon_card
+        assert closer_read(CONSTRUCTED) is is_wincon_card
+
+    def test_the_limited_band_is_its_own_and_counts_true_name_nemesis(self):
+        from mtg_utils._tuner.metrics import win_conditions
+
+        classes = [_cc(n, test_card(n)) for n in ("True-Name Nemesis", "Grizzly Bears")]
+        wins = win_conditions(
+            classes,
+            shape="midrange",
+            combo_count=0,
+            deck_size=40,
+            game=DRAFT,
+            cal=LIMITED,
+        )
+        assert wins["cards"] == ["True-Name Nemesis"]
+        assert wins["count"] == 1
+        # Stated at the limited game itself: never life-scaled from 40.
+        assert wins["target"] == [LIMITED_CLOSER_FLOOR, LIMITED_CLOSER_TOP]
+        assert wins["status"] == "ok"
+        # The finisher read at the same game counts none.
+        finisher = win_conditions(
+            classes,
+            shape="midrange",
+            combo_count=0,
+            deck_size=40,
+            game=DRAFT,
+            cal=replace(LIMITED, closers="finisher"),
+        )
+        assert finisher["count"] == 0
+
+    def test_the_closer_search_takes_the_familys_read(self):
+        sourcing = Sourcing(
+            {"viable_avenues": []}, [], {}, game=DRAFT, closer=is_limited_closer
+        )
+        remedy = sourcing.remedy_for("wincon_short")
+        assert remedy is not None
+        assert remedy.spec["_filter"](test_card("True-Name Nemesis")) is True
+        commander = Sourcing({"viable_avenues": []}, [], {}, game=DRAFT).remedy_for(
+            "wincon_short"
+        )
+        assert commander.spec["_filter"](test_card("True-Name Nemesis")) is False

@@ -191,14 +191,18 @@ are already known to it (each draft says where).
   Witchstalker). The chosen X was checked in 6 resolutions (it is rare in play);
   X doubled, halved or offset is not read.
 
-**From a powered-cube draft tune (2026-11-02; the three problems fixed 2026-11-25, ADR-0055's amendment)**
+**From a powered-cube draft tune (2026-11-02; fixed 2026-11-25, ADR-0055's two amendments)**
 
-- **The cube deck's one remaining swap is a closer for True-Name Nemesis.** With
-  the cube template, no play rate and pool-scoped near-misses, `deck-tune` on the
-  same deck (`~/mtg/powered-cube-draft/2026-11-02/deck.json`) proposes one swap:
-  True-Name Nemesis ("feeds only avenues nobody built toward") for Screaming
-  Nemesis, under `wincon_short` ("≈1 closers — usually wants 2-3"). The closer
-  count and the fed-only read are Commander-shaped; neither was looked at.
+- **The limited closer read's misses** (ADR-0055's 2026-11-25 amendment): a power
+  that counts other cards (Adeline, Resplendent Cathar), level up (Hexdrinker) and
+  growth on attack (Gau, Feral Youth's rage) are read at the printed number. The
+  closer distribution is in
+  `~/.cache/mtg-skills/phase-bump/v0.131.0/block-2026-11-25/closers-distribution.md`.
+- **`cubecobra-fetch` gets a 403 from CubeCobra and calls it "likely cube not
+  found"** (2026-11-25). CubeCobra answers 403 HTML to the tool's Chrome
+  User-Agent, and the curl fallback sends the same User-Agent; plain `curl` or a
+  default `requests` gets 200 JSON from `cubeJSON` / `cubelist` (`modovintage`,
+  `cbvc`). The message misleads: the cube exists.
 
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 

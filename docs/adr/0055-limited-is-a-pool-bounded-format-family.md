@@ -127,3 +127,88 @@ Rejected: an explicit flag alone (a deck JSON says nothing about where its pool
 came from, and the cards do); an advisory creature count for every limited deck
 (a retail sealed deck short on creatures is short); archetype shape bands for a
 cube (no source for the bands).
+
+**Amendment (2026-11-25, Dan's rulings): a limited closer is a threat that's hard
+to block or hard to answer.** With the cube template, no play rate and pool-scoped
+near-misses, the same powered-cube deck got one swap: True-Name Nemesis out for
+Screaming Nemesis, under "≈1 closers — usually wants 2-3". The closer count was
+the Commander finisher read at 20 life (a card that wins, an extra combat, a team
+pump, closing reach, a big evasive body), which never counts protection; and
+True-Name Nemesis, a Rogue feeding only an unbuilt Rogue lane, had been re-bucketed
+as filler ("feeds only avenues nobody built toward"), the first cut.
+
+- **The read.** `Calibration.closers` is `"threat"` for the limited family, and
+  `metrics.closer_read` hands both the closer count and the closer search
+  `metrics.limited_closer_reason`:
+  - a finisher that makes sense in a 40-card deck — an extra combat, a one-shot
+    team pump, reach that closes, poison in a poison deck. Not an alternative win
+    or loss (`reads.ends_the_game`): Thassa's Oracle, Laboratory Maniac and
+    Felidar Sovereign win on a library or life total a limited deck doesn't reach,
+    so such a card is judged as any other;
+  - a noncreature card with a repeatable source (`crosswalk.unit_repeats`): a
+    creature token of power 1 or more (`card_reads.repeating_creature_tokens`:
+    Bitterblossom) or 2 or more damage to an opponent, or a scaling amount
+    (`crosswalk.reach_amount`: Chandra, Torch of Defiance's +1);
+  - a creature of power 3 or more that's hard to block — an evasion keyword
+    (`card_classify.EVASION_KEYWORDS`, printed or given to itself,
+    `crosswalk.own_keyword_bodies`), a blocking restriction on itself
+    (`crosswalk.is_evasive_body`, CR 509.1b, now with "can't be blocked by
+    creatures with power 2 or less" — Rust-Shield Rampager), trample from power 4
+    (CR 702.19b; `budgets.LIMITED_BIG_POWER`, set-scan's big body) — or hard to
+    answer: protection (CR 702.16b, 702.16f; from a player, 702.16k — True-Name
+    Nemesis), hexproof, shroud, ward or indestructible
+    (`crosswalk.PROTECTIVE_KEYWORDS`), or a body that comes back to the battlefield
+    by itself (`lanes.card_advantage.self_return_routes`: persist, undying,
+    Bloodghast, embalm). A return to hand or a cast from the graveyard (Furious
+    Forebear, Gravecrawler) costs its mana again, so the removal still buys a
+    turn: not resilience here.
+  - Power is the printed number (a double-faced card's front face — the one read
+    the finisher read now takes too) plus the +1/+1 counters the card enters with
+    by its own text, a fixed number (Spike Feeder, riot — CR 702.136a, endure —
+    CR 701.63a: Sandskitter Outrider is a 4/3 menace). A power that counts other
+    cards (Adeline), level up (Hexdrinker) or growth on attack is not read.
+  - None for a body that can't close: defender (CR 702.3b), decayed (CR 702.147a:
+    it can't block and is sacrificed the turn it attacks), a "can't attack" of its
+    own, or a standing restriction (`SelfDrawbacks.standing`: Sea Serpent's
+    Island clause, an upkeep you may fail). A one-time cost of its own enters
+    trigger does not hold it back (Carnage Interpreter's "discard your hand";
+    Inverter of Truth's exiled library), where the finisher read still does.
+  Never play rate, never a quality score.
+- **Dan's rulings.** The floor is 1, for cube and retail alike: only a deck with no
+  closer is short. The power line is 3 for evasive and resilient bodies alike (the
+  finisher read's own floor at 20 life, about seven swings). A creature that makes
+  tokens or pings is judged by its body: creature removal answers it. A repeatable
+  one-damage ping is not a closer (`LIMITED_REPEAT_REACH = 2`).
+- **The coordinator's choices** (where Dan did not rule). Evasion or resilience a
+  creature pays for each turn, or that lasts only a turn it buys, does not count:
+  a self-grant behind a payment trigger (expend) or a cost of its own
+  (Bark-Knuckle Boxer's indestructible); one that is simply on when its condition
+  holds does (Waterspout Warden's flying, Ursine Monstrosity's indestructible each
+  combat). A planeswalker counts only by a loyalty ability that costs no loyalty
+  (CR 606.4: a plus or zero ability), making a creature of power 1 or more or
+  dealing 2 or more to an opponent or any target: Gideon, Ally of Zendikar's 0
+  counts, Chandra, Torch of Defiance's +1 counts; The Wandering Emperor's −1
+  Samurai, Ajani, Adversary of Tyrants' −7 emblem, Karn, Scion of Urza's −2
+  Construct and Nissa, Voice of Zendikar's +1 0/1 Plant do not.
+- **The floor and the measurement.** `calibration.LIMITED_CLOSER_FLOOR = 1`, stated
+  at the limited game itself and never life-scaled; the band's top
+  (`LIMITED_CLOSER_TOP`, 3) is the message's only. Over 733 simulated 40-card
+  draft decks (`_draft_ai` + `_gauntlet_build`, the `playtest-draft` pipeline: the
+  MTGO Vintage Cube, Bloomburrow and Tarkir: Dragonstorm) the read's median is 3
+  for the cube and 2 for each set, and 6% of the decks hold none; the retail
+  counts are a lower bound (the pack model has no wildcard or foil slot, so it
+  undercounts rares). The powered-cube deck holds four (Quantum Riddler,
+  True-Name Nemesis, Emeritus of Ideation, Chandra) and is proposed nothing.
+- **No fed-only filler in limited.** `Calibration.fed_only_is_filler` is off for
+  the family: in a deck drawn from an opened pool a card is played for what it
+  does alone, and the avenue it nominally feeds says nothing about it. The fed
+  avenues are still reported.
+- **What reaches the other families.** Two fixes are shared: `is_evasive_body`
+  reads "can't be blocked by creatures with power 2 or less" (CR 509.1b; "can't be
+  blocked by more than one creature" stays out, the `evasion_self` lane's verdict:
+  it limits how many block, not what can), and the finisher read takes a
+  double-faced card's front-face power. Together they add 27 cards to the
+  Commander finisher read at 40 life (Etali, Primal Conqueror, Vorinclex, Dread
+  Linnorm …) and 184 at 20 life; no signal moves (the whole corpus, diffed
+  against main). `deck-tune` on two Commander decks, a Competitive Brawl deck and
+  a 60-card deck is byte-identical before and after.

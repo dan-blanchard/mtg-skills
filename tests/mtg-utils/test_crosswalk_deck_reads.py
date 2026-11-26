@@ -19,6 +19,7 @@ from mtg_utils._card_ir.crosswalk import (
     mass_land_denial,
     parked_search_puts_onto_battlefield,
     reach_amount,
+    self_drawbacks,
     shard_symbol,
     tag_of,
     unbound_x_reach,
@@ -182,11 +183,32 @@ def test_no_reach(name):
         ("Phantom Warrior", True),  # can't be blocked
         ("Pathrazer of Ulamog", True),  # except by three or more creatures
         ("Tromokratis", True),  # unless all creatures defending player controls block
+        ("Rust-Shield Rampager", True),  # by creatures with power 2 or less
+        # "By more than one creature" limits how many block, not what can.
+        ("Charging Rhino", False),
         ("Serra Angel", False),  # flying is a keyword, read off the record
     ],
 )
 def test_is_evasive_body(name, evasive):
     assert any(is_evasive_body(t) for t in _trees(name)) is evasive
+
+
+@pytest.mark.parametrize(
+    ("name", "restriction", "standing"),
+    [
+        # Its enters trigger's "discard your hand" is a one-time cost.
+        ("Carnage Interpreter", True, False),
+        # So is exiling your library as it enters.
+        ("Inverter of Truth", True, False),
+        # A shrink by its own static holds while it is on the battlefield.
+        ("Grim Strider", True, True),
+        ("Grizzly Bears", False, False),
+    ],
+)
+def test_self_drawbacks_standing(name, restriction, standing):
+    found = [self_drawbacks(t) for t in _trees(name)]
+    assert any(d.restriction for d in found) is restriction
+    assert any(d.standing for d in found) is standing
 
 
 # ── Printed alternative costs ─────────────────────────────────────────────────

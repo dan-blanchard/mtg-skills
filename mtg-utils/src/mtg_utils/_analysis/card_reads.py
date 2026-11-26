@@ -39,8 +39,10 @@ from mtg_utils._card_ir.trees import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
     from pathlib import Path
+
+    from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
 
 #: Bumped for a change in what a persisted value means.
 CARD_READS_SIDECAR_VERSION = 1
@@ -148,23 +150,35 @@ def makes_tokens_repeatedly(card: dict) -> bool:
     Apprentice's fabricate), a death trigger (Chasm Skulker) or a sacrifice
     (Idol of Oblivion). The polymorph fodder page orders by it and admits a
     creature card by it (``signal_specs`` ``wants_fodder``)."""
-    for tree in trees_for(card, bulk=card):
-        action_units = {
-            id(e.unit)
-            for e in keyword_action_events(tree)
-            if e.yours and e.tag in KEYWORD_ACTION_TOKEN_SUBTYPES
-        }
-        for unit in tree.units:
-            makes = id(unit) in action_units or any(
-                "Creature" in c.subject
-                for c in (
-                    *unit.effect_concepts("make_token"),
-                    *iter_nested_token_effects(unit.node),
-                )
+    return any(
+        next(repeating_creature_tokens(tree), None) is not None
+        for tree in trees_for(card, bulk=card)
+    )
+
+
+def repeating_creature_tokens(
+    tree: ConceptTree,
+) -> Iterator[tuple[AbilityUnit, tuple[object, ...]]]:
+    """Each ability of the card that makes a creature token and can go off again
+    (:func:`makes_tokens_repeatedly`'s read), with the token effect nodes it holds:
+    empty for a keyword action that makes the token (amass's Army), whose body
+    the node doesn't state."""
+    action_units = {
+        id(e.unit)
+        for e in keyword_action_events(tree)
+        if e.yours and e.tag in KEYWORD_ACTION_TOKEN_SUBTYPES
+    }
+    for unit in tree.units:
+        tokens = tuple(
+            c.node
+            for c in (
+                *unit.effect_concepts("make_token"),
+                *iter_nested_token_effects(unit.node),
             )
-            if makes and unit_repeats(unit, tree):
-                return True
-    return False
+            if "Creature" in c.subject
+        )
+        if (tokens or id(unit) in action_units) and unit_repeats(unit, tree):
+            yield unit, tokens
 
 
 @card_read("plays_extra_lands")

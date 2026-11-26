@@ -13,26 +13,42 @@ from __future__ import annotations
 import functools
 import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from mtg_utils._analysis import signal_keys
+from mtg_utils._analysis.budgets import LIMITED_BIG_POWER
+from mtg_utils._analysis.card_reads import repeating_creature_tokens
 from mtg_utils._analysis.lanes import TOKEN_SUBTYPE_PAYOFF_KEYS
+from mtg_utils._analysis.lanes.card_advantage import self_return_routes
 from mtg_utils._analysis.lanes.counters_voltron import VOLTRON_GEAR_PUMP
 from mtg_utils._analysis.roles import protects
 from mtg_utils._analysis.signal_specs import SPECS, avenue_spec_for, spec_scope_for
 from mtg_utils._card_ir.crosswalk import (
+    PROTECTIVE_KEYWORDS,
     ends_the_game,
     is_evasive_body,
+    iter_mod_sites,
+    normalised_keyword,
+    normalised_keyword_name,
+    own_keyword_bodies,
     pt_mod_signs,
     reach_amount,
     self_drawbacks,
+    static_mode_tag,
+    tag_of,
     team_boost_or_grant_sites,
     unbound_x_reach,
 )
+from mtg_utils._card_ir.crosswalk.reads import is_self_enters_trigger, unit_repeats
 from mtg_utils._card_ir.trees import object_facts, trees_for
 from mtg_utils._tuner.calibration import COMMANDER, Calibration
 from mtg_utils._tuner.classify import CardClass, is_premium, is_upgrade_target
-from mtg_utils.card_classify import card_pt_int, has_evasion, is_creature
+from mtg_utils.card_classify import (
+    EVASION_KEYWORDS,
+    card_pt_int,
+    classifying_keywords,
+    is_creature,
+)
 from mtg_utils.formats import Game
 from mtg_utils.theme_presets import get_preset, signal_keys_for
 
@@ -996,7 +1012,9 @@ def focus(
             and c.name not in built_carers
             and c.name not in lane_cards
         ]
-        if viable
+        # Never in a family whose cards are played for what they do alone
+        # (``Calibration.fed_only_is_filler``: a sealed or draft deck).
+        if viable and cal.fed_only_is_filler
         else []
     )
     fed_only_names = {c.name for c in fed_only_classes}
@@ -1320,28 +1338,349 @@ def is_wincon_card(
     Intelligence's closer add for Deepglow Skate, which doubles the counters
     Inspirit's deck is built on (2026-11-02). Outside a poison deck it is
     judged as any card is — Triumph of the Hordes still closes as a team pump."""
-    if poisons and (gives_poison(card) or _PROLIFERATE_KEY in signal_keys_for(card)):
+    if poisons and _poison_piece(card):
         return True
     trees = trees_for(card)
-    if any(self_drawbacks(tree).restriction for tree in trees):
-        # A body held back by its own text closes nothing: Inverter of Truth
-        # exiles your library as it enters (Eldrazi Incursion, 2026-11-02),
-        # Sea Serpent can't attack without an Island. A harm clause is not a
-        # restriction: Phage the Untouchable's self-loss rides a card that
-        # still wins (``ends_the_game``).
+    if _held_back(trees):
         return False
-    if any(ends_the_game(tree) for tree in trees):
-        return True
-    if _matches(card, "extra-combats") or _one_shot_team_pump(trees):
-        return True
-    if _reach_closes(trees, game=game):
+    if _finishes(card, trees, game=game):
         return True
     power_floor = _life_scaled(
         _EVASIVE_CLOSER_POWER, game.life, floor=_EVASIVE_CLOSER_POWER_FLOOR
     )
-    if is_creature(card) and card_pt_int(card) >= power_floor:
-        return has_evasion(card) or any(is_evasive_body(tree) for tree in trees)
-    return False
+    printed = frozenset(normalised_keyword_name(k) for k in classifying_keywords(card))
+    return _closing_body(
+        card,
+        trees,
+        power=_printed_power(card),
+        keywords=printed,
+        power_floor=power_floor,
+        trample_floor=power_floor,
+    )
+
+
+def _poison_piece(card: dict) -> bool:
+    """A poison giver or a proliferator: a closer in a deck that poisons."""
+    return gives_poison(card) or _PROLIFERATE_KEY in signal_keys_for(card)
+
+
+def _held_back(trees: Sequence[ConceptTree], *, standing: bool = False) -> bool:
+    """A body held back by its own text closes nothing: Inverter of Truth exiles
+    your library as it enters (Eldrazi Incursion, 2026-11-02), Sea Serpent can't
+    attack without an Island. A harm clause is not a restriction: Phage the
+    Untouchable's self-loss rides a card that still wins (``ends_the_game``).
+    With ``standing`` only a restriction that holds while it is on the
+    battlefield counts (``SelfDrawbacks.standing``): a one-time cost of its own
+    enters trigger is paid once (Carnage Interpreter's "discard your hand")."""
+    return any(
+        (d.standing if standing else d.restriction) for d in map(self_drawbacks, trees)
+    )
+
+
+def _finishes(
+    card: dict, trees: Sequence[ConceptTree], *, game: Game, alt_wins: bool = True
+) -> bool:
+    """The closer reads that are no body: a card that wins or makes another player
+    lose (unless not ``alt_wins``), an extra combat, a one-shot team pump, or
+    reach that closes ``game``."""
+    return (
+        (alt_wins and any(ends_the_game(tree) for tree in trees))
+        or _matches(card, "extra-combats")
+        or _one_shot_team_pump(trees)
+        or _reach_closes(trees, game=game)
+    )
+
+
+#: The evasion keywords (``card_classify.EVASION_KEYWORDS``) in phase's folded
+#: spelling, trample aside: it counts only from a body's trample floor.
+_EVASION_BUT_TRAMPLE = frozenset(
+    normalised_keyword_name(k) for k in EVASION_KEYWORDS
+) - {"trample"}
+
+
+def _printed_power(card: dict) -> int:
+    """The printed power of the body the card is cast as: the record's, or for a
+    multi-face record that carries none, its front face's — the face
+    ``is_creature`` reads the type line of (``classifying_type_line``)."""
+    if card.get("power") is None and card.get("card_faces"):
+        return card_pt_int(card["card_faces"][0])
+    return card_pt_int(card)
+
+
+def _closing_body(
+    card: dict,
+    trees: Sequence[ConceptTree],
+    *,
+    power: int,
+    keywords: frozenset[str],
+    power_floor: int,
+    trample_floor: int,
+) -> bool:
+    """A creature of at least ``power_floor`` that's hard to block: an evasion
+    keyword among ``keywords`` (folded), a blocking restriction on itself
+    (``crosswalk.is_evasive_body``, CR 509.1b), or trample from ``trample_floor``
+    (CR 702.19b: only the excess over the blockers' lethal damage gets through).
+    The finisher read and the limited read differ only in their floors and in
+    which keywords they give it."""
+    if not is_creature(card) or power < power_floor:
+        return False
+    return bool(
+        keywords & _EVASION_BUT_TRAMPLE
+        or any(is_evasive_body(tree) for tree in trees)
+        or ("trample" in keywords and power >= trample_floor)
+    )
+
+
+# ── Limited closers (ADR-0055's 2026-11-25 amendment, Dan's ruling) ────────────
+#
+# In a sealed or draft game a closer is a threat that is hard to block or hard to
+# answer: a creature the opponent can't stop profitably, by evasion or by
+# resilience, or a noncreature source of creatures or damage that keeps going.
+# Read off the card's keywords and parse, never play rate.
+
+#: The power from which an evasive or resilient body ends a 20-life game (Dan's
+#: ruling): about seven swings, the same number the finisher read's evasive-body
+#: floor reaches at 20 life. A 1/1 or 2/2 flier is evasive and takes ten or more.
+LIMITED_CLOSER_POWER = 3
+#: Trample is evasion only on a big body: set-scan's big body, power 4 or more.
+LIMITED_TRAMPLE_POWER = LIMITED_BIG_POWER
+#: A repeatable source of damage to an opponent closes from this much per
+#: resolution (Dan's ruling): a one-point pinger is a removal engine; two a turn
+#: beside the attacks is a clock (Chandra, Torch of Defiance's +1).
+LIMITED_REPEAT_REACH = 2
+#: The keywords that keep a creature from closing: defender (CR 702.3b: it can't
+#: attack) and decayed (CR 702.147a: it can't block, and it is sacrificed at end
+#: of combat the turn it attacks — one swing).
+_NO_CLOSE_KEYWORDS = frozenset({"defender", "decayed"})
+#: A creature's own static that keeps it from attacking at all.
+_NO_ATTACK_MODES = frozenset({"CantAttack", "CantAttackOrBlock"})
+#: The self-return routes that bring a creature back as a body without casting it
+#: again (``lanes.card_advantage.self_return_routes``): persist, undying,
+#: Bloodghast, embalm. A return to hand or a cast from the graveyard (Furious
+#: Forebear, Gravecrawler) costs its mana again, so the removal spell still buys a
+#: turn: not resilience here.
+_BODY_RETURNS = frozenset(
+    {
+        "graveyard_to_battlefield",
+        "graveyard_to_battlefield_transformed",
+        "graveyard_to_token",
+        "exile_to_battlefield",
+    }
+)
+#: Trigger events that are a payment: an evasion or protection a creature gains on
+#: a turn you spend four mana (Bark-Knuckle Boxer's expend 4) is bought, not had.
+_PAID_TRIGGER_EVENTS = frozenset({"manaexpend"})
+
+LimitedCloserReason = Literal[
+    "poison", "finisher", "creature_engine", "repeat_reach", "evasive", "resilient"
+]
+
+
+def _self_grants(unit: object) -> set[str]:
+    """The keywords (folded) one ability gives the card itself."""
+    return {
+        kw
+        for sdef, mod in iter_mod_sites(getattr(unit, "node", None), deep=True)
+        if tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+        and (kw := normalised_keyword(mod))
+    }
+
+
+def _paid_for(unit: object) -> bool:
+    """A trigger whose grant is bought: on a payment event, or with a cost of its
+    own ("you may pay {1}. If you do, ~ gains flying")."""
+    if getattr(unit, "origin", None) != "trigger":
+        return False
+    execute = getattr(getattr(unit, "node", None), "execute", None)
+    return (
+        getattr(unit, "trigger_event", None) in _PAID_TRIGGER_EVENTS
+        or tag_of(getattr(execute, "cost", None)) is not None
+    )
+
+
+def _own_keywords(card: dict, trees: Sequence[ConceptTree]) -> frozenset[str]:
+    """The keywords the card's body has, folded (``normalised_keyword_name``): its
+    printed ones (``classifying_keywords``) and the ones it gives itself, always
+    or on a condition (``crosswalk.own_keyword_bodies``: True-Name Nemesis's
+    protection from the chosen player; Waterspout Warden's flying on a turn
+    another creature entered) — but not one it only gains on a turn it pays for
+    (:func:`_paid_for`; the coordinator's call, 2026-11-25)."""
+    out = {normalised_keyword_name(k) for k in classifying_keywords(card)}
+    paid: set[str] = set()
+    free: set[str] = set()
+    for tree in trees:
+        out |= {normalised_keyword_name(k) for k in own_keyword_bodies(tree)}
+        for unit in tree.units:
+            (paid if _paid_for(unit) else free).update(_self_grants(unit))
+    printed = {normalised_keyword_name(k) for k in classifying_keywords(card)}
+    return frozenset(out - (paid - free - printed))
+
+
+def _cannot_close(keywords: frozenset[str], trees: Sequence[ConceptTree]) -> bool:
+    """A body that can't attack (defender, "can't attack") or swings once
+    (decayed)."""
+    return bool(keywords & _NO_CLOSE_KEYWORDS) or any(
+        static_mode_tag(sdef) in _NO_ATTACK_MODES
+        and tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+        for tree in trees
+        for unit in tree.units
+        for sdef in unit.static_defs()
+    )
+
+
+def _enters_growth(trees: Sequence[ConceptTree]) -> int:
+    """The +1/+1 counters the card puts on itself as it enters, by its own text
+    and a fixed number: "enters with two +1/+1 counters" (Spike Feeder; riot's
+    counter, CR 702.136a), an enters trigger's counters or endure (Sandskitter
+    Outrider's endure 2, CR 701.63a: its controller may take the counters). A
+    power that counts other cards (Adeline) or grows only later (level up,
+    attack triggers) is not read."""
+    grown = 0
+    for tree in trees:
+        for unit in tree.units:
+            self_enters = unit.origin == "trigger" and is_self_enters_trigger(unit)
+            enters_with = unit.origin == "replacement" and (
+                getattr(unit.node, "event", None) == "Moved"
+            )
+            if not (self_enters or enters_with):
+                continue
+            for node in unit.iter_typed():
+                tag = tag_of(node)
+                if tag == "PutCounter" and (
+                    getattr(node, "counter_type", None) == "P1P1"
+                    and tag_of(getattr(node, "target", None)) == "SelfRef"
+                ):
+                    grown += _fixed_value(getattr(node, "count", None))
+                elif tag == "Endure" and self_enters:
+                    grown += _fixed_value(getattr(node, "amount", None))
+    return grown
+
+
+def _fixed_value(amount: object) -> int:
+    """A ``Fixed`` amount's value, else 0."""
+    if tag_of(amount) != "Fixed":
+        return 0
+    value = getattr(amount, "value", 0)
+    return value if isinstance(value, int) else 0
+
+
+def _costs_no_loyalty(unit: object) -> bool:
+    """Not a minus loyalty ability (CR 606.4: its cost is the loyalty it adds or
+    removes): a plus or zero ability can be used every turn; a minus one or an
+    ultimate spends what keeps the planeswalker in play (the coordinator's call,
+    2026-11-25). Any other ability passes."""
+    cost = getattr(getattr(unit, "node", None), "cost", None)
+    if tag_of(cost) != "Loyalty":
+        return True
+    amount = getattr(cost, "amount", 0)
+    return isinstance(amount, int) and amount >= 0
+
+
+def _engine_reason(
+    trees: Sequence[ConceptTree], *, game: Game
+) -> LimitedCloserReason | None:
+    """A noncreature card's repeatable source: an ability that goes off again
+    while the card stays (``crosswalk.unit_repeats``), a planeswalker's only if it
+    costs no loyalty, that makes a creature token with power 1 or more
+    (``card_reads.repeating_creature_tokens``: Bitterblossom; not Nissa, Voice of
+    Zendikar's 0/1 Plants) or burns or drains an opponent for at least
+    ``LIMITED_REPEAT_REACH`` or a scaling amount (``crosswalk.reach_amount``)."""
+    for tree in trees:
+        for unit, tokens in repeating_creature_tokens(tree):
+            if _costs_no_loyalty(unit) and (
+                not tokens or any(_token_power(t) >= 1 for t in tokens)
+            ):
+                return "creature_engine"
+    for tree in trees:
+        for unit in tree.units:
+            if not unit_repeats(unit, tree) or not _costs_no_loyalty(unit):
+                continue
+            for node in unit.iter_typed():
+                reach = reach_amount(unit.node, node)
+                if reach is None:
+                    continue
+                scope, amount = reach
+                if scope == "single" and game.multiplayer:
+                    continue
+                if amount is None or amount >= LIMITED_REPEAT_REACH:
+                    return "repeat_reach"
+    return None
+
+
+def _token_power(token: object) -> int:
+    """A token effect's power: its fixed value, or 1 for one that varies (Karn's
+    Construct counts artifacts, an X token): unknown, so not ruled out."""
+    power = getattr(token, "power", None)
+    return _fixed_value(power) if tag_of(power) == "Fixed" else 1
+
+
+def limited_closer_reason(
+    card: dict, *, game: Game, poisons: bool = False
+) -> LimitedCloserReason | None:
+    """Why ``card`` is a limited closer, or ``None`` (see the block above).
+
+    - ``poison`` / ``finisher``: what closes in a 40-card deck in every family —
+      an extra combat, a one-shot team pump, reach that closes, poison in a poison
+      deck. Not an alternative win or loss (``reads.ends_the_game``): Thassa's
+      Oracle, Laboratory Maniac and Felidar Sovereign win on a library or a life
+      total a limited deck doesn't reach; such a card is judged by its body.
+    - ``creature_engine`` / ``repeat_reach``: a noncreature card's repeatable
+      source (:func:`_engine_reason`). A creature that makes tokens or pings
+      (Young Pyromancer, a mobilize attacker) is judged by its body: creature
+      removal answers it (Dan's ruling).
+    - ``evasive``: a creature of at least ``LIMITED_CLOSER_POWER`` power — printed,
+      plus the counters it enters with (:func:`_enters_growth`) — that's hard to
+      block (:func:`_closing_body`; trample from ``LIMITED_TRAMPLE_POWER``).
+    - ``resilient``: such a creature that's hard to answer: protection (CR
+      702.16b, f: from a colour, a player or everything — True-Name Nemesis),
+      hexproof, shroud, ward or indestructible (``crosswalk.PROTECTIVE_KEYWORDS``),
+      or a body that comes back to the battlefield (:data:`_BODY_RETURNS`).
+
+    None for a body held back by a standing restriction of its own, or one that
+    can't attack or swings once (:func:`_cannot_close`)."""
+    if poisons and _poison_piece(card):
+        return "poison"
+    trees = trees_for(card)
+    if _held_back(trees, standing=True):
+        return None
+    if _finishes(card, trees, game=game, alt_wins=False):
+        return "finisher"
+    if not is_creature(card):
+        return _engine_reason(trees, game=game)
+    power = _printed_power(card) + _enters_growth(trees)
+    if power < LIMITED_CLOSER_POWER:
+        return None
+    keywords = _own_keywords(card, trees)
+    if _cannot_close(keywords, trees):
+        return None
+    if _closing_body(
+        card,
+        trees,
+        power=power,
+        keywords=keywords,
+        power_floor=LIMITED_CLOSER_POWER,
+        trample_floor=LIMITED_TRAMPLE_POWER,
+    ):
+        return "evasive"
+    if keywords & PROTECTIVE_KEYWORDS or any(
+        _BODY_RETURNS.intersection(self_return_routes(tree)) for tree in trees
+    ):
+        return "resilient"
+    return None
+
+
+def is_limited_closer(card: dict, *, game: Game, poisons: bool = False) -> bool:
+    """Whether ``card`` is a closer in a sealed or draft game
+    (:func:`limited_closer_reason`)."""
+    return limited_closer_reason(card, game=game, poisons=poisons) is not None
+
+
+def closer_read(cal: Calibration) -> Callable[..., bool]:
+    """The family's closer test, ``(card, *, game, poisons) -> bool``: the limited
+    threat read for a sealed or draft deck (``Calibration.closers``), the
+    finisher read everywhere else. The closer count and the closer search both
+    take it, so what the row counts is what it is offered."""
+    return is_limited_closer if cal.closers == "threat" else is_wincon_card
 
 
 def win_conditions(
@@ -1363,10 +1702,11 @@ def win_conditions(
     # keyword grants, reading the benchmark deck "2 closers" while it held
     # team double strike twice.
     poisons = any(gives_poison(c.record) for c in classes)
+    is_closer = closer_read(cal)
     closers = {
         c.name: c
         for c in classes
-        if is_wincon_card(c.record, game=game, poisons=poisons) or c.grant_closer
+        if is_closer(c.record, game=game, poisons=poisons) or c.grant_closer
     }
     cards = sorted(closers)
     pieces = _voltron_pieces(classes)
@@ -1374,10 +1714,12 @@ def win_conditions(
     voltron_closer = voltron and game.commander_damage
     count = _slots(list(closers.values())) + combo_count + (1 if voltron_closer else 0)
     lo, hi = cal.wincon_target.get(shape, cal.wincon_target[cal.default_shape])
-    lo = _life_scaled(lo, game.life, floor=2)
-    # The band keeps at least one card of width, so a low-life control/combo band
-    # never collapses to "wants 2-2".
-    hi = max(lo + 1, _life_scaled(hi, game.life, floor=2))
+    if cal.closers == "finisher":
+        lo = _life_scaled(lo, game.life, floor=2)
+        # The band keeps at least one card of width, so a low-life control/combo
+        # band never collapses to "wants 2-2".
+        hi = max(lo + 1, _life_scaled(hi, game.life, floor=2))
+    # A "threat" band is stated at its family's own game (``Calibration.closers``).
     return {
         "count": count,
         "from_combos": combo_count,

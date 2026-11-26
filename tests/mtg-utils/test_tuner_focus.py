@@ -1695,3 +1695,32 @@ def test_specificity_picks_the_commanders_distinctive_lane_as_primary():
     fr = focus(classes, base_rates=rates, **kwargs)
     assert fr["mains"][0] == auras
     assert combat in fr["mains"]
+
+
+def test_fed_only_is_no_filler_in_a_limited_deck():
+    """ADR-0055's 2026-11-25 amendment: a card feeding only an avenue nobody built
+    is filler in a synergy deck, never in a sealed or draft one, whose cards are
+    played for what they do alone (True-Name Nemesis is a Rogue; the Rogue lane
+    made it the powered-cube deck's first cut)."""
+    historic = spec_for(_sig("historic_matters")).label
+    combat = spec_for(_sig("attack_matters")).label
+    classes = [_cc(f"Attacker {i}", "engine", [combat]) for i in range(10)]
+    classes += [_cc(f"Legend {i}", "engine", [historic]) for i in range(8)]
+    signals = [_sig("historic_matters"), _sig("attack_matters")]
+    emitters = {
+        ("historic_matters", "you", ""): frozenset({"Legend 0"}),
+        ("attack_matters", "you", ""): frozenset({f"Attacker {i}" for i in range(10)}),
+    }
+
+    def run(cal):
+        return focus(
+            classes, deck_size=40, deck_signals=signals, emitters=emitters, cal=cal
+        )
+
+    synergy = run(replace(LIMITED, fed_only_is_filler=True))
+    assert len(synergy["fed_only_cards"]) == 8
+    limited = run(LIMITED)
+    assert [a["label"] for a in limited["viable_avenues"]] == [combat]
+    assert historic in [a["label"] for a in limited["fed"]]
+    assert limited["fed_only_cards"] == []
+    assert not any(n.startswith("Legend") for n in limited["filler_cards"])

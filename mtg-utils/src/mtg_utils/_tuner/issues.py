@@ -497,6 +497,7 @@ class Sourcing:
         poisons: bool = False,
         need_avenues: Sequence[tuple[str, int, dict]] = (),
         protection_low: bool = False,
+        closer: Callable[..., bool] = is_wincon_card,
     ) -> None:
         self._focus = focus_result
         #: The commander's need pages (ADR-0061; ``swaps.need_avenues``): label,
@@ -522,6 +523,9 @@ class Sourcing:
         #: The deck gives poison counters (``metrics.win_conditions``), so a
         #: proliferator is a closer (``is_wincon_card``).
         self._poisons = poisons
+        #: The family's closer test (``metrics.closer_read``): what the closer
+        #: search is narrowed to, the read the closer count makes.
+        self._closer = closer
 
     # ── Spine roles ─────────────────────────────────────────────────────────────
 
@@ -975,12 +979,11 @@ class Sourcing:
             # at all does the closer regex page the search.
             game = self._game
             poisons = self._poisons
+            closer = self._closer
             return Remedy(
                 {
                     **(self.main_avenue() or WINCON_SEARCH),
-                    "_filter": lambda c, **_kw: is_wincon_card(
-                        c, game=game, poisons=poisons
-                    ),
+                    "_filter": lambda c, **_kw: closer(c, game=game, poisons=poisons),
                 },
                 lane_ok=True,
             )

@@ -186,6 +186,11 @@ CONSTRUCTED_TEMPLATE = Template(
     ),
 )
 
+#: A big body in a limited game: power 4 or more — what ``set-scan`` and
+#: ``pool-colors`` count as the bodies an answer has to handle, and the power from
+#: which the limited closer read counts trample (``_tuner.metrics``).
+LIMITED_BIG_POWER = 4
+
 # Limited (sealed / draft), per 40 cards: the norms every limited primer agrees on —
 # a creature-dense deck, a few answers, a real two- and three-drop count, and a
 # capped top end. Ceilings on the drop rows are generous by design; the floor is the

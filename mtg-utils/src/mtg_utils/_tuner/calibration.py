@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import Literal
 
 from mtg_utils._analysis.budgets import template_for
 from mtg_utils.formats import Family
@@ -65,6 +66,19 @@ class Calibration:
     commander_axes: bool
     #: Whether edhrec play-rate is a meaningful quality / fringe read here.
     playrate_meaningful: bool
+    #: What a closer is (``metrics.closer_read``): ``"finisher"`` — a card that
+    #: wins, an extra combat, a team pump, reach that closes, a big evasive body —
+    #: or, for a sealed or draft deck, ``"threat"``: a threat that's hard to block
+    #: or hard to answer (``metrics.limited_closer_reason``; ADR-0055's
+    #: 2026-11-25 amendment). A ``"threat"`` family's ``wincon_target`` is stated
+    #: at its own game (20 life, one opponent) and never life-scaled.
+    closers: Literal["finisher", "threat"] = "finisher"
+    #: Whether an Engine card feeding only avenues nobody built toward is filler
+    #: (``metrics.focus``' ``fed_only_cards``). A synergy deck's read: in a deck
+    #: drawn from an opened pool a card is played for what it does on its own,
+    #: and the avenue it nominally feeds (True-Name Nemesis is a Rogue) says
+    #: nothing about it, so the limited family keeps it off.
+    fed_only_is_filler: bool = True
     default_shape: str = field(default="midrange")
 
     def playrate_condemns(self, *, multiplayer: bool) -> bool:
@@ -139,6 +153,17 @@ CONSTRUCTED = Calibration(
     playrate_meaningful=False,
 )
 
+#: The closers (the limited ``"threat"`` read; ADR-0055's 2026-11-25 amendment) a
+#: 40-card sealed or draft deck holds before the tuner proposes adding one, and the
+#: number its closers are kept from cuts at: Dan's ruling (2026-11-25), for cube and
+#: retail alike — only a deck with no closer is short. Measured over 733 simulated
+#: draft decks, 6% hold none; a floor of 2 would flag 22%.
+LIMITED_CLOSER_FLOOR = 1
+#: The band's top, for the message only ("usually wants 1-3"): the simulated
+#: retail decks' upper quartile and the cube decks' median. No deck is short for
+#: holding more.
+LIMITED_CLOSER_TOP = 3
+
 LIMITED = Calibration(
     family="limited",
     front_want={"aggro": 8, "midrange": 8, "control": 8, "combo": 8},
@@ -152,16 +177,16 @@ LIMITED = Calibration(
     focus_main_carer_share=1 / 3,
     lane_upgrade_floor=6,
     spine_led=4,
-    wincon_target={
-        "aggro": (2, 4),
-        "midrange": (2, 4),
-        "control": (2, 4),
-        "combo": (2, 4),
-    },
+    wincon_target=dict.fromkeys(
+        ("aggro", "midrange", "control", "combo"),
+        (LIMITED_CLOSER_FLOOR, LIMITED_CLOSER_TOP),
+    ),
     protection_target=0,
     voltron_pieces=None,
     commander_axes=False,
     playrate_meaningful=False,
+    closers="threat",
+    fed_only_is_filler=False,
 )
 
 CALIBRATIONS: dict[str, Calibration] = {
