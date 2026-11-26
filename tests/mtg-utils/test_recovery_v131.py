@@ -283,3 +283,121 @@ def test_a_permission_another_player_gets_is_no_enters_payload():
     # Lightstall Inquisitor: "each opponent exiles a card from their hand and
     # may play that card for as long as it remains exiled" — theirs, not yours.
     assert "self_etb_payload" not in {i[0] for i in _idents("Lightstall Inquisitor")}
+
+
+# ── A population phase types as one object (``recovery.mark_populations``) ──
+
+
+def _marked(name: str, tag: str) -> list[bool]:
+    from mtg_utils._card_ir.crosswalk import tag_of
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card
+
+    return [
+        c.population
+        for t in trees_for(test_card(name))
+        for u in t.units
+        for c in u.effects
+        if tag_of(c.node) == tag
+    ]
+
+
+def _raw_effects(name: str, tag: str) -> list[dict]:
+    from mtg_utils.testkit import test_phase_records
+
+    out = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            if o.get("type") == tag:
+                out.append(o)
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    for rec in test_phase_records(name):
+        walk(rec)
+    return out
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "tag"),
+    [
+        # "Regenerate each creature you control", typed as Loxodon Hierarch
+        # Avatar's "Regenerate target creature you control" is
+        ("Wrap in Vigor", "Regenerate"),
+        # "All permanents you control phase out", typed as Haystack's "Target
+        # creature you control phases out" is
+        ("Teferi's Protection", "PhaseOut"),
+        # "Put a counter of that kind on each other creature you control"
+        ("Contractual Safeguard", "PutChosenCounter"),
+    ],
+)
+def test_population_mark_canary(name, tag):
+    """Phase types these mass effects exactly as their targeted forms: one
+    effect on a ``Typed`` filter, no ``*All`` variant, no ``All`` scope. The
+    recovery stage marks the population (``ConceptNode.population``, read by
+    ``crosswalk.acts_on_a_group``) from the text. Fails once phase gives the
+    effect a mass form or a scope of its own: then read that and drop the
+    mark's case."""
+    raw = _raw_effects(name, tag)
+    assert raw, f"population mark: RETIRE-READY — phase no longer types {name}'s {tag}"
+    assert all(
+        (e.get("target") or {}).get("type") == "Typed"
+        and ((e.get("scope") or {}).get("type") != "All")
+        for e in raw
+    ), f"population mark: RETIRE-READY — phase scopes {name}'s {tag}; drop the mark"
+    assert True in _marked(name, tag)
+    assert ("own_target_spell", "you", "") not in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Mending Touch", "Haystack"])
+def test_a_targeted_peer_is_no_population(name):
+    """ "Regenerate target creature", "Target creature you control phases out"."""
+    tag = "Regenerate" if name == "Mending Touch" else "PhaseOut"
+    assert True not in _marked(name, tag)
+
+
+@pytest.mark.parametrize(
+    ("text", "tags"),
+    [
+        ("Regenerate each creature you control.", {"Regenerate"}),
+        ("All permanents you control phase out.", {"PhaseOut"}),
+        ("Regenerate target creature.", set()),
+        ("Target creature you control phases out.", set()),
+        # "each" opens no subject of "phases out": the upkeep's
+        ("At the beginning of each upkeep, enchanted creature phases out.", set()),
+        # players, not objects
+        ("Each opponent loses 2 life and creatures they control phase out.", set()),
+        ("Regenerate each player.", set()),
+        # a quoted ability is the granted object's own
+        (
+            (
+                'Enchanted creature has "At the beginning of your upkeep, all '
+                'creatures you control phase out."'
+            ),
+            set(),
+        ),
+        (
+            (
+                "All permanents other than Disciple of Caelus Nin and the chosen "
+                "permanents phase out."
+            ),
+            {"PhaseOut"},
+        ),
+        (
+            (
+                "You gain protection from everything, and all permanents you "
+                "control phase out."
+            ),
+            {"PhaseOut"},
+        ),
+    ],
+)
+def test_population_effects_grammar(text, tags):
+    from mtg_utils._card_ir.clause_grammar import population_effects
+
+    assert population_effects(text) == tags

@@ -286,6 +286,20 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   phase's ``target_choice_timing: Resolution`` (``clause_grammar.
   opens_with_choice`` / ``chooses_without_target``). ``test_untargeted_choice_canary``
   fails once phase marks it.
+* **One object a player controls named without "target".** "Create a token that's a
+  copy of a permanent you control" (Awaken the Maelstrom), "transform an
+  Incubator token you control" (Sunder the Gateway's mode, read off the card's
+  mode description), "turn a creature you control face up" (Bustle), "may
+  choose a creature they control" (Flaming Gambit: that player's creature)
+  are typed as targets; the
+  one such effect of its tag gets phase's resolution mark
+  (``clause_grammar.untargeted_object_effects``). ``test_untargeted_object_
+  canary`` fails once phase marks them.
+* **A parked "For any number of opponents" head.** Windgrace's Judgment's head
+  is an ``unrecognized_clause_head`` before a ``Destroy`` typed ``You``; it is
+  written as Juvenile Mist Dragon's one target per opponent
+  (``clause_grammar.per_opponent_head``). ``test_parked_per_opponent_head_
+  canary`` fails once phase types it.
 * **Three Alchemy "it"s and a draw trigger.** Penregon Besieged's parked
   "choose a creature with the least toughness among creatures your opponents
   control" (``clause_grammar.chosen_creature``) is typed as Crush Underfoot's
@@ -328,9 +342,11 @@ from mtg_utils._card_ir.clause_grammar import (
     opens_with_choice,
     parked_perpetual_change,
     parked_pump,
+    per_opponent_head,
     power_damage_target,
     split_pump,
     subtype_keyword_grant,
+    untargeted_object_effects,
     verb_list_pump,
 )
 from mtg_utils._card_ir.dropped_keywords import PHASE_KEYWORDS, add_keyword, static_def
@@ -1648,6 +1664,100 @@ def _untargeted_choices(rec: dict) -> list[dict]:
     return out
 
 
+def _described_heads(rec: dict) -> Iterator[tuple[object, str]]:
+    """``(head body, its text)`` for each ability and trigger; a modal spell's
+    mode, which phase writes as one ability with no description of its own,
+    takes the card's mode description in the same position (Sunder the
+    Gateway's "Incubate 2, then transform an Incubator token you control")."""
+    abilities = list(rec.get("abilities") or ())
+    modes = (rec.get("modal") or {}).get("mode_descriptions") or ()
+    by_mode = len(modes) == len(abilities)
+    for i, a in enumerate(abilities):
+        text = a.get("description") if isinstance(a, dict) else None
+        if not text and by_mode:
+            text = modes[i]
+        yield a, str(text or "")
+    for t in rec.get("triggers") or ():
+        yield t.get("execute"), str(t.get("description") or "")
+
+
+def _untargeted_objects(rec: dict) -> list[dict]:
+    """The bodies whose single object phase types as a target where the text
+    names it without "target" (:func:`~mtg_utils._card_ir.
+    clause_grammar.untargeted_object_effects`): "Create a token that's a copy
+    of a permanent you control" (Awaken the Maelstrom), "transform an Incubator
+    token you control" (Sunder the Gateway), "You may turn a creature you
+    control face up" (Bustle), and another player's "may choose a creature they
+    control" (Flaming Gambit, Crashing Boars: the creature is that player's,
+    though phase writes its filter ``controller: You`` too). Phase types the
+    same object chosen as the effect resolves with ``target_choice_timing:
+    Resolution`` (Followed Footsteps' copy of the enchanted creature, Agitator
+    Ant's counters), so that mark is written: an object a spell or ability
+    affects is a target only when "target" names it (CR 115.10a). Keyed on
+    structure (one such effect of that tag in the ability, its target ``Typed``
+    with ``controller: You``, no timing yet) and read through the clause
+    grammar; the census at v0.133.0 is in the canary's docstring."""
+    out: list[dict] = []
+    for head, description in _described_heads(rec):
+        tags = untargeted_object_effects(description)
+        if not tags:
+            continue
+        # the ability's own instructions and its modes', never a cost's
+        chain = [b for b, _earlier in _chains_with_modes(head)]
+        for tag in tags:
+            hits = [
+                b
+                for b in chain
+                if (b.get("effect") or {}).get("type") == tag
+                and ((b["effect"].get("target") or {}).get("type") == "Typed")
+            ]
+            if len(hits) != 1:
+                continue
+            (body,) = hits
+            if body["effect"]["target"].get("controller") == "You" and not body.get(
+                "target_choice_timing"
+            ):
+                out.append(body)
+    return out
+
+
+#: Phase's count for one target per opponent ("for each opponent, tap up to one
+#: target creature that player controls" — Juvenile Mist Dragon).
+_UP_TO_ONE_PER_OPPONENT = {
+    "min": 0,
+    "max": {
+        "type": "Ref",
+        "qty": {"type": "PlayerCount", "filter": {"type": "Opponent"}},
+    },
+}
+
+
+def _parked_per_opponent_heads(rec: dict) -> list[dict]:
+    """The heading bodies phase parks as an ``unrecognized_clause_head`` "For any
+    number of opponents" (:func:`~mtg_utils._card_ir.clause_grammar.
+    per_opponent_head`) ahead of a targeted effect it types ``controller: You``:
+    "For any number of opponents, destroy target nonland permanent that player
+    controls" (Windgrace's Judgment; the only such head at v0.133.0). Choosing
+    any number of opponents and one target each is up to one target per
+    opponent, which phase types as Juvenile Mist Dragon's "for each opponent,
+    tap up to one target creature that player controls": the effect on a
+    ``TargetPlayer`` filter with ``multi_target`` up to the opponent count."""
+    out: list[dict] = []
+    for body in rec.get("abilities") or ():
+        effect = (body or {}).get("effect") or {}
+        sub = (body or {}).get("sub_ability") or {}
+        target = (sub.get("effect") or {}).get("target") or {}
+        if (
+            effect.get("type") == "Unimplemented"
+            and effect.get("name") == "unrecognized_clause_head"
+            and per_opponent_head(str(effect.get("description") or ""))
+            and target.get("type") == "Typed"
+            and target.get("controller") == "You"
+        ):
+            out.append(body)
+    return out
+
+
 def _is_behold(cost: object) -> bool:
     """A face's ``additional_cost`` that beholds (CR 701.4a), optional or not."""
     if not isinstance(cost, dict):
@@ -1787,7 +1897,8 @@ def correct_misparsed_shapes(rec: dict) -> dict:
     beheld = _beheld_its(rec)
     two_zone_choices = _hand_or_battlefield_choices(rec)
     draw_triggers = _parked_draw_triggers(rec)
-    untargeted = _untargeted_choices(rec)
+    untargeted = _untargeted_choices(rec) + _untargeted_objects(rec)
+    per_opponent = _parked_per_opponent_heads(rec)
     found = (
         sweeps,
         split_flips,
@@ -1812,6 +1923,7 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         two_zone_choices,
         draw_triggers,
         untargeted,
+        per_opponent,
     )
     if not any(found):
         return rec
@@ -1915,6 +2027,14 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         target = memo[id(body)]
         assert isinstance(target, dict)
         target["target_choice_timing"] = "Resolution"
+    for body in per_opponent:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        sub = target["sub_ability"]
+        target["effect"] = sub["effect"]
+        target["effect"]["target"]["controller"] = "TargetPlayer"
+        target["sub_ability"] = sub.get("sub_ability")
+        target["multi_target"] = copy.deepcopy(_UP_TO_ONE_PER_OPPONENT)
     for effect in beheld:
         target = memo[id(effect)]
         assert isinstance(target, dict)

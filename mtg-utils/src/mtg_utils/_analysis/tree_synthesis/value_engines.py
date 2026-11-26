@@ -643,7 +643,7 @@ def _beneficial_spell_boost(unit: AbilityUnit, tree: ConceptTree) -> bool:
         node = c.node
         tag = tag_of(node)
         if boost_delivery(unit, tree, node) != "spell" or not effect_targets(
-            unit.node, node
+            unit.node, node, unit
         ):
             continue
         target = getattr(node, "target", None)
@@ -672,7 +672,7 @@ def _beneficial_spell_boost(unit: AbilityUnit, tree: ConceptTree) -> bool:
             # +3/+3 and gains flying" (Angelic Blessing)
             if _creature_target(unit, st, affected, owner=ge):
                 return True
-        elif effect_targets(unit.node, ge) and _creature_target(
+        elif effect_targets(unit.node, ge, unit) and _creature_target(
             unit, ge, getattr(ge, "target", None)
         ):
             return True

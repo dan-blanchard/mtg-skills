@@ -43,6 +43,7 @@ from mtg_utils._card_ir.clause_grammar import (
     parked_move_zone,
     parked_perpetual_change,
     parse_clause,
+    population_effects,
     replacement_sentences,
     replacement_token,
     scan_clause,
@@ -1839,6 +1840,53 @@ def mark_perpetual_cards(
     return tuple(out) if changed else effects
 
 
+def mark_populations(
+    effects: tuple[ConceptNode, ...], description: str
+) -> tuple[ConceptNode, ...]:
+    """``effects`` with each mass effect phase types as one object marked
+    (``ConceptNode.population``): an effect whose own ability text writes it
+    over "each" / "all" of a population and never on a target
+    (``clause_grammar.population_effects`` over ``description``, the unit's or
+    a modal spell's mode's), the one effect of that tag in the unit, on a
+    ``Typed`` filter. Phase types "Regenerate each creature you control" (Wrap
+    in Vigor) exactly as "Regenerate target creature you control" (Loxodon
+    Hierarch Avatar), with no ``*All`` variant or scope, so only the text tells
+    a population from a target. The node is left as phase wrote it; the mark is
+    the overlay's (``reads.acts_on_a_group`` reads it)."""
+    tags = population_effects(description)
+    if not tags:
+        return effects
+    out: list[ConceptNode] = []
+    changed = False
+    for c in effects:
+        tag = tag_of(c.node)
+        if (
+            tag in tags
+            and tag_of(getattr(c.node, "target", None)) == "Typed"
+            and sum(tag_of(o.node) == tag for o in effects) == 1
+        ):
+            c = replace(c, population=True)  # noqa: PLW2901
+            changed = True
+        out.append(c)
+    return tuple(out) if changed else effects
+
+
+def _unit_descriptions(tree: ConceptTree) -> dict[int, str]:
+    """id(unit) → its own text: the unit's ``description``, or — for a modal
+    spell whose modes phase writes as description-less abilities — the card's
+    mode description in the same position."""
+    out: dict[int, str] = {}
+    modes = tree.card_modal_mode_descriptions
+    abilities = [u for u in tree.units if u.origin == "ability"]
+    by_mode = bool(modes) and len(modes) == len(abilities)
+    for unit in tree.units:
+        text = getattr(unit.node, "description", None)
+        if not text and by_mode and unit in abilities:
+            text = modes[abilities.index(unit)]
+        out[id(unit)] = str(text or "")
+    return out
+
+
 def apply_unimplemented_recovery(
     tree: ConceptTree, allowlist: dict[str, TokenRule] | None = None
 ) -> ConceptTree:
@@ -1865,6 +1913,7 @@ def apply_unimplemented_recovery(
     before = l1_identity(tree)
     changed = False
     new_units = []
+    descriptions = _unit_descriptions(tree)
     for unit in tree.units:
         # A granted body's residues: recovered here, served by the shared
         # granted walk (``crosswalk.iter_nested_granted_effect_concepts``).
@@ -1875,13 +1924,16 @@ def apply_unimplemented_recovery(
             )
             if recovered is not granted:
                 object.__setattr__(body, GRANTED_RECOVERY_ATTR, recovered)
-        new_effects = mark_perpetual_cards(
-            _with_body_keywords(
-                recover_concepts(unit.effects, unit, table, tree.name),
-                tree.name,
+        new_effects = mark_populations(
+            mark_perpetual_cards(
+                _with_body_keywords(
+                    recover_concepts(unit.effects, unit, table, tree.name),
+                    tree.name,
+                    unit,
+                ),
                 unit,
             ),
-            unit,
+            descriptions[id(unit)],
         )
         if new_effects is not unit.effects:
             changed = True

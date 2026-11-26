@@ -598,7 +598,9 @@ def _arm_animated_object(tree: ConceptTree, unit: AbilityUnit) -> list[FieldCorr
         # A mass effect ends the thread: Chimeric Idol's "tap all lands you
         # control. ~ becomes a 3/3" animates the card, not the lands.
         for target, sdef in iter_threaded_target_statics(
-            unit.node, affected_tag="SelfRef", resets_thread=ends_target_thread
+            unit.node,
+            affected_tag="SelfRef",
+            resets_thread=lambda eff: ends_target_thread(eff, unit),
         )
         if adds_creature_type(sdef)
     ]

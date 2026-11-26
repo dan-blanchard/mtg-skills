@@ -227,6 +227,22 @@ def test_recast_row_fires_and_gates():
         ("Steeling Stance", False),
         # support's keyword rule targets (kept)
         ("Press into Service", True),
+        # an object of yours named without "target" (the untargeted-object row)
+        ("Invasion of Alara // Awaken the Maelstrom", False),
+        ("Sunder the Gateway", False),
+        ("Hustle // Bustle", False),
+        ("Flaming Gambit", False),
+        # one target per opponent (the per-opponent head row)
+        ("Windgrace's Judgment", False),
+        # a population phase types as one object (the recovery's mark)
+        ("Wrap in Vigor", False),
+        ("Wail of the Nim", False),
+        ("Golgari Charm", False),
+        # "Regenerate target creature" names any creature; the spell mastery's
+        # "each other creature you control" is a population
+        ("Dark Dabbling", False),
+        ("Teferi's Protection", False),
+        ("Contractual Safeguard", False),
     ],
 )
 def test_own_target_spell_emission(name, expected):

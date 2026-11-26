@@ -206,7 +206,7 @@ def _anaphora(unit: AbilityUnit) -> _Anaphora:
             # gets +5/+0" — Provoke the Trolls).
             if ttag == "ParentTarget" and last is not None and id(node) not in threaded:
                 named.setdefault(id(node), last)
-            if ttag in _NAMED_OBJECT_TAGS and not acts_on_a_group(node):
+            if ttag in _NAMED_OBJECT_TAGS and not acts_on_a_group(node, unit):
                 last = target
             if tag_of(node) == "TargetOnly" and target is not None:
                 chosen.append(target)

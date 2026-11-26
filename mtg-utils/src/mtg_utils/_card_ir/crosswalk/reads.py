@@ -4794,7 +4794,7 @@ def iter_granted_triggers(unit: AbilityUnit) -> Iterator[GrantedTrigger]:
     back-reference the thread can't follow stays its tag. The deep mod-site walk
     (:func:`iter_mod_sites`), so a modal arm's or a created token's grant is
     read too (a Pest token's own "When this creature dies" — ``SelfRef``)."""
-    chosen = threaded_grantees(unit.node)
+    chosen = threaded_grantees(unit.node, unit)
     for sdef, mod in iter_mod_sites(unit.node, deep=True):
         if tag_of(mod) not in _GRANTED_TRIGGER_TAGS:
             continue
@@ -5122,7 +5122,7 @@ def iter_threaded_target_statics(
 
 
 def _chosen_target_statics(
-    ability_like: object,
+    ability_like: object, unit: AbilityUnit | None = None
 ) -> tuple[tuple[object, TypedMirrorNode], ...]:
     """The ``(chosen target, static def)`` pairs behind :func:`threaded_grantees`,
     walked once per ability node: "it" (``ParentTarget`` — Snakeskin Veil,
@@ -5134,32 +5134,40 @@ def _chosen_target_statics(
     second thread (:func:`ends_target_thread`): "create a token. It gains
     haste" tracks the made token, and "put a +1/+1 counter on each creature
     you control. Those creatures gain vigilance" (Ajani Goldmane, a
-    ``PutCounterAll``) tracks a board filter, never a chosen target. CR 115.1 /
-    613.1f."""
+    ``PutCounterAll``) tracks a board filter, never a chosen target; given the
+    ``unit`` whose node ``ability_like`` is, so does a population mark. CR
+    115.1 / 613.1f."""
     if not isinstance(ability_like, TypedMirrorNode):
         return ()
     return memo_on(
         ability_like,
-        "_xw_chosen_target_statics",
+        "_xw_chosen_target_statics"
+        if unit is None
+        else "_xw_chosen_target_statics_unit",
         lambda node: (
             *iter_threaded_target_statics(node),
             *iter_threaded_target_statics(
-                node, affected_tag="TrackedSet", resets_thread=ends_target_thread
+                node,
+                affected_tag="TrackedSet",
+                resets_thread=lambda eff: ends_target_thread(eff, unit),
             ),
         ),
     )
 
 
-def threaded_grantees(ability_like: object) -> dict[int, object]:
+def threaded_grantees(
+    ability_like: object, unit: AbilityUnit | None = None
+) -> dict[int, object]:
     """The chosen target each back-referencing static of one ability lands on,
     as ``{id(static def): target filter}``: "Untap target creature. It gains
     reach" (Aim High), "Those creatures gain vigilance" after two targeted pumps
     (Arm the Cathars). A static with its own ``affected`` filter, or one whose
     back-reference the thread can't follow, has no entry: the caller falls back
     to the def's ``affected``. The mass-effect half ("each creature you control
-    … those creatures gain") is :func:`group_grant_statics`."""
+    … those creatures gain") is :func:`group_grant_statics`; ``unit`` as
+    there."""
     out: dict[int, object] = {}
-    for target, static_def in _chosen_target_statics(ability_like):
+    for target, static_def in _chosen_target_statics(ability_like, unit):
         out.setdefault(id(static_def), target)
     return out
 
@@ -8163,7 +8171,7 @@ def team_boost_or_grant_sites(
             if kw.lower().replace(" ", "") not in TEAM_BOOST_OR_GRANT_GRANT_KW:
                 continue
             # "Those creatures", after a mass effect over your team, is the team.
-            grantee = group_grant_statics(unit.node).get(
+            grantee = group_grant_statics(unit.node, unit).get(
                 id(sdef), getattr(sdef, "affected", None)
             )
             if is_team_boost_or_grant_filter(grantee):
@@ -8322,10 +8330,11 @@ def iter_named_object_statics(
     yield from _group_statics(ability_like)
 
 
-def ends_target_thread(eff: TypedMirrorNode) -> bool:
-    """A token producer or a mass effect (:func:`acts_on_a_group`) ends the
-    chosen-target thread."""
-    return tag_of(eff) in _TRACKED_SET_PRODUCER_TAGS or acts_on_a_group(eff)
+def ends_target_thread(eff: TypedMirrorNode, unit: AbilityUnit | None = None) -> bool:
+    """A token producer or a mass effect (:func:`acts_on_a_group`, given the
+    ``unit`` holding ``eff`` so a population mark counts) ends the chosen-target
+    thread."""
+    return tag_of(eff) in _TRACKED_SET_PRODUCER_TAGS or acts_on_a_group(eff, unit)
 
 
 def _names_objects(target: object) -> bool:
@@ -8334,22 +8343,26 @@ def _names_objects(target: object) -> bool:
     return _present(target) and tag_of(target) in ("Typed", "Or", "And")
 
 
-def ends_group_thread(eff: TypedMirrorNode) -> bool:
+def ends_group_thread(eff: TypedMirrorNode, unit: AbilityUnit | None = None) -> bool:
     """A token producer or a chosen target ends the thread of the group a mass
     effect acted on ("Put a +1/+1 counter on each creature you control. Those
     creatures gain vigilance" — Ajani Goldmane): the mirror of
-    :func:`ends_target_thread`."""
+    :func:`ends_target_thread`, with the same ``unit``."""
     return tag_of(eff) in _TRACKED_SET_PRODUCER_TAGS or (
-        _names_objects(getattr(eff, "target", None)) and not acts_on_a_group(eff)
+        _names_objects(getattr(eff, "target", None)) and not acts_on_a_group(eff, unit)
     )
 
 
-def acts_on_a_group(eff: object) -> bool:
+def acts_on_a_group(eff: object, unit: AbilityUnit | None = None) -> bool:
     """Whether an effect acts on every object its filter matches, never a
-    chosen target: an ``*All`` variant (``PutCounterAll``, ``PumpAll``), or one
+    chosen target: an ``*All`` variant (``PutCounterAll``, ``PumpAll``), one
     phase scopes ``All`` ("Untap all creatures you control" — Join Shields'
-    ``SetTapState``)."""
+    ``SetTapState``), or — given its ``unit`` — one the recovery stage marked as
+    a population phase types as one object (``ConceptNode.population``:
+    "Regenerate each creature you control" — Wrap in Vigor)."""
     if tag_of(eff) in ALL_VARIANT_EFFECT_TAGS:
+        return True
+    if unit is not None and any(c.population and c.node is eff for c in unit.effects):
         return True
     # ``ChangeTargets`` scopes ``All`` too, meaning every target of one spell
     # ("change the targets of target spell" — Redirect), no group of objects.
@@ -8358,27 +8371,36 @@ def acts_on_a_group(eff: object) -> bool:
     )
 
 
-def group_grant_statics(ability_like: object) -> dict[int, object]:
+def group_grant_statics(
+    ability_like: object, unit: AbilityUnit | None = None
+) -> dict[int, object]:
     """The group each "those creatures gain X" static of one ability lands on,
     as ``{id(static def): the mass effect's filter}``: a ``TrackedSet``-affected
     static after a mass effect ("Put a +1/+1 counter on each creature you
     control. Those creatures gain vigilance" — Ajani Goldmane; "Untap all
     creatures you control. They gain hexproof and indestructible" — Join
-    Shields). The chosen-target half is :func:`threaded_grantees`."""
-    return {id(st): group for group, st in _group_statics(ability_like)}
+    Shields). The chosen-target half is :func:`threaded_grantees`. Given the
+    ``unit`` whose node ``ability_like`` is, a population mark counts as a mass
+    effect (:func:`acts_on_a_group`)."""
+    return {id(st): group for group, st in _group_statics(ability_like, unit)}
 
 
-def _group_statics(ability_like: object) -> tuple[tuple[object, TypedMirrorNode], ...]:
+def _group_statics(
+    ability_like: object, unit: AbilityUnit | None = None
+) -> tuple[tuple[object, TypedMirrorNode], ...]:
     """The ``(group filter, static def)`` pairs behind
-    :func:`group_grant_statics`, walked once per ability node."""
+    :func:`group_grant_statics`, walked once per ability node (and once more
+    with its ``unit``)."""
     if not isinstance(ability_like, TypedMirrorNode):
         return ()
     return memo_on(
         ability_like,
-        "_xw_group_statics",
+        "_xw_group_statics" if unit is None else "_xw_group_statics_unit",
         lambda node: tuple(
             iter_threaded_target_statics(
-                node, affected_tag="TrackedSet", resets_thread=ends_group_thread
+                node,
+                affected_tag="TrackedSet",
+                resets_thread=lambda eff: ends_group_thread(eff, unit),
             )
         ),
     )
@@ -11200,7 +11222,7 @@ def earlier_spell_target(
     index = next((i for i, u in enumerate(spells) if u is unit), 0)
     for prev in reversed(spells[:index]):
         for c in reversed(prev.effects):
-            if ends_target_thread(c.node):
+            if ends_target_thread(c.node, prev):
                 return None
             target = getattr(c.node, "target", None)
             if tag_of(target) in OBJECT_FILTER_TAGS:
@@ -11647,7 +11669,9 @@ _CHOSEN_NOT_TARGETED_EFFECTS = frozenset({"ChooseAndSacrificeRest", "Sacrifice"}
 _TRACKED_SET_TAGS = frozenset({"TrackedSet", "TrackedSetFiltered"})
 
 
-def effect_targets(root: object, effect_node: object) -> bool:
+def effect_targets(
+    root: object, effect_node: object, unit: AbilityUnit | None = None
+) -> bool:
     """Whether ``effect_node``'s ``target`` field holds a target (CR 115.1: one
     chosen as the spell or ability is put on the stack; 115.10a: only an object
     "target" names, in the text or a keyword's rule): never an effect with no
@@ -11661,12 +11685,12 @@ def effect_targets(root: object, effect_node: object) -> bool:
     Mighty's "the chosen creatures get +X/+X") or to a group (Pride of
     Conquerors' "those creatures"). Phase types "Regenerate each creature you
     control" (Wrap in Vigor) exactly as it types "Regenerate target creature"
-    (Mending Touch), with no ``*All`` variant or ``All`` scope, so that group
-    still reads as one target here."""
+    (Mending Touch), with no ``*All`` variant or ``All`` scope; given the
+    ``unit``, the recovery stage's population mark makes it a group here."""
     target = getattr(effect_node, "target", MISSING)
     if not _present(target) or target is None:
         return False
-    if acts_on_a_group(effect_node) or tag_of(effect_node) in (
+    if acts_on_a_group(effect_node, unit) or tag_of(effect_node) in (
         _CHOSEN_NOT_TARGETED_EFFECTS
     ):
         return False
@@ -11675,17 +11699,20 @@ def effect_targets(root: object, effect_node: object) -> bool:
     if effect_chosen_on_resolution(root, effect_node):
         return False
     return not (
-        tag_of(target) == "ParentTarget" and _parent_names_no_target(root, effect_node)
+        tag_of(target) == "ParentTarget"
+        and _parent_names_no_target(root, effect_node, unit)
     )
 
 
-def _parent_names_no_target(root: object, effect_node: object) -> bool:
+def _parent_names_no_target(
+    root: object, effect_node: object, unit: AbilityUnit | None = None
+) -> bool:
     """Whether the earlier clause a ``ParentTarget`` names — the nearest clause
     before ``effect_node``'s that names objects of its own — chose them as it
     resolved (``target_choice_timing: Resolution``) or acts on a group
     (:func:`acts_on_a_group`: "Creatures you control get +1/+1 … those creatures
     get +2/+2 instead" — Pride of Conquerors, whose "those" phase types
-    ``ParentTarget``)."""
+    ``ParentTarget``), given the ``unit`` so a population mark counts."""
     index = _owner_index(root)
     found = index.owners.get(id(effect_node))
     wrapper = found[0] if found is not None else None
@@ -11697,7 +11724,7 @@ def _parent_names_no_target(root: object, effect_node: object) -> bool:
         if tag_of(earlier) in ("Typed", "Or", "And", "Any"):
             return getattr(
                 wrapper, "target_choice_timing", None
-            ) == "Resolution" or acts_on_a_group(getattr(wrapper, "effect", None))
+            ) == "Resolution" or acts_on_a_group(getattr(wrapper, "effect", None), unit)
     return False
 
 
@@ -11780,7 +11807,7 @@ def targets_own_creature(
     if not _single_effect(effect):
         return False
     if unit is not None and (
-        not effect_targets(unit.node, effect)
+        not effect_targets(unit.node, effect, unit)
         or effect_owner_targets_per_opponent(unit.node, effect)
     ):
         return False

@@ -412,6 +412,12 @@ class ConceptNode:
     # only by the recovery stage: a zone move of the chain's object that phase
     # left untyped.
     moves_to: str = ""
+    # Whether the effect acts on every object its filter names, a mass effect
+    # phase types as one object ("Regenerate each creature you control" — Wrap
+    # in Vigor; "All permanents you control phase out" — Teferi's Protection),
+    # written only by the recovery stage (``recovery.mark_populations``) and
+    # read by ``reads.acts_on_a_group``.
+    population: bool = False
 
     @property
     def reading(self) -> tuple[str, ...]:

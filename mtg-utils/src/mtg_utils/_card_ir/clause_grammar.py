@@ -2704,3 +2704,129 @@ def chooses_without_target(description: str) -> bool:
         w in _CHOOSE_WORDS and not _modal_heading(raw[i + 1 : i + 6])
         for i, w in enumerate(words)
     )
+
+
+# ── An instruction on one object named without "target" ────────────────────────
+
+#: The instruction each single-object effect is written with, when its object is
+#: an indefinite one a player controls ("a creature you control", "a creature
+#: they control"), never "target …": phase's effect tag → the phrase.
+_UNTARGETED_OBJECT_RXS: dict[str, re.Pattern[str]] = {
+    "CopyTokenOf": re.compile(
+        r"\ba copy of (?:a|an|another) (?!target\b)[^.,;]*?\byou control\b",
+        re.IGNORECASE,
+    ),
+    "Transform": re.compile(
+        r"\btransform (?:a|an|another) (?!target\b)[^.,;]*?\byou control\b",
+        re.IGNORECASE,
+    ),
+    "TurnFaceUp": re.compile(
+        r"\bturn (?:a|an) (?!target\b)[^.,;]*?\byou control face up\b", re.IGNORECASE
+    ),
+    "TargetOnly": re.compile(
+        r"\bchooses? (?:a|an) (?!target\b)[^.,;]*?\b(?:you|they) controls?\b",
+        re.IGNORECASE,
+    ),
+}
+#: The same instruction aimed at a target ("a copy of target creature", "turn
+#: target creature face up"): with one beside it, which effect is the
+#: untargeted one is no longer the structure's to tell.
+_TARGETED_OBJECT_RXS: dict[str, re.Pattern[str]] = {
+    "CopyTokenOf": re.compile(r"\bcopy of (?:up to \w+ )?target\b", re.IGNORECASE),
+    "Transform": re.compile(r"\btransform (?:up to \w+ )?target\b", re.IGNORECASE),
+    "TurnFaceUp": re.compile(r"\bturn (?:up to \w+ )?target\b", re.IGNORECASE),
+    "TargetOnly": re.compile(r"\bchooses? (?:\w+ |up to \w+ )?target\b", re.IGNORECASE),
+}
+
+
+def untargeted_object_effects(description: str) -> frozenset[str]:
+    """The single-object effects (phase's tags) an ability's text, quoted
+    abilities left out, writes ONCE and only on an indefinite object a player
+    controls, never on a target: "Create a token that's a copy of a permanent
+    you control" (Awaken the Maelstrom: ``CopyTokenOf``), "transform an
+    Incubator token you control" (Sunder the Gateway: ``Transform``), "You may
+    turn a creature you control face up" (Bustle: ``TurnFaceUp``), "That player
+    … may choose a creature they control" (Flaming Gambit: ``TargetOnly``,
+    beside its real "target player"; the creature is that player's). Such an
+    object is chosen as the effect resolves, never targeted (CR 115.10a: only
+    "target" makes an object a target). A tag the text also writes on a target
+    is left out: which effect is which is then a guess."""
+    text = _unquoted(description)
+
+    def untargeted(rx: re.Pattern[str]) -> list[str]:
+        # a phrase whose object says "target" anywhere is a target's ("Choose a
+        # counter on target enchantment you control" — Dathon, His Heart Open)
+        return [
+            m.group(0)
+            for m in rx.finditer(text)
+            if not _TARGET_WORDS & {comb.norm_word(w) for w in m.group(0).split()}
+        ]
+
+    return frozenset(
+        tag
+        for tag, rx in _UNTARGETED_OBJECT_RXS.items()
+        if len(untargeted(rx)) == 1 and not _TARGETED_OBJECT_RXS[tag].search(text)
+    )
+
+
+_ANY_NUMBER_OF_OPPONENTS = comb.phrase(
+    {"for"}, {"any"}, {"number"}, {"of"}, {"opponents"}
+)
+
+
+def per_opponent_head(text: str) -> bool:
+    """Whether a parked clause head is "For any number of opponents" and
+    nothing more (Windgrace's Judgment: "For any number of opponents, destroy
+    target nonland permanent that player controls")."""
+    read = _ANY_NUMBER_OF_OPPONENTS.run(text)
+    return read is not None and not read[1].strip(" ,.")
+
+
+# ── A population an effect phase types as one object ───────────────────────────
+
+#: "each" / "all" opening a population of objects, never one of players ("each
+#: opponent", "each other player"): the mark is for a group of objects.
+_OBJECT_POPULATION = r"(?:each|all) (?!(?:other )?(?:players?|opponents?)\b)"
+
+#: The instruction each effect is written with over a whole population ("each",
+#: "all"), never a target: phase's effect tag → the phrase. "Each" / "all" opens
+#: the effect's object ("regenerate each …", "on each …") or, for a phase-out,
+#: its subject — the run before "phase(s) out", from a sentence, comma, "and" or
+#: "then" boundary, with no sentence, comma or "then" inside ("At the beginning
+#: of each upkeep, enchanted creature phases out" names no population; "All
+#: permanents other than ~ and the chosen permanents phase out" does).
+_POPULATION_RXS: dict[str, re.Pattern[str]] = {
+    "Regenerate": re.compile(
+        rf"\bregenerate {_OBJECT_POPULATION}[^.;]*", re.IGNORECASE
+    ),
+    "PhaseOut": re.compile(
+        rf"(?:^|[.;,:]\s*|\b(?:and|then)\s+){_OBJECT_POPULATION}"
+        r"(?:(?!\bthen\b)[^.;,:])*?\bphases? out\b",
+        re.IGNORECASE,
+    ),
+    "PutChosenCounter": re.compile(
+        rf"\bput (?:a|one) counter of (?:that|the chosen) kind on {_OBJECT_POPULATION}"
+        r"[^.;]*",
+        re.IGNORECASE,
+    ),
+}
+
+
+def population_effects(description: str) -> frozenset[str]:
+    """The effects (phase's tags) an ability's text, quoted abilities left out,
+    writes over a whole population and never on a target: "Regenerate each
+    creature you control" (Wrap in Vigor: ``Regenerate``), "All permanents you
+    control phase out" (Teferi's Protection: ``PhaseOut``), "Put a counter of
+    that kind on each other creature you control" (Contractual Safeguard:
+    ``PutChosenCounter``). A population "each" or "all" names is no target (CR
+    115.10a: only "target" makes an object one). A tag whose phrase holds
+    "target", or that the text writes twice, is left out."""
+    text = _unquoted(description)
+    out: set[str] = set()
+    for tag, rx in _POPULATION_RXS.items():
+        found = [m.group(0) for m in rx.finditer(text)]
+        if len(found) == 1 and not _TARGET_WORDS & {
+            comb.norm_word(w) for w in found[0].split()
+        }:
+            out.add(tag)
+    return frozenset(out)

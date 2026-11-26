@@ -1898,3 +1898,105 @@ def test_chooses_without_target_grammar(text, chooses):
 )
 def test_a_choice_is_no_target_of_yours(name, keys):
     assert not keys & _keys(name)
+
+
+# ── The own-target rows (2026-11-26): an untargeted object, a per-opponent head ──
+
+
+def _bodies_of(rec: dict, tag: str) -> list[dict]:
+    out = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            if (o.get("effect") or {}).get("type") == tag and "kind" in o:
+                out.append(o)
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    walk({k: rec.get(k) for k in ("abilities", "triggers")})
+    return out
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "face", "tag"),
+    [
+        # "Create a token that's a copy of a permanent you control"
+        (
+            "Invasion of Alara // Awaken the Maelstrom",
+            "Awaken the Maelstrom",
+            "CopyTokenOf",
+        ),
+        # "Incubate 2, then transform an Incubator token you control"
+        ("Sunder the Gateway", "Sunder the Gateway", "Transform"),
+        # "You may turn a creature you control face up"
+        ("Hustle // Bustle", "Bustle", "TurnFaceUp"),
+        # "That player … may choose a creature they control"
+        ("Flaming Gambit", "Flaming Gambit", "TargetOnly"),
+        ("Calix, Guided by Fate", "Calix, Guided by Fate", "CopyTokenOf"),
+        ("Ugin's Mastery", "Ugin's Mastery", "TurnFaceUp"),
+    ],
+)
+def test_untargeted_object_canary(name, face, tag):
+    """One object the text names without "target" ("a permanent you control",
+    Flaming Gambit's "a creature they control") is chosen as the effect resolves (CR
+    115.10a), but phase types it as a target. The stage writes phase's own
+    mark for such a choice (Followed Footsteps, Agitator Ant). The census at
+    v0.133.0 is 12 faces, all such choices by their text (Awaken the
+    Maelstrom, Bustle, Calix, Crashing Boars, Crush Underfoot, Flaming Gambit,
+    Guard Dogs, Myra the Magnificent, Sunder the Gateway, The Bean, Ugin's
+    Mastery, Wormfang Crab); a phrase whose object says "target" anywhere is
+    left (Dathon, His Heart Open's "Choose a counter on target enchantment")."""
+    rec = next(r for r in test_phase_records(name) if r["name"] == face)
+    bodies = [
+        b for b in _bodies_of(rec, tag) if b["effect"]["target"].get("type") == "Typed"
+    ]
+    assert bodies
+    assert not any(b.get("target_choice_timing") for b in bodies), (
+        f"misparsed_shapes untargeted object: RETIRE-READY — phase marks {face}'s "
+        "choice. Delete its case; once none is left, the row."
+    )
+    fixed = [
+        b
+        for b in _bodies_of(correct_misparsed_shapes(rec), tag)
+        if b["effect"]["target"].get("type") == "Typed"
+    ]
+    assert any(b.get("target_choice_timing") == "Resolution" for b in fixed)
+
+
+@pytest.mark.parametrize(
+    ("text", "tags"),
+    [
+        ("Create a token that's a copy of a permanent you control.", {"CopyTokenOf"}),
+        ("Create a token that's a copy of target creature you control.", set()),
+        ("{2}: Choose a counter on target enchantment you control.", set()),
+        ("Turn target face-down creature you control face up.", set()),
+        ("Earthbend 3.", set()),
+    ],
+)
+def test_untargeted_object_grammar(text, tags):
+    from mtg_utils._card_ir.clause_grammar import untargeted_object_effects
+
+    assert untargeted_object_effects(text) == tags
+
+
+@pytest.mark.retirement_canary
+def test_parked_per_opponent_head_canary():
+    """Windgrace's Judgment's "For any number of opponents, destroy target
+    nonland permanent that player controls": phase parks the head and types the
+    destroy ``controller: You``. The stage writes Juvenile Mist Dragon's form,
+    one target per opponent on a ``TargetPlayer`` filter (the only such head at
+    v0.133.0)."""
+    (rec,) = test_phase_records("Windgrace's Judgment")
+    head = rec["abilities"][0]
+    assert head["effect"]["type"] == "Unimplemented", (
+        "misparsed_shapes per-opponent head: RETIRE-READY — phase types "
+        "Windgrace's Judgment's head. Delete the row and this canary."
+    )
+    fixed = correct_misparsed_shapes(rec)["abilities"][0]
+    assert fixed["effect"]["type"] == "Destroy"
+    assert fixed["effect"]["target"]["controller"] == "TargetPlayer"
+    assert fixed["multi_target"]["max"]["qty"]["filter"] == {"type": "Opponent"}

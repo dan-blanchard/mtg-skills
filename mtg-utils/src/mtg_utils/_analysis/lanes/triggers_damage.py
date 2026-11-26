@@ -1524,7 +1524,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
         # creatures you take (Mob Rule, Insurrection) is left a ``TrackedSet``.
         groups = {
             site: group
-            for site, group in group_grant_statics(unit.node).items()
+            for site, group in group_grant_statics(unit.node, unit).items()
             if filter_controller(group) == "You"
         }
         for sdef, mod in iter_mod_sites(unit.node):

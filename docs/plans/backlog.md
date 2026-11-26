@@ -169,34 +169,45 @@ phase-rs issue.
   own-target block, 2026-11-26, its ledger row retired; Wall of Shadows's "can't
   be the target of spells that can target only Walls" stays unread on purpose:
   a creature's own shield gives no signal, Dan's ruling.)
-- **`own_target_spell` holders that still target nothing of yours** (the
-  own-target block, 2026-11-26: 741 holders before, 948 after with Dan's
-  beneficial-boost ruling, 110 lost, 317 gained; the reads are
-  `crosswalk.effect_targets` and `targets_own_creature`, and a choice in an
-  ability that never says "target" is marked as made on resolution). 11 known
-  wrong, each for want of a structural tell (a text rule such as "an ability
-  that never says target targets nothing" is not one: earthbend's and
-  support's keyword rules target, CR 115.10a):
-  - a mass regenerate typed as "Regenerate target creature" (Mending Touch),
-    no `*All` variant or scope: Wrap in Vigor, Wail of the Nim, Golgari
-    Charm, Dark Dabbling's spell mastery ("each other creature you control");
-  - Teferi's Protection: "All permanents you control phase out" typed as one
-    `PhaseOut`;
-  - Contractual Safeguard: "put a shield counter on a creature you control"
-    (no "choose", no "target") and a `PutChosenCounter` on "each other
-    creature you control", both typed as one object;
-  - Awaken the Maelstrom's "a copy of a permanent you control" and Sunder the
-    Gateway's "transform an Incubator token you control", typed as targets;
-  - Windgrace's Judgment: an `Unimplemented` "For any number of opponents"
-    head, then the `Destroy` typed `controller: You` (the per-opponent read
-    needs phase's loop on the wrapper);
-  - Hustle // Bustle: "You may turn a creature you control face up", a
-    `TurnFaceUp` typed as one object;
-  - Flaming Gambit: "That player … may choose a creature they control" is a
-    `TargetOnly` beside a real target; testing "target" per sentence would
-    reach it but is unsound (Barrin's Spite, Retribution, Trial of Agony,
-    Wake to Slaughter, Deliver unto Evil: "Choose two target creatures …
-    That player chooses one of them" refers back to the target).
+- **Mass effects phase types exactly as targeted ones** (silent misparses,
+  candidates for an upstream report; the own-target rows, 2026-11-26). Phase
+  writes "Regenerate each creature you control" (Wrap in Vigor) as
+  `{"type": "Regenerate", "target": {"type": "Typed", "type_filters":
+  ["Creature"], "controller": "You"}}`, field for field the node of
+  "Regenerate target creature you control" (Loxodon Hierarch Avatar); "All
+  permanents you control phase out" (Teferi's Protection) as Haystack's
+  "Target creature you control phases out" (`PhaseOut` on a `Typed` filter);
+  "Put a counter of that kind on each other creature you control"
+  (Contractual Safeguard) as a `PutChosenCounter` on one `Typed` filter, the
+  shape of Aven Courier's single permanent. No `*All` variant, scope, chooser
+  or `multi_target` differs, so phase's engine can't tell the population from a
+  target either. The repo reads them by the recovery stage's
+  `ConceptNode.population` mark (`recovery.mark_populations` over
+  `clause_grammar.population_effects`, read by `reads.acts_on_a_group`):
+  Wrap in Vigor, Wail of the Nim, Golgari Charm, Dark Dabbling, Loxodon
+  Hierarch, Full Moon's Rise, Teferi's Protection, Teferi's Realm, Taniwha,
+  Disciple of Caelus Nin, Contractual Safeguard (canary
+  `test_population_mark_canary`). With the untargeted-object and per-opponent
+  rows the eleven known wrong `own_target_spell` holders are closed (741 before
+  the own-target block, 937 after). Phase v0.133.0's tracker (coverage export;
+  confirmed-misparse census), for the eleven marked: Wrap in Vigor, Wail of the
+  Nim, Golgari Charm, Loxodon Hierarch, Full Moon's Rise, Teferi's Protection,
+  Taniwha, Contractual Safeguard `supported`, not in the census; Dark Dabbling
+  (`wrong_count`, on this clause) and Teferi's Realm (`wrong_object`, citing
+  the phase-out) unsupported and in it; Disciple of Caelus Nin unsupported,
+  not in it. For the twelve faces the untargeted-object row rewrites (an
+  object named without "target", typed as one): Awaken the Maelstrom, Bustle,
+  Calix, Guided by Fate, Sunder the Gateway `supported`, not in the census;
+  Flaming Gambit, Guard Dogs, Myra the Magnificent unsupported, not in it;
+  Crashing Boars (`wrong_player`), The Bean (`missing_effect`), Ugin's Mastery
+  (`condition_wrong`), Wormfang Crab (`missing_effect`) unsupported and in it,
+  each citing the choosing clause under a different class; Crush Underfoot
+  unsupported, in it only for its bite (`target_wrong`).
+  Windgrace's Judgment (the per-opponent head) is unsupported, not in it.
+  Recorded, not fixed: phase drops two mass phase-outs entirely — Perch
+  Protection's "all permanents you control phase out" (gift) and Teferi's
+  Reproach's "All nonland permanents they control phase out" leave no
+  `PhaseOut` node in either record (both unsupported, neither in the census).
 - **Silent misparses to report upstream** (phase types it wrong; found by the
   reads block, 2026-11-25). Each with phase v0.133.0's coverage export
   (`supported`) and whether its confirmed-misparse census lists the face. Vetted
