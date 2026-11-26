@@ -63,7 +63,9 @@ The plus-or-minus beside a card's pooled lift in `limited-stats`: how far the ga
 could move it: a two-sided 90% range by default (`--confidence`). A label (standout,
 underperformer, data bomb) needs the cautious end of the range to clear the margin, so it
 is a one-sided 95% call.
-_Avoid_: "error" alone (the pair tiers' ± is a rougher one-sigma figure).
+A pair tier follows the same rule on a rougher ± (a binomial figure over deck games; the true
+range is unknown and likely wider), and colour depth carries the range of its mean.
+_Avoid_: "error" alone (a pair's `error` is its rough one-sigma; its `plus_minus` the range).
 
 **Leaning**:
 A card whose pooled lift clears the margin but whose range reaches back inside it

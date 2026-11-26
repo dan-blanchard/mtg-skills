@@ -514,15 +514,13 @@ phase-rs issue.
   text path misses Tomik, Izzet Sparkmage (a damage *replacement*, not an "each
   opponent" clause), reads Cruel Calculations as target-player (phase drops its player
   target), and differs on removal reach for about 18 cards.
-- **The pooled pair tiers' error bar is still rough.** Cards now carry a real ± and need
-  its cautious end past the margin (`iwd_standard_error`, `--confidence`, 2026-11-25);
-  pairs do not. `pair_tiers.error` is a binomial σ at 50% over deck games, but the pair
-  rate is card-weighted (each deck counts once per card), and the payload holds no deck
-  wins per archetype (only `metadata.games`), so an honest σ isn't computable from it.
-  Measured at 90% (1.645σ past the ±5 gap): TRK's one tiered pair (UB −5.2, σ 0.3) and
-  both of FRA's (WU +6.7 σ 3.7, UR −6.1 σ 5.2) would drop to middle. Colour depth (a mean
-  of commons' lifts) could carry `sqrt(Σ se²)/n` the same way. Dan to decide whether
-  either gets the cards' rule.
+- **The pair tiers' ± is a rough figure** (Dan's rulings applied 2026-11-26: a pair is
+  `top` / `bottom` only when the cautious end of its ± clears the gap, else it reads
+  `leaning top` / `leaning bottom`; colour depth prints the range of its mean,
+  `sqrt(Σ se²) / n`). What stays: `pair_tiers.error` is a binomial σ at 50% over deck
+  games, but the pair rate is card-weighted (each deck counts once per card) and the
+  payload holds no deck wins per archetype (only `metadata.games`), so the true σ isn't
+  computable from it and is likely wider. Premium payloads may carry the wins.
 - **Free-tier "not drawn" includes sideboard games.** The free tier has no
   `not_available_*`, so `_sum_buckets` derives not drawn as `games - available_games`;
   `games` also counts games the card sat only in the sideboard (`games - in_main_games`:

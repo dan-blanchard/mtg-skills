@@ -533,17 +533,28 @@ def _average_pair(pairs: list[dict]) -> float | None:
 
 
 def pair_tiers(
-    reports: dict[str, dict], *, tier_gap: float = 5.0, clash: float = 10.0
+    reports: dict[str, dict],
+    *,
+    tier_gap: float = 5.0,
+    clash: float = 10.0,
+    confidence: float = DEFAULT_CONFIDENCE,
 ) -> list[dict]:
     """Two-colour pairs pooled across formats.
 
     Each format's pair rate is taken against that format's games-weighted
-    average pair, then the formats are pooled by deck games. ``tier`` is
-    ``top`` / ``bottom`` at ``tier_gap`` points either side of average, else
-    ``middle``. ``error`` is a rough one-sigma (binomial at 50% over the pooled
-    games). ``clash`` marks a pair whose formats are ``clash`` or more points
+    average pair, then the formats are pooled by deck games. ``error`` is a
+    rough one-sigma (binomial at 50% over the pooled games: the pair rate is
+    card-weighted and the payload holds no wins per archetype, so the true
+    figure is unknown and likely wider), and ``plus_minus`` is ``error`` times
+    :func:`z_score` of *confidence*. ``tier`` is ``top`` / ``bottom`` when the
+    pair is ``tier_gap`` points either side of average even at the cautious
+    end of that range, else ``middle``; a middle pair whose point estimate
+    clears the gap carries ``lean`` (``"top"`` / ``"bottom"``), as a leaning
+    card does (Dan's ruling, 2026-11-26). Confidence 0 is the point estimate
+    alone. ``clash`` marks a pair whose formats are ``clash`` or more points
     apart.
     """
+    z = z_score(confidence) if confidence > 0 else 0.0
     per: dict[str, dict[str, dict]] = {}
     for event, report in reports.items():
         pairs = [
@@ -565,14 +576,18 @@ def pair_tiers(
         games = sum(e["games"] for e in by_event.values())
         rel = sum(e["games"] * e["vs_average"] for e in by_event.values()) / games
         rels = [e["vs_average"] for e in by_event.values()]
-        tier = "top" if rel >= tier_gap else "bottom" if rel <= -tier_gap else "middle"
+        error = 50 / math.sqrt(games)
+        side = "top" if rel >= tier_gap else "bottom" if rel <= -tier_gap else None
+        sure = side is not None and abs(rel) - z * error >= tier_gap
         out.append(
             {
                 "colors": colors,
                 "games": games,
                 "vs_average": round(rel, 1),
-                "error": round(50 / math.sqrt(games), 1),
-                "tier": tier,
+                "error": round(error, 1),
+                "plus_minus": round(z * error, 1),
+                "tier": side if side and sure else "middle",
+                "lean": None if sure else side,
                 "clash": len(rels) > 1 and max(rels) - min(rels) >= clash,
                 "events": {
                     ev: {**e, "vs_average": round(e["vs_average"], 1)}
@@ -647,23 +662,37 @@ def pooled_cards(
     return out
 
 
-def color_depth(cards: list[dict], pool_min_games: int) -> dict[str, dict]:
+def color_depth(
+    cards: list[dict],
+    pool_min_games: int,
+    confidence: float = DEFAULT_CONFIDENCE,
+) -> dict[str, dict]:
     """Per mono colour: the commons' mean pooled IWD against the average card,
-    over commons with ``pool_min_games`` drawn."""
+    over commons with ``pool_min_games`` drawn.
+
+    ``plus_minus`` is the half-width of that mean's range at *confidence*: the
+    mean of ``n`` cards' lifts, each with its own ``se`` (:func:`pooled_cards`),
+    has standard error ``sqrt(Σ se²) / n``, the cards taken as independent and
+    the average card as exact.
+    """
+    z = z_score(confidence) if confidence > 0 else 0.0
     out = {}
     for color in _COLORS:
-        rels = [
-            c["vs_average"]
+        commons = [
+            c
             for c in cards
             if c["rarity"] == "common"
             and c["colors"] == color
             and c["gih"] >= pool_min_games
         ]
-        mean = _mean(rels)
+        mean = _mean([c["vs_average"] for c in commons])
         out[color] = {
             "vs_average": None if mean is None else round(mean, 1),
-            "commons": len(rels),
+            "commons": len(commons),
         }
+        if commons:
+            se = math.sqrt(sum(c["se"] ** 2 for c in commons)) / len(commons)
+            out[color]["plus_minus"] = round(z * se, 1)
     return out
 
 
@@ -875,8 +904,10 @@ def build_pooled(
             "z": round(z_score(confidence), 3),
         },
         "formats": formats,
-        "pairs": pair_tiers(reports, tier_gap=tier_gap, clash=clash),
-        "color_depth": color_depth(cards, pool_min_games),
+        "pairs": pair_tiers(
+            reports, tier_gap=tier_gap, clash=clash, confidence=confidence
+        ),
+        "color_depth": color_depth(cards, pool_min_games, confidence),
         "standouts": standouts,
         "data_bombs": [c for c in standouts if c["rarity"] in rare],
         "underperformers": sorted(under, key=lambda c: c["vs_average"]),
@@ -1260,14 +1291,22 @@ def render_pooled(pooled: dict, set_code: str) -> str:
         "",
         (
             f"## Colour pairs (vs the average pair; tiers at ±{th['tier_gap']:g}"
-            + ("; a pair's ± is one rough sigma)" if ranged else ")")
+            + (
+                " at the cautious end of a pair's rough ± range; leaning: only"
+                " the estimate clears it)"
+                if ranged
+                else ")"
+            )
         ),
     ]
     for e in pooled["pairs"]:
         flag = "  <- formats clash" if e["clash"] else ""
+        tier = f"leaning {e['lean']}" if e.get("lean") else e["tier"]
+        spread = e["plus_minus"] if ranged else e["error"]
         lines.append(
-            f"  {e['tier']:<6}  {e['colors']:<3} {_signed(e['vs_average']):>6}"
-            f" (±{e['error']:.1f}, {e['games']} games)"
+            f"  {tier:<{14 if ranged else 6}}  {e['colors']:<3}"
+            f" {_signed(e['vs_average']):>6}"
+            f" (±{spread:.1f}, {e['games']} games)"
             f"  {_per_event(e['events'], 'games')}{flag}"
         )
     lines += [
@@ -1278,7 +1317,8 @@ def render_pooled(pooled: dict, set_code: str) -> str:
         ),
         "  "
         + " · ".join(
-            f"{color} {_signed(d['vs_average'])} ({d['commons']})"
+            f"{color} {_signed(d['vs_average'])}{_plus_minus(d, ranged=ranged)}"
+            f" ({d['commons']})"
             for color, d in pooled["color_depth"].items()
         ),
     ]

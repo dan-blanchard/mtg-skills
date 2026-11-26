@@ -458,7 +458,9 @@ class TestPairTiers:
             "SEALED": _report([_pair("WR", 10, 65.0), _pair("UB", 10, 55.0)]),
             "PREMIER_DRAFT": _report([_pair("WR", 30, 55.0), _pair("UB", 30, 45.0)]),
         }
-        tiers = {e["colors"]: e for e in ls.pair_tiers(reports, tier_gap=5.0)}
+        tiers = {
+            e["colors"]: e for e in ls.pair_tiers(reports, tier_gap=5.0, confidence=0)
+        }
         assert tiers["WR"]["vs_average"] == 5.0
         assert tiers["WR"]["tier"] == "top"
         assert tiers["UB"]["tier"] == "bottom"
@@ -477,6 +479,42 @@ class TestPairTiers:
         assert wr["vs_average"] == pytest.approx(0.4)
         assert wr["tier"] == "middle"
         assert wr["clash"] is True
+
+    def test_a_tier_needs_the_cautious_end(self):
+        # 10,000 games: sigma 0.5, so 0.8 at 90%. WR at +7 clears the 5-point
+        # gap at its cautious end (+6.2); UB at -7 likewise. With 400 games
+        # (sigma 2.5, 4.1 at 90%) the same +7 only leans.
+        def tiers(games):
+            report = _report([_pair("WR", games, 57.0), _pair("UB", games, 43.0)])
+            return {e["colors"]: e for e in ls.pair_tiers({"SEALED": report})}
+
+        sure = tiers(10_000)
+        assert (sure["WR"]["tier"], sure["WR"]["lean"]) == ("top", None)
+        assert (sure["UB"]["tier"], sure["UB"]["lean"]) == ("bottom", None)
+        assert sure["WR"]["plus_minus"] == pytest.approx(0.8, abs=0.05)
+        thin = tiers(400)
+        assert (thin["WR"]["tier"], thin["WR"]["lean"]) == ("middle", "top")
+        assert (thin["UB"]["tier"], thin["UB"]["lean"]) == ("middle", "bottom")
+        assert thin["WR"]["plus_minus"] == pytest.approx(4.1, abs=0.05)
+
+    def test_a_middle_pair_leans_nowhere(self):
+        report = _report([_pair("WR", 400, 52.0), _pair("UB", 400, 48.0)])
+        assert [e["lean"] for e in ls.pair_tiers({"SEALED": report})] == [None, None]
+
+    def test_text_names_a_leaning_pair(self):
+        report = _report(
+            [_pair("WR", 400, 57.0), _pair("UB", 400, 43.0)],
+            [_card("a", 100, 5.0), _card("b", 100, 5.0)],
+        )
+        text = ls.render_pooled(ls.build_pooled({"SEALED": report}), "TST")
+        pairs = text[text.index("## Colour pairs") :].split("\n\n")[0]
+        assert "leaning top     WR    +7.0 (±4.1, 400 games)" in pairs
+        assert "leaning bottom  UB    -7.0 (±4.1, 400 games)" in pairs
+        plain = ls.render_pooled(
+            ls.build_pooled({"SEALED": report}, confidence=0), "TST"
+        )
+        assert "  top     WR    +7.0 (±2.5, 400 games)" in plain
+        assert "leaning" not in plain
 
     def test_one_format_alone(self):
         tiers = ls.pair_tiers({"SEALED": _report([_pair("WR", 10, 60.0)])})
@@ -627,6 +665,25 @@ class TestCautiousEnd:
         assert "review_mean" not in leaning["big-up"]
         text = ls.render_pooled(pooled, "tst")
         assert "reviewers 93.0 (6)" in text[text.index("## Leaning") :]
+
+    def test_colour_depth_carries_the_mean_s_range(self):
+        # Two white commons with se 3 and 4: the mean's se is sqrt(9 + 16) / 2
+        # = 2.5, so ±4.1 at 90%. A colour with no commons carries no range.
+        report = _report(
+            cards=[
+                _card("a", 100, 12.0, se=3.0),
+                _card("b", 100, 8.0, se=4.0),
+                _card("c", 100, 4.0, colors="U", rarity="rare"),
+            ]
+        )
+        pooled = ls.build_pooled({"SEALED": report}, confidence=90)
+        assert pooled["color_depth"]["W"]["plus_minus"] == pytest.approx(4.1, abs=0.05)
+        assert "plus_minus" not in pooled["color_depth"]["U"]
+        text = ls.render_pooled(pooled, "tst")
+        depth = text[text.index("## Colour depth") :].split("\n\n")[0]
+        assert "W +2.0 ±4.1 (2)" in depth
+        plain = ls.render_pooled(ls.build_pooled({"SEALED": report}, confidence=0), "t")
+        assert "W +2.0 (2)" in plain
 
     def test_text_shows_the_range_and_the_leaning_list(self):
         text = ls.render_pooled(ls.build_pooled(self._reports(), confidence=90), "tst")
