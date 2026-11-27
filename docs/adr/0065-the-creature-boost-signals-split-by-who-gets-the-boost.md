@@ -112,7 +112,9 @@ first build); and **the builder's choices** where both were silent.
   as the boost keywords do. A creature that has mentor reads through the trigger
   phase builds for it (a +1/+1 counter on another attacking creature), as a
   printed exalted or battle cry does; a printed training or dethrone grows the
-  creature itself. The other counter-placing keywords are not part of this
+  creature itself. Only grants count (Dan, 2026-11-27): a token made with the
+  keyword is no grant (Torens, Fist of the Angels' tokens "with training"). The
+  other counter-placing keywords are not part of this
   ruling (evolve, outlast, adapt, riot and the rest; bolster, amass, support and
   explore already read as counters on another creature, by their own actions).
 - **Earthbend is its own thing (Dan's ruling, 2026-11-27).** Earthbend N animates
@@ -122,7 +124,11 @@ first build); and **the builder's choices** where both were silent.
   targeting payoffs' offers. Keyed on phase's keyword action
   (`crosswalk.earthbend_effects`: the `Animate` of a land through phase's
   `RegisterBending{kind: Earth}` marker); a clause of the same card outside the
-  earthbend keeps its reading.
+  earthbend keeps its reading. Nor is it a combat boost (Dan, 2026-11-27):
+  `combat_trigger_boost` leaves out a combat trigger's earthbend (Avatar Kyoshi,
+  Earthbender), while Bumi, Eclectic Earthbender's attack counters on each land
+  creature still count. The counters are still placed, so `plus_one_makers`
+  keeps every earthbend card (a counters page may want it).
   (`lanes.boosts._granted_boost_keywords`,
   `_targeted_boost_keyword_deliveries`, `_own_battle_cry`.)
 

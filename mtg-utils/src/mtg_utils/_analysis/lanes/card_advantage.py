@@ -49,6 +49,7 @@ from mtg_utils._card_ir.crosswalk import (
     count_operand_filter,
     counter_kind_any,
     counts_opponents_draws,
+    earthbend_effects,
     effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
@@ -2956,7 +2957,8 @@ def _combat_trigger_boost(tree: ConceptTree) -> list[Signal]:
     combat counts (bushido, Chub Toad: it carries ``self_boost`` beside this);
     a buff only an opponent's creature gets doesn't (Flailing Drake's "that
     creature", the one in combat with it — ``crosswalk.boost_recipient``).
-    Scope "you".
+    Earthbend's counters are none (``crosswalk.earthbend_effects``: Avatar
+    Kyoshi, Earthbender). Scope "you".
     """
     for unit in tree.units:
         ev = unit.trigger_event
@@ -2965,9 +2967,13 @@ def _combat_trigger_boost(tree: ConceptTree) -> list[Signal]:
         )
         if not combat:
             continue
-        # A buff raises power or toughness, as an effect or as a static grant.
+        # A buff raises power or toughness, as an effect or as a static grant;
+        # earthbend's counters on the land it animates are no combat boost
+        # (Dan's ruling, 2026-11-27: earthbend is its own thing).
+        earthbend = earthbend_effects(unit)
         effect_buff = any(
-            (
+            id(c.node) not in earthbend
+            and (
                 (c.concept == "pump" and pump_raises(c.node))
                 or (c.concept == "place_counter" and _buffs_with_counters(c))
                 or feeds_own_static(unit, tree, c)

@@ -839,9 +839,13 @@ headroom and parked items.
   (Dan, 2026-11-27; ADR-0065). Earthbend's +1/+1 counters go on the land it
   animates (CR 701.66a): no `boosts_others` and no own target
   (`crosswalk.earthbend_effects`, keyed on phase's `RegisterBending{kind:
-  Earth}`). A grant of training, dethrone or mentor to your other creatures is
+  Earth}`), and no combat boost (`combat_trigger_boost`, Dan 2026-11-27: Aang,
+  Destined Savior; Avatar Kyoshi, Earthbender; The Boulder; Toph, Earthbending
+  Master), though `plus_one_makers` keeps it: a counter is still placed. A grant
+  of training, dethrone or mentor to your other creatures is
   `boosts_others|you|counters` (CR 702.149a, 702.105a, 702.134a), a one-target
-  grant with its target flag; the other counter-placing keywords (evolve,
+  grant with its target flag; only grants count, so a token made with the
+  keyword is none (Dan, 2026-11-27: Torens, Fist of the Angels); the other counter-placing keywords (evolve,
   outlast, adapt, riot …) are outside the ruling.
 - **Dan's rulings applied** (2026-11-25): quoted static grants are read in
   phase's new `GrantStaticAbility` form through `reads.added_static_mode`,

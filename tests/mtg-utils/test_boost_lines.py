@@ -760,3 +760,34 @@ def test_a_printed_training_grows_only_itself():
     idents = _idents("Hopeful Initiate")
     assert ("self_boost", "you", "counters") in idents
     assert not any(k == "boosts_others" for k, _s, _t in idents)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Aang, at the Crossroads",
+        "Avatar Kyoshi, Earthbender",
+        "The Boulder, Ready to Rumble",
+        "Toph, Earthbending Master",
+    ],
+)
+def test_an_earthbend_in_combat_is_no_combat_boost(name):
+    """Earthbend's counters on the land it animates are no combat boost (Dan's
+    ruling, 2026-11-27); the counter is still placed (``plus_one_makers``)."""
+    idents = _idents(name)
+    assert ("combat_trigger_boost", "you", "") not in idents
+    assert ("plus_one_makers", "you", "") in idents
+
+
+def test_a_real_combat_boost_beside_earthbend_stays():
+    # "Whenever Bumi attacks, put two +1/+1 counters on each land creature you
+    # control"
+    assert ("combat_trigger_boost", "you", "") in _idents("Bumi, Eclectic Earthbender")
+
+
+def test_a_token_made_with_a_counter_keyword_is_no_grant():
+    """Torens, Fist of the Angels makes creature tokens "with training": no grant
+    to your other creatures (Dan's ruling, 2026-11-27: only grants count)."""
+    assert ("boosts_others", "you", "counters") not in _idents(
+        "Torens, Fist of the Angels"
+    )
