@@ -141,12 +141,57 @@ def own_effects(res: Resolution) -> tuple[list[Effect], list[Effect]]:
     return mine, rest
 
 
-def arena_kinds(effects: Iterable[Effect]) -> set[str]:
+#: The counters damage to a permanent of a card type removes: loyalty from a
+#: planeswalker (CR 120.3c, 306.8), defense from a battle (CR 120.3h, 310.6).
+DAMAGE_COUNTERS = {"Planeswalker": "loyalty", "Battle": "defense"}
+
+
+def _damage_result(
+    e: Effect,
+    damage_to: dict[int, int],
+    counter_name: Callable[[int | None], str | None],
+) -> bool:
+    """Whether a ``CounterRemoved`` is the result of damage in the same
+    resolution: each object it takes counters from was dealt damage there, is
+    of a type whose counters damage removes (:data:`DAMAGE_COUNTERS`), and
+    loses that kind, all its removals of it together no more than the damage
+    (a planeswalker with 1 loyalty dealt 3 damage loses 1). ``damage_to`` is
+    what each object's damage has left to explain: an explained removal takes
+    its amount from it, so a removal beyond the damage (the card's own "remove
+    a loyalty counter" beside it) stays unexplained."""
+    kind = _counter_norm(counter_name(num(e.details, "counter_type", None)))
+    amount = num(e.details, "transaction_amount") or 0
+    explained = bool(e.affected) and all(
+        i in damage_to
+        and amount <= damage_to[i]
+        and any(DAMAGE_COUNTERS.get(t) == kind for t in w.get("card_types", ()))
+        for i, w in zip(e.affected, e.who, strict=False)
+    )
+    if explained:
+        for i in e.affected:
+            damage_to[i] -= amount
+    return explained
+
+
+def arena_kinds(
+    effects: Iterable[Effect],
+    counter_name: Callable[[int | None], str | None] = lambda _: None,
+) -> set[str]:
+    """The kinds of what a resolution's own effects did. Life lost to damage
+    and counters damage removed (:func:`_damage_result`) are the damage's, no
+    kind of their own; ``counter_name`` names a logged counter type."""
     effects = list(effects)
     damaged = {i for e in effects if "DamageDealt" in e.types for i in e.affected}
+    damage_to: dict[int, int] = collections.Counter()
+    for e in effects:
+        if "DamageDealt" in e.types:
+            for i in e.affected:
+                damage_to[i] += num(e.details, "damage") or 0
     kinds: set[str] = set()
     for e in effects:
         t = set(e.types)
+        if "CounterRemoved" in t and _damage_result(e, damage_to, counter_name):
+            continue
         if "DamageDealt" in t:
             kinds.add("damage")
         elif "ModifiedLife" in t:

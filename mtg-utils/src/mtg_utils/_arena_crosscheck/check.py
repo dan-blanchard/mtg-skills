@@ -353,7 +353,7 @@ class Checker:
         is_ability = res.kind == "ability"
         ability = self.text.ability(res.grpid) if is_ability else None
         mine, rest = own_effects(res)
-        observed = arena_kinds(mine)
+        observed = arena_kinds(mine, self.text.counter)
         row: dict = {
             "game": list(res.game),
             "turn": res.turn,

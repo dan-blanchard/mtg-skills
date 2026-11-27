@@ -2336,3 +2336,63 @@ def test_a_resync_repeating_a_resolution_reads_it_once(card_db, tmp_path):
     repeat = {**game[1], "type": "GameStateType_Full"}
     report = _run(card_db, _write(tmp_path / "a.log", [*game, repeat]))
     assert [r["card"] for r in report["resolutions"]] == ["Lightning Bolt"]
+
+
+# -- counters damage removes ----------------------------------------------------
+def _add_counter_type(card_db: Path, value: int, name: str) -> None:
+    con = sqlite3.connect(card_db)
+    con.execute(
+        "INSERT INTO Localizations_enUS VALUES (?, 1, ?)", (value + 70000, name)
+    )
+    con.execute(
+        "INSERT INTO Enums VALUES ('CounterType', ?, ?)", (value, value + 70000)
+    )
+    con.commit()
+    con.close()
+
+
+@pytest.mark.parametrize(
+    ("name", "card_type", "counter", "removed", "status"),
+    [
+        # damage to a planeswalker removes that many loyalty counters (CR 120.3c)
+        ("Ajani Goldmane", "Planeswalker", "Loyalty", (3,), "agree"),
+        # one with fewer loyalty counters than the damage loses what it has
+        ("Ajani Goldmane", "Planeswalker", "Loyalty", (1,), "agree"),
+        # and a battle its defense counters (CR 120.3h)
+        ("Invasion of Ikoria", "Battle", "Defense", (3,), "agree"),
+        # more than the damage is something else
+        ("Ajani Goldmane", "Planeswalker", "Loyalty", (4,), "arena-extra"),
+        # the damage's 3 beside another removal: together beyond the damage
+        ("Ajani Goldmane", "Planeswalker", "Loyalty", (3, 1), "arena-extra"),
+        # a creature losing loyalty counters: damage to it removes none
+        ("Ajani Goldmane", "Creature", "Loyalty", (1,), "arena-extra"),
+    ],
+)
+def test_counters_damage_removes(
+    card_db, tmp_path, name, card_type, counter, removed, status
+):
+    """Lightning Bolt at a planeswalker or a battle: the counters its damage
+    removes are the damage's, no effect of their own."""
+    permanent, kinds = 3701, {"Loyalty": 7, "Defense": 174}
+    _add_card(card_db, permanent, test_card(name)["name"])
+    _add_counter_type(card_db, kinds[counter], counter)
+    game = _bolt_game("pw1")
+    game[0]["gameObjects"].append(
+        _obj(300, permanent, types=(card_type,), controller=2)
+    )
+    game[1]["annotations"][1:3] = [
+        _ann(2, "DamageDealt", 100, [300], damage=3, type=2),
+        *(
+            _ann(
+                3 + n,
+                "CounterRemoved",
+                100,
+                [300],
+                counter_type=kinds[counter],
+                transaction_amount=amount,
+            )
+            for n, amount in enumerate(removed)
+        ),
+    ]
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["resolutions"]
+    assert row["status"] == status

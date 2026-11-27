@@ -51,7 +51,12 @@ Arena created.
   on a player, an ability the resolution targets leaving the stack a counter (CR 701.6a,
   though Arena files it under that ability's source), and ending the turn an exile of
   everything on the stack, the resolving spell included (CR 724.1b): neither that nor a
-  spell's own "Exile ~" has its type checked against the spell's other movers. A damaged
+  spell's own "Exile ~" has its type checked against the spell's other movers. Life
+  a damaged player loses and the counters damage removes are the damage's, no effect
+  of their own: loyalty counters from a damaged planeswalker (CR 120.3c, 306.8) and
+  defense counters from a damaged battle (CR 120.3h, 310.6), read off the logged
+  object's type and the counter's kind, at most the damage dealt to it (a
+  planeswalker with one loyalty counter dealt 3 damage loses one). A damaged
   player passes a "target player or planeswalker" (`crosswalk.effect_reaches_player`).
   A player's counter goes to the side phase names (Fynn's "that player": the player
   an attacking creature of yours hit, an opponent, CR 510.1b, 506.2), and an object
