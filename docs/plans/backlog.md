@@ -642,7 +642,9 @@ phase-rs issue.
   if another lane needs it; otherwise the fix is upstream.
 - **`twohg-scan --shadow`.** Listing IR-vs-text disagreements (information only, never
   merged) would calibrate the text fallback and surface phase misparses. Deferred until
-  a set arrives that phase hasn't parsed. Baseline from FRA with the IR stripped: the
+  a set arrives that phase hasn't parsed. (Dan, 2026-11-27: stays deferred on that
+  condition; asked whether to build it now with the two architecture-review refactors,
+  he chose the refactors only.) Baseline from FRA with the IR stripped: the
   text path misses Tomik, Izzet Sparkmage (a damage *replacement*, not an "each
   opponent" clause), reads Cruel Calculations as target-player (phase drops its player
   target), and differs on removal reach for about 18 cards.
