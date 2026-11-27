@@ -44,6 +44,7 @@ from importlib import resources
 from pathlib import Path
 
 import click
+import requests
 from bs4 import BeautifulSoup
 from bs4.element import PreformattedString
 
@@ -373,6 +374,9 @@ def main(
         )
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
+    except requests.RequestException as exc:
+        # Card images come only from Scryfall: there is no offline way.
+        raise _scryfall.unreachable("card images", exc) from exc
 
     click.echo(
         f"{len(result.cards_map)} names -> {result.cards} cards "

@@ -16,8 +16,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
+import requests
 
-from mtg_utils import _gc
+from mtg_utils import _gc, _scryfall
 from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -109,8 +110,9 @@ def acquire_for_cli(
     *,
     require_records: bool = True,
 ) -> HydratedDeck:
-    """``HydratedDeck.acquire`` with CLI-shaped failure: no bulk becomes a
-    ``ClickException`` (exit 1, actionable message); a degraded join is allowed only
+    """``HydratedDeck.acquire`` with CLI-shaped failure: no bulk, or a Scryfall
+    fallback that can't be reached, becomes a ``ClickException`` (exit 1,
+    actionable message); a degraded join is allowed only
     when the caller says records are optional; dropped names are warned."""
     try:
         hd = HydratedDeck.acquire(
@@ -118,6 +120,13 @@ def acquire_for_cli(
         )
     except NoBulkError as exc:
         raise click.ClickException(str(exc)) from exc
+    except requests.RequestException as exc:
+        # A name the bulk lacks is fetched from Scryfall (``fetch_card``).
+        raise _scryfall.unreachable(
+            "the deck's cards the local bulk lacks",
+            exc,
+            offline=_scryfall.DOWNLOAD_HINT,
+        ) from exc
     if hd.has_records or require_records:
         warn_missing(hd)
     # The CLI exits after its one deck: skip the final collection's walk of the

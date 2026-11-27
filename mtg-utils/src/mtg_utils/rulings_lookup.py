@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 import click
+import requests
 
 from mtg_utils import _scryfall
 from mtg_utils._mtgjson.rulings_index import RulingsIndex, load_rulings_index
@@ -297,7 +298,17 @@ def main(
     if bulk_path is None:
         bulk_path = default_bulk_path()
 
-    results = lookup_rulings_batch(names, bulk_path=bulk_path, refresh=refresh)
+    try:
+        results = lookup_rulings_batch(names, bulk_path=bulk_path, refresh=refresh)
+    except requests.RequestException as exc:
+        raise _scryfall.unreachable(
+            "rulings the local bulk lacks",
+            exc,
+            offline=(
+                "Rulings are served from the local bulk first: run `uv run "
+                "download-mtgjson` to get or refresh it."
+            ),
+        ) from exc
 
     if output_path is None:
         output_path = sha_keyed_path(

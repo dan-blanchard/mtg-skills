@@ -6,8 +6,9 @@ import json
 from pathlib import Path
 
 import click
+import requests
 
-from mtg_utils import scryfall_lookup
+from mtg_utils import _scryfall, scryfall_lookup
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import extract_price, finish_price
@@ -492,9 +493,14 @@ def main(
             "API; run download-mtgjson to price from the local bulk.",
             err=True,
         )
-    result = check_prices(
-        raw, bulk_path=bulk_path, budget=budget, format=card_format, medium=medium
-    )
+    try:
+        result = check_prices(
+            raw, bulk_path=bulk_path, budget=budget, format=card_format, medium=medium
+        )
+    except requests.RequestException as exc:
+        raise _scryfall.unreachable(
+            "prices the local bulk lacks", exc, offline=_scryfall.DOWNLOAD_HINT
+        ) from exc
 
     if output_path is None:
         output_path = _default_output_path(

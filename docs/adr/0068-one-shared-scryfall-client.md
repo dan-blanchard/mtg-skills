@@ -41,21 +41,23 @@ that `_http.USER_AGENT` sent to EDHREC (`edhrec_lookup`), Commander Spellbook
 name themselves keep their own identity: the `BROWSER_HEADERS` sites, the
 ASCII-art crawler, `_phase`, `bump-phase-pin` and `download-rules`.
 
-**Scryfall's limits** (scryfall.com/docs/api/rate-limits, "Rate Limits"):
+**Scryfall's limits** (scryfall.com/docs/api/rate-limits, "Rate Limits"; confirmed
+on 2026-11-27):
 
 - `/cards/search`, `/cards/named`, `/cards/random` and `/cards/collection`: 2
   requests per second;
-- every other API endpoint: 10 requests per second;
-- the `*.scryfall.io` file hosts (images, symbol SVGs): no rate limit;
-- a client over a limit gets HTTP 429 and is locked out for 30 seconds, and
-  continuing to send requests while locked out may result in a temporary or
-  permanent ban.
+- every other method: 10 requests per second (`/cards/manifest`: 10 per minute;
+  this package doesn't call it);
+- `*.scryfall.io` (images, symbol SVGs): no rate limit;
+- over a limit, Scryfall answers HTTP 429 and limits access for 30 seconds, and
+  "it is not acceptable to ignore this error code or have your application retry
+  the requests until you power through them";
+- Scryfall recommends bulk data, and caching what you fetch for at least 24 hours
+  (ADR-0005 is the bulk; every cache here lives at least that long).
 
-The API page (scryfall.com/docs/api, "API Documentation") requires a `User-Agent`
-naming the application and an `Accept` header. It names
-`application/json;q=0.9,*/*;q=0.8` (and `*/*`) as acceptable values. *Source note:*
-the 2026-11-27 review read both pages. A second fetch from this machine was refused
-(HTTP 403), so the lines above are the review's reading, not a verbatim quote.
+The API page (scryfall.com/docs/api, "API Documentation", read by the 2026-11-27
+review) requires a `User-Agent` naming the application and an `Accept` header. It
+names `application/json;q=0.9,*/*;q=0.8` (and `*/*`) as acceptable values.
 
 **The client** (`_scryfall.py`, built on `_http.HttpFetcher`, which gained the
 options it lacked: headers, a `(connect, read)` timeout, a `pace` hook before each
@@ -80,11 +82,16 @@ injectable session and backoff sleep, a per-call lifetime and refresh; and
   Every API request gets 110 ms. The file hosts get a 50 ms courtesy gap, our
   choice, since Scryfall sets no limit there. That is a tenth over each published
   minimum, because the limit runs on the server's clock, not ours. Two sites
-  called back to back still keep it.
+  called back to back still keep it. Left as is: gaps run start-to-start, so a
+  burst of fast answers runs right at the margin.
 - **Timeout:** 5 s to connect, 30 s to read. **Retries:** one. After a 429 the
-  client waits its `Retry-After` (seconds or an HTTP date, capped at 120 s), else
-  30 s, the lockout. After a connection error or a timeout it waits 2 s. Any other
-  HTTP error raises at once.
+  client waits `max(Retry-After, 30 s)`, so it never retries inside the lockout.
+  `Retry-After` is seconds or an HTTP date, capped at 120 s. A `0`, a negative
+  value or a date behind our clock reads as 0; `nan`, `inf` or anything
+  unreadable counts as absent. It holds the shared pacer for that long
+  (`RequestGap.pause`), so no other thread sends into the lockout. After a
+  connection error or a timeout it waits 2 s. Any other HTTP error raises at
+  once.
 - **Scryfall unavailable:** a request that still fails after its retry, on a
   429, a connection error or a timeout, trips one process-wide latch. Every later
   network request, from any site, then fails at once with
@@ -94,7 +101,14 @@ injectable session and backoff sleep, a per-call lifetime and refresh; and
   latch clears only in a new process, or through `reset_unavailable()` in tests.
   `card_symbols` keeps its own loop-local stop after the first failure: it still
   gives one warning per run, and it also stops a `Fetcher` that isn't the
-  client.
+  client. Left as is: the latch covers every Scryfall host, so one image host
+  failing twice also stops API calls for the rest of that run.
+- **At a CLI's boundary** (`price-check`, every deck CLI through
+  `deck_cli.acquire_for_cli`, `build-deck`'s missing adds, `rulings-lookup`,
+  `guide-card-hovers`), a `requests.RequestException` from the client becomes one
+  line (`_scryfall.unreachable`). The line says what was being fetched, that
+  Scryfall could not be reached, and the offline way where there is one (`uv run
+  download-mtgjson`). Library functions keep raising.
 - **Accept:** `application/json;q=0.9,*/*;q=0.8` for the API and `*/*` for the
   file hosts, both values Scryfall's API page accepts.
 - **Error handling stays each caller's,** as before: `fetch_card` returns `None`
@@ -134,7 +148,7 @@ Scryfall, and its prices age as the bulk's do.
   |---|---|---|---|---|
   | before ADR-0068 | ~0.1 s; 100 quick failures | no timeout: forever | forever | 1 failure per name |
   | first cut of this client (2 retries, 5 s / 10 s, 30 s timeout) | 15 s; 25 min | 105 s; ~3 h | 105 s; ~3 h | 15 s each; 25 min, sent through the lockout |
-  | now | 2 s; 2 s | 12 s; 12 s | 62 s; 62 s | 30 s; 30 s |
+  | now | 2 s; 2 s | 12 s; 12 s | 62 s; 62 s | 30 s; 30 s (up to 120 s if `Retry-After` asks) |
 
   "Now" is two attempts and one wait for the first failing request. The other 99
   names fail at once on the latch.

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import email.utils
 import functools
+import math
 import os
 import subprocess
 import threading
@@ -251,7 +252,16 @@ class RequestGap:
         self._clock = clock
         self._sleep = sleep
         self._last: dict[str, float] = {}
+        self._paused_until: float | None = None
         self._lock = threading.Lock()
+
+    def pause(self, seconds: float) -> None:
+        """Hold every lane for *seconds* from now (a server's lockout): no request
+        through this pacer begins before it ends."""
+        with self._lock:
+            until = self._clock() + seconds
+            if self._paused_until is None or until > self._paused_until:
+                self._paused_until = until
 
     def wait(self, lanes: Iterable[str]) -> None:
         """Sleep until each of *lanes* has had its gap since its last request began,
@@ -267,6 +277,8 @@ class RequestGap:
                 ),
                 default=0.0,
             )
+            if self._paused_until is not None:
+                remaining = max(remaining, self._paused_until - now)
             if remaining > 0:
                 (self._sleep or time.sleep)(remaining)
             begun = self._clock()
@@ -280,7 +292,8 @@ MAX_RETRY_AFTER_SECONDS = 120.0
 
 def retry_after_seconds(resp: requests.Response) -> float | None:
     """A response's ``Retry-After`` in seconds (delta-seconds or an HTTP date),
-    capped at :data:`MAX_RETRY_AFTER_SECONDS`; ``None`` when absent or unreadable."""
+    clamped to ``[0, MAX_RETRY_AFTER_SECONDS]``; ``None`` when absent, unreadable or
+    not finite (``nan``, ``inf``)."""
     headers = getattr(resp, "headers", None)
     value = headers.get("Retry-After") if isinstance(headers, Mapping) else None
     if not isinstance(value, str) or not value.strip():
@@ -293,6 +306,8 @@ def retry_after_seconds(resp: requests.Response) -> float | None:
         except (TypeError, ValueError):
             return None
         seconds = when.timestamp() - time.time()
+    if not math.isfinite(seconds):
+        return None
     return min(max(seconds, 0.0), MAX_RETRY_AFTER_SECONDS)
 
 

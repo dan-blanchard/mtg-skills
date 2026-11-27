@@ -13,8 +13,9 @@ It is an :class:`~mtg_utils._http.HttpFetcher` configured once for Scryfall:
   limits to 2 a second, 110 ms between any two API requests (10 a second), 50 ms
   of courtesy on the unlimited file hosts;
 - **timeout** — :data:`TIMEOUT_SECONDS` (connect, read) per request;
-- **retries** — one: after a 429, its ``Retry-After`` or else :data:`LOCKOUT_SECONDS`
-  (Scryfall locks a client out for 30 s); after a connection error or timeout,
+- **retries** — one: after a 429, its ``Retry-After`` but never less than
+  :data:`LOCKOUT_SECONDS` (Scryfall locks a client out for 30 s), with the shared
+  pacer held as long; after a connection error or timeout,
   :data:`CONNECTION_RETRY_SECONDS`;
 - **unavailable** — a request that still fails after its retry (a 429, a connection
   error, a timeout) trips one process-wide latch: every later network request fails
@@ -41,6 +42,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self, TypeVar
 from urllib.parse import urlencode, urlsplit
 
+import click
 import requests
 
 from mtg_utils._http import (
@@ -126,15 +128,35 @@ def _pace(url: str) -> None:
 
 
 def _backoff(_attempt: int, resp: requests.Response | None) -> float:
+    """The wait before a retry. After a 429: its ``Retry-After``, but never less than
+    the 30 s lockout (a ``0`` or a date behind our clock would retry into it), and
+    the shared pacer is held for as long, so no other thread sends into it."""
     if resp is None:
         return CONNECTION_RETRY_SECONDS
-    wait = retry_after_seconds(resp)
-    return LOCKOUT_SECONDS if wait is None else wait
+    wait = max(retry_after_seconds(resp) or 0.0, LOCKOUT_SECONDS)
+    GAP.pause(wait)
+    return wait
 
 
 def _backoff_sleep(seconds: float) -> None:
     """The retry wait: ``time.sleep``, looked up when it runs (tests replace it)."""
     time.sleep(seconds)
+
+
+def unreachable(
+    what: str, exc: requests.RequestException, *, offline: str | None = None
+) -> click.ClickException:
+    """The one-line CLI error for a Scryfall request that failed: what was being
+    fetched, that Scryfall could not be reached, and the offline way, if any. For
+    a CLI's boundary only; library functions keep raising."""
+    msg = f"could not reach Scryfall to fetch {what} ({type(exc).__name__}: {exc})."
+    if offline:
+        msg = f"{msg} {offline}"
+    return click.ClickException(msg)
+
+
+#: The offline way for card data: the local bulk.
+DOWNLOAD_HINT = "Run `uv run download-mtgjson` to use the local card data instead."
 
 
 def _decode(body: bytes) -> object:

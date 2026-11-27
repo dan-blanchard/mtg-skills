@@ -398,3 +398,32 @@ def test_template_cli_writes_and_refuses_overwrite(tmp_path):
     result = runner.invoke(template_main, [str(out), "--force"])
     assert result.exit_code == 0, result.output
     assert out.read_text(encoding="utf-8") == read_template()
+
+
+def test_cli_says_scryfall_is_unreachable_without_a_traceback(
+    tmp_path, printings, monkeypatch, scryfall_wire
+):
+    import requests
+
+    scryfall_wire.route("img.test", requests.ConnectionError("refused"))
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text(json.dumps(printings))
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(guide_card_hovers, "cached_stat_names", lambda _set: {})
+    guide = _guide(tmp_path, "<p>Murder.</p>")
+    res = CliRunner().invoke(
+        guide_card_hovers.main,
+        [
+            str(guide),
+            "--set",
+            SET,
+            "--out",
+            str(tmp_path / "out"),
+            "--bulk-data",
+            str(bulk),
+        ],
+    )
+    assert res.exit_code == 1
+    assert isinstance(res.exception, SystemExit)  # a ClickException, not a crash
+    assert "could not reach Scryfall to fetch card images" in res.output
+    assert "Traceback" not in res.output

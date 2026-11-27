@@ -208,7 +208,7 @@ def _client(clock: FakeClock) -> ScryfallClient:
 
 @pytest.mark.parametrize(
     ("retry_after", "waited"),
-    [({"Retry-After": "2"}, 2.0), ({}, 30.0), ({"Retry-After": "3600"}, 120.0)],
+    [({"Retry-After": "45"}, 45.0), ({}, 30.0), ({"Retry-After": "3600"}, 120.0)],
 )
 def test_a_429_waits_out_the_lockout_then_retries(scryfall_wire, retry_after, waited):
     scryfall_wire.route("/catalog/", (429, b"slow down", retry_after), {"data": [1]})
@@ -426,3 +426,168 @@ def test_the_cache_is_redirected_under_tests(tmp_path_factory):
     assert base in here.parents
     assert _http.default_cache_root() not in here.parents
     assert ScryfallClient("rulings").cache_dir == here / "rulings"
+
+
+# --- Retry-After edge cases and the lockout ---------------------------------------
+
+
+def _resp(value):
+    resp = requests.Response()
+    resp.status_code = 429
+    resp.headers["Retry-After"] = value
+    return resp
+
+
+@pytest.mark.parametrize(
+    ("value", "seconds"),
+    [
+        ("nan", None),
+        ("inf", None),
+        ("-inf", None),
+        ("garbage", None),
+        ("-5", 0.0),
+        ("0", 0.0),
+        ("Wed, 21 Oct 2015 07:28:00 GMT", 0.0),  # a date in the past
+        ("7", 7.0),
+        ("3600", 120.0),
+    ],
+)
+def test_retry_after_is_read_safely(value, seconds):
+    assert _http.retry_after_seconds(_resp(value)) == seconds
+
+
+@pytest.mark.parametrize(
+    "value", ["nan", "inf", "-5", "0", "Wed, 21 Oct 2015 07:28:00 GMT", "garbage"]
+)
+def test_a_429_never_retries_inside_the_lockout(scryfall_wire, value):
+    scryfall_wire.route("/catalog/", (429, b"", {"Retry-After": value}), {"data": []})
+    clock = FakeClock()
+    assert _client(clock).get_json("/catalog/x") == {"data": []}
+    assert clock.slept == [_scryfall.LOCKOUT_SECONDS]
+
+
+def test_a_429_holds_the_shared_pacer_for_every_other_caller(scryfall_wire, clock):
+    scryfall_wire.route("/catalog/", (429, b"", {"Retry-After": "45"}), {"data": []})
+    scryfall_wire.route("/sets/", {"code": "tst"})
+    _client(FakeClock()).get_json("/catalog/x")  # its own backoff sleep is fake
+    # The pacer was held for the 45 s; the retry and anyone after wait it out.
+    assert clock.slept
+    assert max(clock.slept) == pytest.approx(45.0)
+    clock.slept.clear()
+    clock.now += 60
+    ScryfallClient().get_json("/sets/tst")
+    assert clock.slept == []
+
+
+def test_request_gap_pause_holds_every_lane():
+    clock = FakeClock()
+    gap = _http.RequestGap({"a": 0.1}, clock=clock, sleep=clock.sleep)
+    gap.pause(30)
+    gap.wait(["a"])
+    gap.wait(["b"])  # the pause is over: no further wait
+    assert clock.slept == [30.0]
+
+
+# --- The CLI boundary: Scryfall unreachable is one line, not a traceback ----------
+
+
+def _assert_clean_failure(result, what):
+    assert result.exit_code == 1, result.output
+    assert isinstance(result.exception, SystemExit)  # a ClickException, not a crash
+    assert f"could not reach Scryfall to fetch {what}" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_price_check_cli(scryfall_wire, tmp_path, monkeypatch):
+    import json
+
+    from click.testing import CliRunner
+
+    from mtg_utils import card_pool
+
+    monkeypatch.setattr(card_pool, "default_bulk_path", lambda: None)
+    scryfall_wire.route("/cards/named", requests.ConnectionError("refused"))
+    names = tmp_path / "names.json"
+    names.write_text(json.dumps(["Sol Ring"]))
+    result = CliRunner().invoke(
+        price_check.main, [str(names), "--output", str(tmp_path / "o.json")]
+    )
+    _assert_clean_failure(result, "prices")
+    assert "uv run download-mtgjson" in result.output
+
+
+def _deck_with_a_new_card(tmp_path):
+    import json
+
+    deck = tmp_path / "deck.json"
+    deck.write_text(
+        json.dumps(
+            {
+                "format": "commander",
+                "commanders": [],
+                "cards": [
+                    {"name": "Sol Ring", "quantity": 1},
+                    {"name": "Zzyx Not In Bulk", "quantity": 1},
+                ],
+            }
+        )
+    )
+    return deck
+
+
+def test_a_deck_cli_through_acquire_for_cli(scryfall_wire, tmp_path, sample_bulk_data):
+    from click.testing import CliRunner
+
+    from mtg_utils import deck_hydrate
+
+    scryfall_wire.route("/cards/named", requests.ConnectionError("refused"))
+    result = CliRunner().invoke(
+        deck_hydrate.main,
+        [str(_deck_with_a_new_card(tmp_path)), "--bulk-data", str(sample_bulk_data)],
+    )
+    _assert_clean_failure(result, "the deck's cards")
+    assert "uv run download-mtgjson" in result.output
+
+
+def test_build_deck_cli_missing_adds(scryfall_wire, tmp_path, sample_bulk_data):
+    import json
+
+    from click.testing import CliRunner
+
+    from mtg_utils import build_deck
+
+    deck = tmp_path / "deck.json"
+    deck.write_text(
+        json.dumps(
+            {
+                "format": "commander",
+                "commanders": [],
+                "cards": [{"name": "Sol Ring", "quantity": 1}],
+            }
+        )
+    )
+    adds = tmp_path / "adds.json"
+    adds.write_text(json.dumps([{"name": "Zzyx Not In Bulk", "quantity": 1}]))
+    scryfall_wire.route("/cards/named", requests.ConnectionError("refused"))
+    result = CliRunner().invoke(
+        build_deck.main,
+        [
+            str(deck),
+            *("--bulk-data", str(sample_bulk_data)),
+            *("--adds", str(adds)),
+            *("--output-dir", str(tmp_path / "out")),
+        ],
+    )
+    _assert_clean_failure(result, "the added cards")
+
+
+def test_rulings_lookup_cli(scryfall_wire, monkeypatch):
+    from click.testing import CliRunner
+
+    card = {"id": "card-x", "oracle_id": "oid-x", "name": "Test Relic"}
+    monkeypatch.setattr(rulings_lookup, "default_bulk_path", lambda: None)
+    monkeypatch.setattr(rulings_lookup, "lookup_single", lambda *_a, **_k: card)
+    scryfall_wire.route("/rulings", requests.Timeout("slow"))
+    result = CliRunner().invoke(rulings_lookup.main, ["--card", "Test Relic"])
+    _assert_clean_failure(result, "rulings")
+    assert "local bulk first" in result.output

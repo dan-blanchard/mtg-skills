@@ -7,7 +7,9 @@ import json
 from pathlib import Path
 
 import click
+import requests
 
+from mtg_utils import _scryfall
 from mtg_utils.card_classify import build_card_lookup
 from mtg_utils.card_pool import CardPool
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option, resolve_bulk_path
@@ -232,7 +234,14 @@ def main(
     all_adds = list(adds)
     if raw_sb_adds:
         all_adds.extend(normalize_entry(a) for a in raw_sb_adds)
-    extra_hydrated = lookup_missing_adds(all_adds, hydrated, bulk_path)
+    try:
+        extra_hydrated = lookup_missing_adds(all_adds, hydrated, bulk_path)
+    except requests.RequestException as exc:
+        raise _scryfall.unreachable(
+            "the added cards the local bulk lacks",
+            exc,
+            offline=_scryfall.DOWNLOAD_HINT,
+        ) from exc
 
     hd, unmatched_cuts = build_deck(
         deck,
