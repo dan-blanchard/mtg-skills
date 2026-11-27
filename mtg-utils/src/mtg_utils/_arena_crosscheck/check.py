@@ -69,6 +69,7 @@ from mtg_utils._arena_crosscheck.align import (
     norm,
     pair,
 )
+from mtg_utils._arena_crosscheck.amounts import CountBoard
 from mtg_utils._arena_crosscheck.effects import (
     Board,
     arena_kinds,
@@ -408,6 +409,17 @@ class Checker:
                 if a.origin == "ability" and a.kind == "Spell"
             ]
         kinds = compare_kinds(observed, chosen, res.x, self._board(res, row["card"]))
+        counts = CountBoard(
+            res.permanents,
+            res.lki,
+            res.controller,
+            res.seats,
+            res.parent,
+            res.targets,
+            res.x,
+            res.effects,
+            res.changed_before,
+        )
         checks = strict_checks(
             chosen,
             mine,
@@ -415,7 +427,11 @@ class Checker:
             counter_name=self.text.counter,
             x=res.x,
             instance=res.instance,
+            board=counts,
         )
+        if counts.unchecked:
+            # a count amount the log can't show, by reason (``amounts``)
+            row["count_unchecked"] = sorted(set(counts.unchecked))
         explain_excess(checks, self._replacements(res.battlefield, res.controller))
         row.update(
             phase_text=" / ".join(a.desc for a in chosen),

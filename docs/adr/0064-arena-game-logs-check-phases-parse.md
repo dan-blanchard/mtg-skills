@@ -70,6 +70,44 @@ Arena created.
   names no other player: "its controller draws a card" (a recipient read through
   another object) can be either side. An object's type is not checked when one of
   the effects that could have moved or damaged it takes an object of any type.
+- **Counted amounts** (`_arena_crosscheck.amounts`; added 2026-11-27). An amount
+  phase writes as a count is evaluated on the board the log shows and checked like
+  a fixed one, under the same check name with " (counted)" (its `checks` row,
+  pass or fail; `explain_excess` passes an excess a token, damage, draw, life or
+  counter replacement on its controller's side explains, as for fixed amounts).
+  The answer is determined once, when the effect is applied (CR 608.2h), so the
+  board is the one the resolution's message began with (a message's objects and
+  zones are as it leaves them: the reader keeps each object's and zone's state
+  from before the message, `Resolution.permanents`), and the count is left out
+  (`board-changed`) when that message changed the battlefield, a power, a
+  counter, or an object's controller, types or colors (`log.BOARD_ANNOTATIONS`)
+  before the resolution began, or the resolution did before the amount's
+  first annotation ("gets +1/+0 until end of turn. It deals damage equal to its
+  power"). What it evaluates: a fixed number and the X Arena logged (the own X,
+  or the X paid for a permanent's spell its enters ability reads), with an
+  offset, a factor, or divided and rounded the way the card says (CR 107.1a:
+  "X plus 2", "twice X", "half X, rounded down"); permanents a filter matches
+  (`ObjectCount`), every filter part decidable from the log (`crosswalk.
+  filter_admits` with a `LoggedObject`, sides relative to the resolution's
+  controller, "another" not its own permanent); the distinct colors among them;
+  the power or toughness of the ability's own permanent or of its one target, as
+  last logged (its last known information if it left, CR 608.2h); the number of
+  opponents or players. An evaluated count is no ceiling for being a count (its
+  value is known); an effect that may not happen for another reason still is.
+  Everything else is listed on the row (`count_unchecked`, by reason): another
+  quantity (cards in a zone, a mana value, mana spent, counters, an event's
+  amount, a tracked group), an object it can't place (`that creature`, a
+  triggering object), a filter property the log can't show (`filter`: counters,
+  power, a name). An amount locked in before the resolution is an X (CR 601.2b:
+  announced as the spell is cast), which the X check reads with the logged X.
+  Damage another object deals for the resolution (a bite) is that object's in the
+  log, set aside by the own-effects rule, so it is not checked. Measured on
+  2026-11-27: archive and live logs (47 games) 9 resolutions gained a count check,
+  9 checks passed, 0 failed, 8 rows left unchecked; the corpus (95 games) 13
+  resolutions, 21 checks passed, 0 failed, 20 rows unchecked. The tool's faults
+  before it settled were its own: the board read after the message (Ouroboroid's
+  power after its counters), and an evaluated count kept as a ceiling. No
+  resolution, trigger, own-event or watched status moved, and no existing check.
 - **Triggers** (`check.shown_by`). Each trigger Arena fired is checked one way against
   `crosswalk.trigger_def_event`: the events of the object Arena names as having set it
   off (its `TriggeringObject`, under any id it had), over its message and the three

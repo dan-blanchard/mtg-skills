@@ -381,14 +381,18 @@ phase-rs issue.
   unpaired ability, or one Arena files as no trigger), as well as damage,
   counter, tap and targeting events. A phased-out permanent (CR 702.26b)
   would be read as present: no log yet shows how Arena logs phasing.
-  Also not checked yet: amounts phase
-  writes as a count ("equal to the number of …") evaluated against the logged
-  board, continuous effects other than a pump's size (an object's abilities before
+  Amounts phase writes as a count are checked since 2026-11-27 where the log
+  shows them exactly (`amounts`); still not: a count of cards in another zone,
+  a mana value, mana spent, counters on an object, an event's amount, a group
+  phase tracks, a named card ("named Hare Apparent": the log's objects carry no
+  name the filter read takes), an object the log can't place ("that creature"),
+  and damage another object deals for the resolution (a bite: that object's in
+  the log, so the own-effects rule sets it aside). Also not checked yet:
+  continuous effects other than a pump's size (an object's abilities before
   and after its resolution; a pump beside a base-P/T set or a keyword grant:
-  Tyvar's Stand), and the costs and
-  alternative costs in Arena's legal-action lists. The chosen X was checked in 6
-  resolutions (it is rare in play); X doubled, halved or offset is not read. (The
-  modal and "enters or dies" pairings this entry listed pair since 2026-11-26.)
+  Tyvar's Stand), and the costs and alternative costs in Arena's legal-action
+  lists. (The modal and "enters or dies" pairings this entry listed pair since
+  2026-11-26.)
 - **What a corpus of other players' logs showed (2026-11-26).** Run over the public
   manasight corpus (38 sessions, 95 games; `~/mtg/arena-log-corpus/`, triage in
   `triage/triage.md`), `arena-crosscheck` reported 50 trigger mismatches and 4

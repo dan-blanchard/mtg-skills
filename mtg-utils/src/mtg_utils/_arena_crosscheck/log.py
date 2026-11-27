@@ -55,6 +55,7 @@ __all__ = [
     "InstanceLog",
     "Logs",
     "ObjectEvent",
+    "Permanent",
     "Resolution",
     "TriggerFired",
     "events_of",
@@ -128,6 +129,25 @@ class ChosenX(NamedTuple):
 NO_X = ChosenX()
 
 
+class Permanent(NamedTuple):
+    """An object as a resolution began, as the log shows it: for counting the
+    battlefield and reading an object's power (``Resolution.permanents``,
+    ``Resolution.lki``)."""
+
+    id: int
+    grpid: int | None
+    controller: int | None
+    owner: int | None
+    #: ``"Card"`` / ``"Token"``.
+    kind: str
+    card_types: tuple[str, ...]
+    subtypes: tuple[str, ...]
+    supertypes: tuple[str, ...]
+    colors: tuple[str, ...]
+    power: int | None
+    toughness: int | None
+
+
 @dataclass(frozen=True)
 class Resolution:
     game: tuple[str, int]
@@ -157,6 +177,16 @@ class Resolution:
     #: ``"Emblem"`` / ``"TriggerHolder"`` for an ability that sits on one (module
     #: docstring), else ``None``.
     holder: str | None = None
+    #: Every card and token on the battlefield as it began.
+    permanents: tuple[Permanent, ...] = ()
+    #: The ability's own permanent (``parent``) and the objects it targets as
+    #: last logged by then: their last known information if they left (CR
+    #: 608.2h).
+    lki: tuple[Permanent, ...] = ()
+    #: Whether the message it began in changed the battlefield (an object's
+    #: place, power or counters) before it began: then :attr:`permanents`,
+    #: the board as the message began, may not be the board it began with.
+    changed_before: bool = False
 
 
 @dataclass(frozen=True)
@@ -461,6 +491,51 @@ class _OpenEvent:
     ann_id: int | None = None
 
 
+#: Annotations that change what a count over the battlefield reads: its
+#: population (a token made or deleted, a copy made), an object's power or
+#: toughness, and whose or what an object is (its controller, types, colors).
+#: A move to or from the battlefield is one too (:func:`_changes_board`).
+BOARD_ANNOTATIONS = frozenset(
+    {
+        "TokenCreated",
+        "TokenDeleted",
+        "CopiedObject",
+        "PowerToughnessModCreated",
+        "LayeredEffectCreated",
+        "CounterAdded",
+        "CounterRemoved",
+        "ControllerChanged",
+        "ModifiedType",
+        "ModifiedColor",
+    }
+)
+
+
+def _changes_board(ann: dict, zones: dict) -> bool:
+    types = _types(ann)
+    if "ZoneTransfer" in types:
+        d = _details(ann)
+        moved = (num(d, "zone_src", None), num(d, "zone_dest", None))
+        return any(zones.get(z, ("",))[0] == "Battlefield" for z in moved)
+    return bool(BOARD_ANNOTATIONS & set(types))
+
+
+def _permanent(i: int, o: dict) -> Permanent:
+    return Permanent(
+        i,
+        o.get("grpId"),
+        o.get("controller"),
+        o.get("owner"),
+        o.get("type", ""),
+        tuple(o.get("card_types", ())),
+        tuple(o.get("subtypes", ())),
+        tuple(o.get("supertypes", ())),
+        tuple(o.get("colors", ())),
+        o.get("power"),
+        o.get("toughness"),
+    )
+
+
 def _board_object(i: int, o: dict, *, moved: bool) -> BoardObject:
     return BoardObject(
         i,
@@ -538,6 +613,9 @@ class _Reader:
         #: the object events opened so far this game, and its messages
         self.event_count = 0
         self.message_count = 0
+        self.before_objs: dict[int, dict] = {}
+        self.before_zones: dict[int, list[int]] = {}
+        self.board_changes: list[int] = []
         self.recent: collections.deque[list[dict]] = collections.deque(maxlen=_LOOKBACK)
         self.turn: int | None = None
 
@@ -562,6 +640,18 @@ class _Reader:
     def _message(self, state: dict, game: tuple[str, int]) -> None:
         for p in state.get("players", []):
             self.seats.add(p.get("systemSeatNumber"))
+        # the objects and zones as the message found them: a message's objects
+        # and zones are as it leaves them, after its annotations
+        self.before_objs = {
+            o["instanceId"]: self.objs[o["instanceId"]]
+            for o in state.get("gameObjects", [])
+            if o["instanceId"] in self.objs
+        }
+        self.before_zones = {
+            z["zoneId"]: self.zone_ids[z["zoneId"]]
+            for z in state.get("zones", [])
+            if z["zoneId"] in self.zone_ids
+        }
         for z in state.get("zones", []):
             zone_type = z.get("type", "").removeprefix("ZoneType_")
             self.zones[z["zoneId"]] = (zone_type, z.get("ownerSeatId"))
@@ -586,6 +676,8 @@ class _Reader:
                 "copy": bool(o.get("isCopy")),
                 "face_down": bool(o.get("isFacedown")),
                 "supertypes": _strip("SuperType_", o.get("superTypes")),
+                "power": (o.get("power") or {}).get("value"),
+                "toughness": (o.get("toughness") or {}).get("value"),
                 "colors": tuple(_COLORS[c] for c in o.get("color", ()) if c in _COLORS),
             }
             if self.objs[o["instanceId"]]["type"] in _HOLDERS:
@@ -644,6 +736,10 @@ class _Reader:
         fresh = self._fresh(anns)
         self._object_events(fresh, declared, turn, game)
         open_: dict | None = None
+        #: the ids of this message's annotations that change the battlefield
+        self.board_changes = [
+            a.get("id", 0) for a in fresh if _changes_board(a, self.zones)
+        ]
         for ann in fresh:
             types = _types(ann)
             if "ResolutionStart" in types:
@@ -946,6 +1042,17 @@ class _Reader:
             if i in self.objs
         ]
         on_battlefield = [self.objs[i] for i in battlefield_ids]
+        seen = {o.get("parent"), *self.targets_of.get(inst, ())} - {None}
+        # the board as the message began (what it shows is after it)
+        was = {**self.objs, **self.before_objs}
+        began = [
+            i
+            for z, ids in {**self.zone_ids, **self.before_zones}.items()
+            if self.zones.get(z, ("",))[0] == "Battlefield"
+            for i in ids
+            if i in was
+        ]
+        start = ann.get("id", 0)
         return {
             "start_id": ann.get("id", 0),
             "instance": inst,
@@ -969,6 +1076,13 @@ class _Reader:
             ),
             "parent_on_battlefield": o.get("parent") in battlefield_ids,
             "targets": frozenset(self.targets_of.get(inst, ())),
+            "permanents": tuple(
+                _permanent(i, was[i])
+                for i in began
+                if was[i]["type"] in ("Card", "Token")
+            ),
+            "lki": tuple(_permanent(i, was[i]) for i in seen if i in was),
+            "changed_before": any(i < start for i in self.board_changes),
             "seats": frozenset(self.seats),
             # a permanent keeps its spell's id as it resolves, and gets a new one
             # when it leaves: one that came back was no X spell on the way in

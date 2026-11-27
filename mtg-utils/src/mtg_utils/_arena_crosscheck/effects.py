@@ -16,10 +16,11 @@ set aside, not scored):
 * **Strict checks** (:func:`strict_checks`): the facts phase states as fixed, checked
   against the amounts and objects Arena logged: a fixed damage, life, draw, token or
   counter amount, or one that is the X the spell or ability was cast with (Arena
-  logs the X chosen); a pump's power and toughness change; who drew, gained life,
-  or controls the tokens; a token's, counter's, damaged object's or moved
-  object's type; whose object moved. An amount from an
-  effect that may not happen is a ceiling. A count Arena exceeded passes when a
+  logs the X chosen), or a count phase writes evaluated on the logged board
+  (``amounts``: a check named with " (counted)"); a pump's power and toughness
+  change; who drew, gained life, or controls the tokens; a token's, counter's,
+  damaged object's or moved object's type; whose object moved. An amount from
+  an effect that may not happen is a ceiling. A count Arena exceeded passes when a
   permanent on the board has a replacement phase types for that event
   (:func:`explain_excess`: a token doubler, Quantum Riddler's extra draw).
 
@@ -35,6 +36,12 @@ from dataclasses import dataclass, field
 from typing import NamedTuple
 
 from mtg_utils._arena_crosscheck.align import PhaseAbility
+from mtg_utils._arena_crosscheck.amounts import (
+    CountBoard,
+    changed_before,
+    evaluate,
+    is_count,
+)
 from mtg_utils._arena_crosscheck.log import (
     NO_X,
     ChosenX,
@@ -384,10 +391,13 @@ def _may_be_zero(c: ConceptNode, fld: str, x: ChosenX) -> bool:
     return amount_is_scaling(c.node, fld) and not _x_amount(c, fld, x)
 
 
-def uncertain(ability: PhaseAbility, c: ConceptNode, x: ChosenX = NO_X) -> bool:
+def uncertain(
+    ability: PhaseAbility, c: ConceptNode, x: ChosenX = NO_X, *, zero: bool = True
+) -> bool:
     """Whether an effect may not happen: optional, conditional, in a branch its
     controller doesn't decide, one of two alternatives, with no target required,
-    or of an amount that can be zero (``x`` is the X Arena logged, if any)."""
+    or (``zero``) of an amount that can be zero (``x`` is the X Arena logged, if
+    any)."""
     root, node = ability.root, c.node
     return (
         effect_owner_optional(root, node)
@@ -399,8 +409,7 @@ def uncertain(ability: PhaseAbility, c: ConceptNode, x: ChosenX = NO_X) -> bool:
             for other in ability.effects
             if other is not c
         )
-        or _may_be_zero(c, "amount", x)
-        or _may_be_zero(c, "count", x)
+        or (zero and (_may_be_zero(c, "amount", x) or _may_be_zero(c, "count", x)))
     )
 
 
@@ -420,15 +429,25 @@ def _effects(chosen: Sequence[PhaseAbility], x: ChosenX = NO_X) -> list[_Eff]:
     delayed trigger the ability sets up is left out: it is that trigger's
     resolution, which Arena logs by itself (Summon: Fenrir's "when you next cast
     a creature spell this turn, …")."""
+    return [(a, c, maybe) for a, c, maybe, _ in _effects_and_firm(chosen, x)]
+
+
+def _effects_and_firm(
+    chosen: Sequence[PhaseAbility], x: ChosenX = NO_X
+) -> list[tuple[PhaseAbility, ConceptNode, bool, bool]]:
+    """:func:`_effects`, each with whether it may not happen for a reason
+    other than an amount that can be zero: what a count evaluated on the board
+    (``amounts``) leaves of its uncertainty."""
     several = len(chosen) > 1
-    out: list[_Eff] = []
+    out = []
     for a in chosen:
-        before = False
+        before = firm = False
         for c in a.effects:
             if effect_is_delayed(a.root, c.node):
                 continue
             before = before or several or uncertain(a, c, x)
-            out.append((a, c, before))
+            firm = firm or several or uncertain(a, c, x, zero=False)
+            out.append((a, c, before, firm))
     return out
 
 
@@ -594,6 +613,11 @@ class _Checks:
     x: ChosenX = NO_X
     #: The resolving object's id: the spell itself, for a move of its own.
     instance: int | None = None
+    #: The board a count amount is evaluated on (``amounts``), if any.
+    board: CountBoard | None = None
+    #: Per effect node, whether it may not happen for a reason other than an
+    #: amount that can be zero (:func:`_effects_and_firm`).
+    firm: dict[int, bool] = field(default_factory=dict)
     out: list[Check] = field(default_factory=list)
 
     def add(self, name: str, expected: object, observed: object, ok: object) -> None:
@@ -628,6 +652,48 @@ class _Checks:
         return [e for e in self.mine if kind in e.types]
 
 
+#: A check a counted amount (``amounts``) takes the name of with this suffix.
+COUNTED = " (counted)"
+
+
+def _amounts(
+    ctx: _Checks,
+    nodes: Sequence[_Eff],
+    fld: str,
+    is_amount: Callable[[Effect], bool],
+) -> tuple[list[int] | None, str, bool]:
+    """Each node's ``fld``: fixed or the X Arena logged (:func:`_fixed_all`),
+    else, with a board, a count evaluated on it (``amounts.evaluate``); the
+    suffix the check's name takes (:data:`COUNTED` for an evaluated count); and
+    whether the amounts are a ceiling (an effect that may not happen; for an
+    evaluated count, its scaling no reason, since its value is known). A count
+    the log can't show, or one the board may have changed under
+    (``amounts.changed_before``), leaves the check out and its reason on the
+    board."""
+    ceiling = any(maybe for _, _, maybe in nodes)
+    fixed = _fixed_all((c for _, c, _ in nodes), fld, ctx.x)
+    if fixed is not None or ctx.board is None:
+        return fixed, "", ceiling
+    out = []
+    for _, c, _ in nodes:
+        if has_fixed_count(c.node, fld):
+            out.append(amount_factor(c.node, fld))
+        elif (value := _x_amount(c, fld, ctx.x)) is not None:
+            out.append(value)
+        elif not is_count(c.node, fld):
+            return None, "", ceiling
+        else:
+            value = evaluate(c.node, fld, ctx.board)
+            if isinstance(value, int) and changed_before(ctx.board, is_amount):
+                value = "board-changed"
+            if isinstance(value, str):
+                ctx.board.unchecked.append(f"{c.concept}: {value}")
+                return None, "", ceiling
+            out.append(value)
+    firm = any(ctx.firm.get(id(c.node), True) for _, c, _ in nodes)
+    return out, COUNTED, firm
+
+
 def _concept(effects: Sequence[_Eff], *concepts: str) -> list[_Eff]:
     return [e for e in effects if e[1].concept in concepts]
 
@@ -642,15 +708,16 @@ def _damage(ctx: _Checks, effects: list[_Eff]) -> list[int]:
     values = [d for d, _ in damage]
     if not nodes or not damage:
         return values
-    amounts = _fixed_all((c for _, c, _ in nodes), "amount", ctx.x)
+    amounts, counted, ceiling = _amounts(
+        ctx, nodes, "amount", lambda e: "DamageDealt" in e.types
+    )
     if amounts is not None:
-        ceiling = any(maybe for _, _, maybe in nodes)
         ok = (
             all(v in amounts for v in values)
             or sum(values) == sum(amounts)  # divided as you choose
             or (ceiling and sum(values) <= sum(amounts))
         )
-        ctx.add("damage amount", amounts, values, ok)
+        ctx.add("damage amount" + counted, amounts, values, ok)
     subject = _named_types(c for _, c, _ in nodes)
     # "target player or planeswalker": the types name only the object half
     to_player = any(effect_reaches_player(c.node, a.root) for a, c, _ in nodes)
@@ -683,9 +750,10 @@ def _life(ctx: _Checks, effects: list[_Eff], damage: list[int]) -> None:
         if not nodes or not observed:
             continue
         values = sorted(abs(v) for v, _ in observed)
-        amounts = _fixed_all((c for _, c, _ in nodes), "amount", ctx.x)
+        amounts, counted, ceiling = _amounts(
+            ctx, nodes, "amount", lambda e: "ModifiedLife" in e.types
+        )
         if amounts is not None:
-            ceiling = any(maybe for _, _, maybe in nodes)
             lifelink = concept == "gain_life" and sum(values) == sum(amounts) + sum(
                 damage
             )
@@ -694,7 +762,7 @@ def _life(ctx: _Checks, effects: list[_Eff], damage: list[int]) -> None:
                 or (ceiling and all(v <= max(amounts) for v in values))
                 or lifelink
             )
-            ctx.add(f"{concept} amount", amounts, values, ok)
+            ctx.add(f"{concept} amount{counted}", amounts, values, ok)
         ctx.check_sides(f"{concept} player", nodes, (p for _, p in observed))
 
 
@@ -707,13 +775,17 @@ def _draws(ctx: _Checks, effects: list[_Eff]) -> None:
     ]
     if not nodes or not draws:
         return
-    amounts = _fixed_all((c for _, c, _ in nodes), "count", ctx.x)
+    amounts, counted, ceiling = _amounts(
+        ctx,
+        nodes,
+        "count",
+        lambda e: "ZoneTransfer" in e.types and word(e.details, "category") == "Draw",
+    )
     if amounts is not None:
-        ceiling = any(maybe for _, _, maybe in nodes)
         total = sum(amounts)
         for n in collections.Counter(draws).values():
             ok = _fits(total, n, ceiling=ceiling) or n in amounts
-            ctx.add("draw count", total, n, ok)
+            ctx.add("draw count" + counted, total, n, ok)
     ctx.check_sides("drawing player", nodes, set(draws))
 
 
@@ -722,11 +794,12 @@ def _tokens(ctx: _Checks, effects: list[_Eff]) -> None:
     tokens = [w for e in ctx.logged("TokenCreated") for w in e.who]
     if not nodes or not tokens:
         return
-    amounts = _fixed_all((c for _, c, _ in nodes), "count", ctx.x)
+    amounts, counted, ceiling = _amounts(
+        ctx, nodes, "count", lambda e: "TokenCreated" in e.types
+    )
     if amounts is not None:
-        ceiling = any(maybe for _, _, maybe in nodes)
         ok = _fits(sum(amounts), len(tokens), ceiling=ceiling)
-        ctx.add("token count", sum(amounts), len(tokens), ok)
+        ctx.add("token count" + counted, sum(amounts), len(tokens), ok)
     creators = {
         token_creator_side(a.unit, c.node) if a.unit is not None else None
         for a, c, _ in nodes
@@ -784,7 +857,7 @@ def _counters(ctx: _Checks, effects: list[_Eff]) -> None:
     ]
     if not nodes or not added:
         return
-    kinds = {_counter_norm(_counter_kind(c)): (c, maybe) for _, c, maybe in nodes}
+    kinds = {_counter_norm(_counter_kind(e[1])): e for e in nodes}
     players = [
         _counter_player_sides(a, c)
         for a, c, _ in nodes
@@ -800,11 +873,12 @@ def _counters(ctx: _Checks, effects: list[_Eff]) -> None:
     for kind, n in added:
         ctx.add("counter type", sorted(kinds), kind, kind in kinds)
         if kind in kinds:
-            c, maybe = kinds[kind]
-            expected = _fixed_all([c], "count", ctx.x)
+            expected, counted, ceiling = _amounts(
+                ctx, [kinds[kind]], "count", lambda e: "CounterAdded" in e.types
+            )
             if expected is not None and n is not None:
-                ok = _fits(expected[0], n, ceiling=maybe)
-                ctx.add("counter amount", expected[0], n, ok)
+                ok = _fits(expected[0], n, ceiling=ceiling)
+                ctx.add("counter amount" + counted, expected[0], n, ok)
 
 
 #: Phase's effects that change power and toughness by an amount.
@@ -911,11 +985,14 @@ def strict_checks(
     counter_name: Callable[[int | None], str | None],
     x: ChosenX = NO_X,
     instance: int | None = None,
+    board: CountBoard | None = None,
 ) -> list[Check]:
     """Phase's fixed facts against Arena's amounts and objects (module docstring).
-    ``x`` is the X Arena logged for the resolution, if any, and ``instance`` the
-    resolving object's id."""
-    ctx = _Checks(mine, controller, counter_name, x, instance)
+    ``x`` is the X Arena logged for the resolution, if any, ``instance`` the
+    resolving object's id, and ``board`` what a count amount is evaluated on
+    (``amounts``; without it, counts are left out)."""
+    ctx = _Checks(mine, controller, counter_name, x, instance, board)
+    ctx.firm = {id(c.node): firm for _, c, _, firm in _effects_and_firm(chosen, x)}
     effects = _effects(chosen, x)
     damage = _damage(ctx, effects)
     _life(ctx, effects, damage)
@@ -936,6 +1013,7 @@ _REPLACED_EVENT = {
     "damage amount": "Damage",
     "gain_life amount": "Life",
 }
+_REPLACED_EVENT |= {k + COUNTED: v for k, v in _REPLACED_EVENT.items()}
 
 
 def explain_excess(

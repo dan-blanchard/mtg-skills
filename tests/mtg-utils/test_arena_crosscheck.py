@@ -17,9 +17,16 @@ from pathlib import Path
 import pytest
 
 from mtg_utils._arena_crosscheck.align import abilities_of, norm, pair
+from mtg_utils._arena_crosscheck.amounts import CountBoard, evaluate
 from mtg_utils._arena_crosscheck.check import Checker, crosscheck, watches_own_event
 from mtg_utils._arena_crosscheck.effects import compare_kinds
-from mtg_utils._arena_crosscheck.log import BoardObject, ObjectEvent, read_logs
+from mtg_utils._arena_crosscheck.log import (
+    NO_X,
+    BoardObject,
+    ChosenX,
+    ObjectEvent,
+    read_logs,
+)
 from mtg_utils._arena_crosscheck.report import (
     build_report,
     diff_reports,
@@ -3039,3 +3046,259 @@ def test_a_copy_has_no_mana_value_from_its_record(card_db):
             copy=copy,
         )
         assert checker._matches(gandalf, event, watcher, is_source=False) is match
+
+
+# -- counted amounts: evaluated on the logged board ------------------------------
+COUNTED_SPELL = 3951
+
+
+def _raid_game(
+    card_db: Path, damage: int, *before: dict, after=(), board_moves=()
+) -> list[dict]:
+    """Massive Raid ("deals damage to any target equal to the number of
+    creatures you control") resolving with two creatures of seat 1 and one of
+    seat 2 on the battlefield, ``damage`` to seat 2."""
+    _add_card(card_db, COUNTED_SPELL, test_card("Massive Raid")["name"])
+    board = [
+        _obj(300, VISIONARY, types=("Creature",)),
+        _obj(301, VISIONARY, types=("Creature",)),
+        _obj(302, VISIONARY, types=("Creature",), controller=2),
+    ]
+    first = _state(
+        "r9", [_obj(100, COUNTED_SPELL, types=("Sorcery",)), *board], first=True
+    )
+    first["zones"] = _zones(stack=[100], battlefield=[300, 301, 302])
+    resolving = _state(
+        "r9",
+        [],
+        [
+            *board_moves,
+            _ann(0, "ResolutionStart", 100, [100], grpid=COUNTED_SPELL),
+            *before,
+            _ann(2, "DamageDealt", 100, [2], damage=damage, type=2),
+            _ann(3, "ModifiedLife", 100, [2], life=-damage),
+            *after,
+            _ann(90, "ResolutionComplete", 100, [100], grpid=COUNTED_SPELL),
+        ],
+    )
+    return [first, resolving]
+
+
+def _counted(report: dict, name: str = "damage amount (counted)") -> list[dict]:
+    (row,) = report["resolutions"]
+    return [c for c in row["checks"] if c["check"] == name]
+
+
+@pytest.mark.parametrize(
+    ("damage", "ok"),
+    [
+        (2, True),
+        (3, False),
+        # the count is known, so its scaling makes it no ceiling
+        (1, False),
+    ],
+)
+def test_a_count_on_the_logged_board(card_db, tmp_path, damage, ok):
+    report = _run(card_db, _write(tmp_path / "a.log", _raid_game(card_db, damage)))
+    (check,) = _counted(report)
+    assert (check["expected"], check["observed"], check["ok"]) == ([2], [damage], ok)
+
+
+def test_a_count_reads_the_board_as_the_message_began(card_db, tmp_path):
+    """A message's objects and zones are as it leaves them: a creature token
+    made later in the resolution's message is not one of those counted."""
+    game = _raid_game(card_db, 2, after=[_ann(4, "TokenCreated", 999, [303])])
+    game[1]["gameObjects"] = [_obj(303, 9999, kind="Token", types=("Creature",))]
+    game[1]["zones"] = _zones(battlefield=[300, 301, 302, 303])
+    (check,) = _counted(_run(card_db, _write(tmp_path / "a.log", game)))
+    assert check["ok"]
+
+
+@pytest.mark.parametrize(
+    "where",
+    [
+        # the resolution changed the board before the damage (CR 608.2h: the
+        # count is taken as the effect is applied)
+        "before",
+        # the message changed it before the resolution began
+        "message",
+    ],
+)
+def test_a_board_that_changed_before_the_count(card_db, tmp_path, where):
+    dies = [
+        _ann(
+            1 if where == "before" else -1,
+            "ZoneTransfer",
+            None,
+            [301],
+            zone_src=BATTLEFIELD,
+            zone_dest=GRAVEYARD,
+            category="SBA_Damage",
+        )
+    ]
+    game = (
+        _raid_game(card_db, 2, *dies)
+        if where == "before"
+        else _raid_game(card_db, 2, board_moves=dies)
+    )
+    report = _run(card_db, _write(tmp_path / "a.log", game))
+    assert _counted(report) == []
+    (row,) = report["resolutions"]
+    assert row["count_unchecked"] == ["deal_damage: board-changed"]
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "ControllerChanged",
+        "ModifiedType",
+        "ModifiedColor",
+        "TokenDeleted",
+        "CopiedObject",
+    ],
+)
+def test_a_change_of_whose_or_what_an_object_is_changes_the_board(
+    card_db, tmp_path, kind
+):
+    """A creature that changed controller, type or color before the count, or
+    a token deleted or a copy made, is a board the count can't be read on."""
+    game = _raid_game(card_db, 2, _ann(1, kind, 999, [301]))
+    report = _run(card_db, _write(tmp_path / "a.log", game))
+    assert _counted(report) == []
+    (row,) = report["resolutions"]
+    assert row["count_unchecked"] == ["deal_damage: board-changed"]
+
+
+def test_a_count_whose_filter_the_log_cannot_show(card_db, tmp_path):
+    """Inspiring Call: "Draw a card for each creature you control with a
+    +1/+1 counter on it": the log shows no counters."""
+    _add_card(card_db, COUNTED_SPELL, test_card("Inspiring Call")["name"])
+    first = _state(
+        "i9",
+        [_obj(100, COUNTED_SPELL), _obj(300, VISIONARY, types=("Creature",))],
+        first=True,
+    )
+    first["zones"] = _zones(stack=[100], battlefield=[300])
+    draw = _ann(
+        2, "ZoneTransfer", 100, [400], zone_src=LIBRARY, zone_dest=HAND, category="Draw"
+    )
+    resolving = _resolves("i9", 100, COUNTED_SPELL, draw)
+    (row,) = _run(card_db, _write(tmp_path / "a.log", [first, resolving]))[
+        "resolutions"
+    ]
+    assert row["count_unchecked"] == ["draw: filter"]
+    assert not [c for c in row["checks"] if "counted" in c["check"]]
+
+
+def test_a_count_of_the_sources_power(card_db, tmp_path):
+    """Abyssal Hunter: "This creature deals damage equal to its power to that
+    creature", its power as last logged (CR 608.2h)."""
+    hunter, ability = 3961, 4961
+    _add_card(card_db, hunter, test_card("Abyssal Hunter")["name"])
+    _add_ability(card_db, ability, _arena_text("Abyssal Hunter"), category=ACTIVATED)
+    others = [_obj(310, VISIONARY, types=("Creature",), controller=2)]
+
+    def game(damage: int) -> list[dict]:
+        g = _etb_game(
+            "h9",
+            hunter,
+            ability,
+            _ann(2, "DamageDealt", 500, [310], damage=damage, type=1),
+            others=others,
+        )
+        g[0]["gameObjects"][0]["power"] = {"value": 3}
+        # the message's objects are as it leaves them: a pump later in it
+        # isn't the power the damage read
+        g[1]["gameObjects"].append(
+            _obj(500, hunter, types=("Creature",), power={"value": 5})
+        )
+        return g
+
+    for log, damage, ok in (("a.log", 3, True), ("b.log", 2, False)):
+        (check,) = _counted(_run(card_db, _write(tmp_path / log, game(damage))))
+        assert (check["expected"], check["ok"]) == ([3], ok)
+
+
+def test_a_count_of_opponents(card_db, tmp_path):
+    """Goblin Goliath: "create a number of 1/1 red Goblin creature tokens equal
+    to the number of opponents you have"."""
+    goliath, etb = 3971, 4971
+    _add_card(card_db, goliath, test_card("Goblin Goliath")["name"])
+    _add_ability(card_db, etb, _arena_text("Goblin Goliath").splitlines()[0])
+    game = _etb_game("o9", goliath, etb, _ann(2, "TokenCreated", 501, [320]))
+    game[1]["gameObjects"].append(
+        _obj(320, 9999, kind="Token", types=("Creature",), subtypes=["SubType_Goblin"])
+    )
+    (check,) = _counted(
+        _run(card_db, _write(tmp_path / "a.log", game)), "token count (counted)"
+    )
+    assert (check["expected"], check["observed"], check["ok"]) == (1, 1, True)
+
+
+def test_a_counted_excess_a_doubler_explains(card_db, tmp_path):
+    """Two tokens for Goblin Goliath's one beside Anointed Procession (a token
+    replacement on its controller's side)."""
+    goliath, etb, procession = 3972, 4972, 3973
+    _add_card(card_db, goliath, test_card("Goblin Goliath")["name"])
+    _add_card(card_db, procession, test_card("Anointed Procession")["name"])
+    _add_ability(card_db, etb, _arena_text("Goblin Goliath").splitlines()[0])
+    game = _etb_game(
+        "o8",
+        goliath,
+        etb,
+        _ann(2, "TokenCreated", 501, [320]),
+        _ann(3, "TokenCreated", 501, [321]),
+        others=[_obj(330, procession, types=("Enchantment",))],
+    )
+    (check,) = _counted(
+        _run(card_db, _write(tmp_path / "a.log", game)), "token count (counted)"
+    )
+    assert (check["ok"], tuple(check["explained_by"])) == (
+        True,
+        ("Anointed Procession",),
+    )
+
+
+def _count_node(name: str, concept: str, index: int = 0):
+    nodes = [
+        c.node
+        for a in abilities_of(trees_for(_card_of(name)))
+        for c in a.effects
+        if c.concept == concept
+    ]
+    return nodes[index]
+
+
+def _empty_board(x=NO_X) -> CountBoard:
+    return CountBoard((), (), 1, frozenset({1, 2}), None, frozenset(), x)
+
+
+def test_an_amount_of_x_offset_doubled_or_halved():
+    """X plus 2 (Crater's Claws' ferocious), twice X (Pest Infestation), half X
+    rounded down (Hydroid Krasis; CR 107.1a: the card says which way)."""
+    claws = _count_node("Crater's Claws", "deal_damage", 1)
+    pests = _count_node("Pest Infestation", "make_token")
+    half = _count_node("Hydroid Krasis", "draw")
+    board = _empty_board(ChosenX(own=5))
+    assert evaluate(claws, "amount", board) == 7
+    assert evaluate(pests, "count", board) == 10
+    assert evaluate(half, "count", board) == 2
+    up = dataclasses.replace(half, count=dataclasses.replace(half.count, rounding="Up"))
+    assert evaluate(up, "count", board) == 3
+    assert evaluate(half, "count", _empty_board()) == "x"  # no X logged
+
+
+def test_a_count_of_other_permanents():
+    """ "Another" in a counted filter is not the ability's own permanent."""
+    from mtg_utils._arena_crosscheck.log import Permanent
+
+    def creature(i: int) -> Permanent:
+        return Permanent(i, VISIONARY, 1, 1, "Card", ("Creature",), (), (), (), 1, 1)
+
+    another = _trigger_filter("Herd Gnarr")  # "another creature you control"
+    board = dataclasses.replace(
+        _empty_board(), permanents=(creature(500), creature(300)), parent=500
+    )
+    from mtg_utils._arena_crosscheck.amounts import _matching
+
+    assert [p.id for p in _matching(another, board)] == [300]
