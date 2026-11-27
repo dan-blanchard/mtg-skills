@@ -1159,12 +1159,12 @@ def test_the_cap_changes_no_pick_it_does_not_refuse():
 
 
 def test_a_deck_with_nothing_to_set_a_top_end_has_no_cap():
-    """If every nonland card is left out of the top (a convoke card) or the
+    """If every nonland card is left out of the top (a morph card) or the
     deck has none, there is no ceiling, not a cap of two."""
     from mtg_utils._tuner.curve_cap import CurveCap
 
-    broodlord, forest = test_card("Hoarding Broodlord"), test_card("Forest")
-    deck = [(broodlord, 1, False), (forest, 30, False)]
+    morph, forest = test_card("Krosan Cloudscraper"), test_card("Forest")
+    deck = [(morph, 1, False), (forest, 30, False)]
     assert CurveCap.build(deck, room=2.0, emitters={}).cap is None
     assert CurveCap.build([(forest, 30, False)], room=2.0, emitters={}).cap is None
     lions = test_card("Savannah Lions")
@@ -1210,18 +1210,75 @@ def test_the_decks_top_end_is_read_at_the_cost_of_each_cards_big_mode():
     assert _capped_add([find], pool) == ["Agent of Treachery"]
 
 
-def test_a_card_cast_for_an_unfixed_share_of_its_cost_is_not_capped():
-    """Convoke (CR 702.51a) sets no fixed cost: Hoarding Broodlord (eight)
-    meets no cap in a deck topping at four — a known limit (ADR-0066): the cap
-    is a guard, not a ranking. Undaunted counts at three less (CR 702.125a, a
-    four-player pod): Divergent Transformations' seven is a four. An unpriced
-    "costs less" clause is capped at its printed cost (the reanimation test's
-    Emrakul, the Promised End)."""
-    for card in ("Hoarding Broodlord", "Divergent Transformations"):
-        pool = [_played(card, 900), _played("Grizzly Bears", 2150)]
-        assert _capped_add([_top(4.0)], pool) == [card]
+def test_a_self_paying_card_is_capped_at_what_the_deck_feeds_it():
+    """Dan's decision (2026-11-27): Hoarding Broodlord (convoke, eight) is
+    capped at its printed cost in a deck topping at four with no creatures to
+    tap, and passes beside thirty Savannah Lions, cast on turn five. Undaunted
+    counts at three less (CR 702.125a, a four-player pod): Divergent
+    Transformations' seven is a four."""
+    pool = [_played("Hoarding Broodlord", 900), _played("Grizzly Bears", 2150)]
+    assert _capped_add([_top(4.0)], pool) == ["Grizzly Bears"]
+    lions = replace(_real_cc("Savannah Lions", "engine"), quantity=30)
+    assert _capped_add([_top(4.0), lions], pool) == ["Hoarding Broodlord"]
     pool = [_played("Divergent Transformations", 900), _played("Grizzly Bears", 2150)]
+    assert _capped_add([_top(4.0)], pool) == ["Divergent Transformations"]
     assert _capped_add([_top(1.0)], pool) == ["Grizzly Bears"]
+
+
+def test_a_fed_self_paying_card_sets_the_top_at_what_the_deck_pays():
+    """The deck's top end counts a self-paying card at what the deck pays where
+    it feeds it, and leaves it out where it can't: Hoarding Broodlord beside
+    one Savannah Lions is out of the top (cap three), beside thirty in 99 a
+    five (cap seven)."""
+    from mtg_utils._tuner.curve_cap import CurveCap
+
+    broodlord, lions = test_card("Hoarding Broodlord"), test_card("Savannah Lions")
+    forest = test_card("Forest")
+    one = [(broodlord, 1, False), (lions, 1, False), (forest, 97, False)]
+    assert CurveCap.build(one, room=2.0, emitters={}).cap == 3.0
+    deck = [(broodlord, 1, False), (lions, 30, False), (forest, 68, False)]
+    fed = CurveCap.build(deck, room=2.0, emitters={})
+    assert fed.cap == 7.0
+
+
+def test_a_decks_graveyard_fillers_feed_delve():
+    """Two deck cards filling your own graveyard feed delve: a mill that can
+    hit you (Stitcher's Supplier mills you; Millstone's target player can be
+    you) or a discard outlet (``discard_outlet|you``, loots included). A mill
+    only an opponent takes (Maddening Cacophony) fills no graveyard of yours."""
+    from mtg_utils._tuner.curve_cap import CurveCap
+
+    tasigur = test_card("Tasigur, the Golden Fang")
+    lions = test_card("Savannah Lions")
+
+    def cheapest(*names, emitters=None):
+        deck = [(lions, 1, False), *((test_card(n), 1, False) for n in names)]
+        cap = CurveCap.build(deck, room=2.0, emitters=emitters or {})
+        return cap.costs(tasigur).cheapest
+
+    assert cheapest("Stitcher's Supplier", "Millstone") == 1.0
+    assert cheapest("Stitcher's Supplier", "Maddening Cacophony") == 6.0
+    outlet = {("discard_outlet", "you", ""): frozenset({"A Looter"})}
+    assert cheapest("Stitcher's Supplier", emitters=outlet) == 1.0
+
+
+def test_a_mill_reaches_you_unless_only_an_opponent_mills():
+    from mtg_utils._card_ir.crosswalk.reads import mill_reaches_you
+    from mtg_utils._card_ir.trees import trees_for
+
+    def mills_you(name):
+        return any(
+            mill_reaches_you(unit, node)
+            for unit in trees_for(test_card(name))[0].units
+            for node in unit.iter_typed()
+        )
+
+    assert mills_you("Stitcher's Supplier")
+    assert mills_you("Millstone")
+    assert mills_you("Extract from Darkness")
+    assert not mills_you("Maddening Cacophony")
+    # "that player mills" at each OPPONENT's upkeep never mills you.
+    assert not mills_you("Manic Scribe")
 
 
 def test_a_page_of_cards_past_the_cap_does_not_lose_the_swap():

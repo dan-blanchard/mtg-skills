@@ -12,6 +12,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     change_zone_dirs,
     filter_admits,
     filter_controller,
+    mill_reaches_you,
     replacement_event_tag,
     tag_of,
 )
@@ -175,6 +176,49 @@ def _filter_parts(filt: object) -> list[object]:
     return [filt]
 
 
+#: A discard outlet or a loot (``discard_outlet|you``: fuel for your own
+#: graveyard), one of the deck reads of a card filling its own graveyard for
+#: delve (``costs.GRAVEYARD_FILL_FLOOR``).
+_DISCARD_OUTLET = ("discard_outlet", "you", "")
+
+
+def _mills_you(record: Mapping) -> bool:
+    """Whether a card has a mill that can put your own cards into your
+    graveyard (``reads.mill_reaches_you``): a self-mill, each player's, or a
+    target player's, which can be you. The ``mill_makers`` signals can't say
+    so: ``any`` is every mill and ``opponents`` every mill that can reach an
+    opponent (Millstone reaches both)."""
+    for tree in trees_for(dict(record)):
+        for unit in tree.units:
+            for node in unit.iter_typed():
+                if tag_of(node) == "Mill" and mill_reaches_you(unit, node):
+                    return True
+    return False
+
+
+def _graveyard_fillers(
+    deck: Sequence[tuple[Mapping, int, bool]],
+    emitters: Mapping[tuple[str, str, str], Collection[str]],
+    commander_idents: Collection[tuple[str, str, str]],
+) -> int:
+    """The deck cards that fill its own graveyard: a mill that can hit you or a
+    discard outlet (a loot included). A commander doing so counts as the whole
+    floor at once, as R2's cheat floor counts it."""
+    from mtg_utils._analysis.costs import GRAVEYARD_FILL_FLOOR
+
+    names = set(emitters.get(_DISCARD_OUTLET, ()))
+    commander = _DISCARD_OUTLET in set(commander_idents)
+    for rec, _q, is_commander in deck:
+        if rec.get("name", "") in names and not is_commander:
+            continue
+        if _mills_you(rec) or (is_commander and rec.get("name", "") in names):
+            names.add(rec.get("name", ""))
+            commander |= is_commander
+    if commander:
+        return max(len(names), GRAVEYARD_FILL_FLOOR)
+    return len(names)
+
+
 @dataclass
 class CurveCap:
     """One deck's curve cap: ``cap`` (None: no ceiling), the card types a cheat
@@ -189,6 +233,7 @@ class CurveCap:
     memo: dict[str, CastCosts] = field(default_factory=dict)
     entries: Sequence[tuple[Mapping, int]] = ()
     library: int = 99
+    graveyard_fillers: int = 0
 
     @classmethod
     def build(
@@ -202,7 +247,15 @@ class CurveCap:
         """``deck`` is ``(record, copies, is_commander)`` per card."""
         entries = [(rec, max(1, q)) for rec, q, _cmd in deck]
         library = max(1, sum(max(1, q) for _r, q, cmd in deck if not cmd))
-        out = cls(cap=None, top=0.0, entries=entries, library=library)
+        out = cls(
+            cap=None,
+            top=0.0,
+            entries=entries,
+            library=library,
+            graveyard_fillers=_graveyard_fillers(
+                deck, emitters or {}, commander_idents
+            ),
+        )
         if room is None:
             return out
         tops = [
@@ -240,7 +293,12 @@ class CurveCap:
     def costs(self, card: Mapping) -> CastCosts:
         key = card.get("oracle_id") or card.get("name", "")
         if key not in self.memo:
-            self.memo[key] = cast_costs(card, self.entries, library_size=self.library)
+            self.memo[key] = cast_costs(
+                card,
+                self.entries,
+                library_size=self.library,
+                graveyard_fillers=self.graveyard_fillers,
+            )
         return self.memo[key]
 
     def returners(self, card: Mapping) -> int:

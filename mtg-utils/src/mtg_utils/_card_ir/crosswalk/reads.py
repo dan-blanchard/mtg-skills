@@ -12454,6 +12454,34 @@ def mill_reaches_opponent(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
     return filter_controller(getattr(node, "target", None)) == "Opponent"
 
 
+def mill_reaches_you(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
+    """Whether a ``Mill`` effect ``node`` of ``unit`` can mill its controller's
+    own library, filling their graveyard (CR 701.17a): the mirror of
+    :func:`mill_reaches_opponent`. A mill phase writes Controller-relative
+    ("mill three cards" — Stitcher's Supplier), each player's (Extract from
+    Darkness), a target player's (Millstone, which can be you) or a trigger's
+    "that player" when the trigger watches you reaches you; an opponent's, an
+    enchanted player's, a defending player's or one aimed at an opponent does
+    not."""
+    if tag_of(node) != "Mill" or getattr(node, "destination", None) != "Graveyard":
+        return False
+    if effect_actor_scope(unit, node) in ("opponents", ENCHANTED_PLAYER_SCOPE):
+        return False
+    reach = effect_player_reach(unit.node, node)
+    if reach in ("opponents", "per_opponent"):
+        return False
+    if reach == "scoped" and triggering_player_side(unit) == "opponents":
+        # "that player" of a trigger watching only opponents (Manic Scribe's
+        # "each opponent's upkeep") is never you.
+        return False
+    recipient = recipient_tag(node)
+    if recipient == "TriggeringPlayer":
+        return triggering_player_side(unit) == "you"
+    if recipient in _OTHER_PLAYER_MILL_RECIPIENTS and recipient != "Player":
+        return False
+    return filter_controller(getattr(node, "target", None)) != "Opponent"
+
+
 def blight_placements(
     unit: AbilityUnit, *, costs: bool = True
 ) -> tuple[TypedMirrorNode, ...]:

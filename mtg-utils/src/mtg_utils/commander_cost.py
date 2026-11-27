@@ -301,6 +301,37 @@ def colored_pips(mana_cost: str | None) -> int:
     return count
 
 
+def affordable_turn(
+    printed: int,
+    pips: int,
+    discount: SelfDiscount,
+    deck_entries: Sequence[tuple[Mapping, int]],
+    *,
+    library_size: int,
+    hand_size: int = _DEFAULT_HAND_SIZE,
+) -> tuple[int | None, list[dict]]:
+    """The earliest turn the deck affords a card of ``printed`` mana value and
+    ``pips`` colored symbols whose cost ``discount`` reduces (None: not by turn
+    ``printed``), and the per-turn table up to it (:func:`effective_commander_cost`).
+    """
+    turns: list[dict] = []
+    for turn in range(1, printed + 1):
+        expected = math.floor(
+            expected_operand(
+                deck_entries,
+                discount,
+                turn=turn,
+                library_size=library_size,
+                hand_size=hand_size,
+            )
+        )
+        residual = max(pips, printed - discount.per_unit * expected)
+        turns.append({"turn": turn, "expected_operand": expected, "residual": residual})
+        if residual <= turn:
+            return turn, turns
+    return None, turns
+
+
 def effective_commander_cost(
     commander: Mapping,
     deck_entries: Sequence[tuple[Mapping, int]],
@@ -336,21 +367,15 @@ def effective_commander_cost(
         return block
     block["status"] = STATUS_MODELLED
     block["operand"] = discount.describe()
-    turns: list[dict] = []
-    for turn in range(1, printed + 1):
-        expected = math.floor(
-            expected_operand(
-                deck_entries,
-                discount,
-                turn=turn,
-                library_size=library_size,
-                hand_size=hand_size,
-            )
-        )
-        residual = max(pips, printed - discount.per_unit * expected)
-        turns.append({"turn": turn, "expected_operand": expected, "residual": residual})
-        if residual <= turn:
-            block.update(effective=turn, residual=residual, turns=turns)
-            return block
+    turn, turns = affordable_turn(
+        printed,
+        pips,
+        discount,
+        deck_entries,
+        library_size=library_size,
+        hand_size=hand_size,
+    )
     block["turns"] = turns
+    if turn is not None:
+        block.update(effective=turn, residual=turns[-1]["residual"])
     return block

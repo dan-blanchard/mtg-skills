@@ -63,10 +63,10 @@ builder's choices** where both were silent.
     Finality tops at 6, not 2; Realm-Cloaked Giant at 7. A candidate is castable if
     any mode is.
   - A modal double-faced card with a land face is never capped as a candidate: it is
-    never stuck in hand, since it can be played as that land (CR 712.9). It sets the
+    never stuck in hand, since it can be played as that land (CR 712.12). It sets the
     top at its spell's cost (Emeria's Call, 7).
-  - Cards whose printed cost nobody pays are left out of the top, as convoke cards
-    are: an unpriced "costs less" clause (Octavia, Living Thesis; Nyxborn Behemoth;
+  - Cards whose printed cost nobody pays are left out of the top: an unpriced
+    "costs less" clause (Octavia, Living Thesis; Nyxborn Behemoth;
     Ancient Stone Idol), and morph, megamorph and disguise cards. Those are cast
     face down "by paying {3} rather than paying its mana cost" (CR 702.37a,
     702.168a), which is the cheapest a candidate is checked at. Leaving morph cards
@@ -74,15 +74,74 @@ builder's choices** where both were silent.
     Deadly Disguise's top from 10 to 6 (cap 8).
   - Undaunted ("costs {1} less to cast for each opponent you have", CR 702.125a)
     counts at printed less three on both sides, a four-player pod.
-- **Convoke, delve, improvise, affinity and emerge stay uncapped as candidates.**
-  They pay "rather than pay" mana (convoke 702.51a, delve 702.66a, improvise
-  702.126a), cost less for what you control (affinity 702.41a), or are an
-  alternative cost reduced by a sacrificed creature (emerge 702.119a). The cap is a
-  guard, not a ranking. Known limit: such a card meets no ceiling even where the
-  deck can't feed it. Autochthon Wurm in a token-less deck, Blinkmoth Infusion with
-  no artifacts, Icebreaker Kraken with no snow lands; Organic Extinction is the
-  likeliest to be picked. The fix it would need: count them at printed cost unless
-  the deck supplies what they feed on. Recorded in the backlog.
+- **Convoke, delve, improvise, affinity and emerge** (first left uncapped as
+  candidates; replaced by Dan's decision below). They pay "rather than pay" mana
+  (convoke 702.51a, delve 702.66a, improvise 702.126a), cost less for what you
+  control (affinity 702.41a), or are an alternative cost reduced by a sacrificed
+  creature (emerge 702.119a).
+
+*Dan's decision (2026-11-27): a self-paying card is capped at what the deck pays
+for it* (`costs.self_paid_cost`). A deck that feeds it nothing pays its printed
+cost.
+
+*The coordinator's call (2026-11-27), on the deck-top side:* a self-paying card
+the deck feeds counts in the top at what the deck pays. One it can't feed is left
+out of the top, as an unpriced "costs less" card is, because a deck that can't
+feed it doesn't plan on casting it. Counting it at printed would loosen the cap:
+Organic Extinction beside thirty one-drops would raise the top from 1 to 10.
+
+*The builder's choices, for how "what the deck pays" is read:*
+
+- **Convoke, improvise and affinity** are priced by the ADR-0044 estimator
+  (`commander_cost.affordable_turn`) for this deck. The population is the deck's
+  own creature cards (convoke), artifact cards (improvise, affinity for
+  artifacts) or cards of the affinity's quality (`ConceptTree.card_keyword_types`).
+  Each pays one generic mana and none goes below the colored pips. For affinity
+  and improvise that is the rule (affinity takes off generic mana only, CR 702.41a
+  and 118.7a; improvise pays generic mana only, CR 702.126a). A convoke creature
+  can pay a pip of its own color (CR 702.51a), so for convoke the floor is the
+  builder's cautious choice.
+  No threshold is needed: the estimator's affordable turn is the cost the deck
+  pays, and the cap reads it. The card itself, on the stack, is not counted.
+  Hoarding Broodlord (eight) is an eight, out of the top, in a deck with no
+  creatures, and a five beside thirty one-drops in 99.
+- **Tokens** count one payer per card that makes a token of the kind
+  (`costs._payers`; its `make_token` concepts under your control). It is cast at
+  its own mana value like any other card; a creature making creature tokens is
+  two bodies. One token per maker is low for a token deck, and investigate's
+  Clues (a keyword action, no `make_token`) are not read. Autochthon Wurm
+  (twelve) costs 10 → 9 in Tyranid Swarm (cap 9: in), 11 → 9 in Squirreled Away
+  (cap 10: in), 12 → 11 in Quick Draw (cap 8: out), and 9 either way in Call for
+  Backup (cap 9).
+- **Delve** has no battlefield population to price. Two deck cards that fill
+  your own graveyard (`costs.GRAVEYARD_FILL_FLOOR`, R2's cheat floor) make it
+  one that fills. A filler is a mill that can hit you (`reads.mill_reaches_you`:
+  a self-mill, each player's, or a target player's, which can be you) or a
+  discard outlet, loots included (`discard_outlet|you`). The `mill_makers`
+  signals can't tell these apart: `opponents` marks any mill that can reach an
+  opponent, Millstone included. A commander filling it counts at once. A delve
+  card fed this way counts at its colored pips, since a filled graveyard pays
+  every generic mana. Unfed, it counts at printed. A dig that puts the rest into
+  the graveyard (Satyr Wayfinder) is no mill and is not read.
+- **Emerge** counts at its emerge cost less the mana value of the deck's
+  cheapest creature card, never below its colored pips. It is cast on the
+  earliest turn the estimator expects a creature on the battlefield to
+  sacrifice. The estimator casts cheapest-first, so the cheapest creature is the
+  one it expects out first. The card itself is no sacrifice for its own emerge.
+  Elder Deep-Fiend ({8}; emerge {5}{U}{U}) counts at 5 in Eldrazi Incursion
+  (cap 12).
+- What is conservative here is the candidate side: fewer payers make a dearer
+  candidate. On the top side, fewer payers can leave a card out of the top or
+  count it higher. Emerge's cheapest sacrifice is the same trade: the smallest
+  discount makes an emerge candidate as dear as the deck can make it, and it
+  counts a fed emerge card already in the deck higher, which raises that deck's
+  top and loosens its cap.
+- **Census over N28's adds** (55 precons). No tuner add and no guide add is
+  refused. All 22 self-paying adds and guide adds are within their deck's cap.
+  Deep Clue Sea's cap rises from 9 to 10: Organic Extinction ({8}{W}{W},
+  improvise) is fed by its 17 artifact cards. The estimator expects two
+  artifacts out by turn eight, which pays the last two generic mana, so the deck
+  can cast it on turn eight, and its top becomes 8.
 
 *The builder's choices:*
 
@@ -102,7 +161,10 @@ builder's choices** where both were silent.
   limit: three of the four untyped emitters in the precons cheat only up to a bound
   (Genesis Hydra: mana value X or less; Emergent Woodwurm: its power; Broodcaller
   Scourge: the damage dealt). The signal carries no bound, so the cap lifts for
-  every permanent card under them.
+  every permanent card under them. It stays unbounded under Dan's 2026-11-27 decision: the
+  signal's identity is `(key, scope, subject)`, and its subject is the card type,
+  so there is nowhere in it to carry a bound. Bounding it would mean reading each
+  emitter's own trees, as the reanimation read does.
 - **The other modes `cast_costs` reads:** an X counted at three
   (`costs.X_COST_VALUE`, the value the mana-value bands already used; CR 202.3e
   counts X as 0 off the stack); a split card's halves (each cast on its own, CR

@@ -43,15 +43,12 @@ phase-rs issue.
   family. Folding the named guard into the cap would loosen it there, so measure it
   before shipping. Also unread by the cap: a reanimation bound phase drops whole
   (Reunion of the House's "total power 10 or less" reads as none).
-- **The curve cap leaves self-paying cards uncapped** (ADR-0066, the coordinator's
-  call of 2026-11-26). A candidate with convoke, delve, improvise, affinity or emerge
-  meets no ceiling, even where the deck can't feed it: Autochthon Wurm in a
-  token-less deck, Blinkmoth Infusion with no artifacts, Icebreaker Kraken with no
-  snow lands; Organic Extinction is the likeliest to be picked. The fix it would
-  need: count them at printed cost unless the deck supplies what they feed on.
-  Likewise an untyped `cheat_into_play` lifts the cap for every permanent card,
-  though Genesis Hydra, Emergent Woodwurm and Broodcaller Scourge cheat only up to
-  a bound the signal does not carry.
+- **An untyped cheat lifts the curve cap for every permanent card** (ADR-0066).
+  Genesis Hydra, Emergent Woodwurm and Broodcaller Scourge cheat only up to a
+  bound, but `cheat_into_play|you|` carries none: its subject is the card type.
+  Bounding it would mean reading each emitter's trees, as the reanimation read
+  does. Self-paying cards were the other half of this entry; they are priced by
+  what the deck feeds them (Dan's decision, 2026-11-27).
 - **Settling up the budget the even share held back: v1 held, v2 landed** (2026-11-26).
   - *The cause.* TyranidSwarm_40K lost Cyclonic Rift as an add (traced
     2026-11-26). At Exocrine's board-wipe upgrade, three swaps from the end with
