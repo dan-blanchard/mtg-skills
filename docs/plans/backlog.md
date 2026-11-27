@@ -837,19 +837,17 @@ phase-rs issue.
     creature has vigilance" and Ram Through: "If the creature you control has
     trample" → no ``WithKeyword`` condition → one.
 
-**From the shared Scryfall client (2026-11-27, ADR-0068)**
-
-- **`scryfall-lookup "<name>"` asks Scryfall even when the local bulk exists**
-  (left on purpose by ADR-0068, 2026-11-27). Single-name mode never calls
-  `default_bulk_path()` (`rulings-lookup` does), so without `--bulk-data` every
-  name goes to `/cards/named`. The skills always pass `--bulk-data`. Making it
-  local-first changes the price source (the bulk's cheapest printing instead of
-  Scryfall's fuzzy match), so it is its own piece of work.
-
 **Discovery ranking:** see ADR-0043's terminal-state amendment for the unclaimed
 headroom and parked items.
 
 ## Settled: don't re-suggest
+
+- **`scryfall-lookup` reads the local card data first** (Dan, 2026-11-27). Without
+  `--bulk-data` both modes use the downloaded MTGJSON bulk when there is one and ask
+  Scryfall only for a name it lacks, as `rulings-lookup` does; `--online` asks Scryfall
+  for every name. A card's price is then the bulk's cheapest priced game printing
+  (ADR-0046), not the printing Scryfall's fuzzy match returns (Lightning Bolt $0.54
+  against $0.85, Cyclonic Rift $29.71 against $38.12 on 2026-11-27).
 
 - **One shared Scryfall client; Scryfall sees `mtg-utils/<version>`** (Dan,
   2026-11-27; ADR-0068). Every Scryfall site goes through

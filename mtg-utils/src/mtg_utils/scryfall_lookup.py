@@ -5,6 +5,12 @@ cache-miss fallback (ADR-0005 / ADR-0033).
 record shape every consumer reads (ADR-0046) — and only the single-card CLI mode prints
 a terminal-sized projection of it (``display_fields``). The Scryfall fetch is strictly
 the cache-miss path: a card newer than the last ``download-mtgjson``.
+
+The CLI reads the local bulk first in both modes: ``--bulk-data`` if given, else the
+downloaded MTGJSON bulk when there is one (``default_bulk_path``), as ``rulings-lookup``
+does. ``--online`` asks Scryfall for every name. A card's price is then the bulk's
+(the cheapest priced game printing, ADR-0046), not the printing Scryfall's fuzzy match
+returns.
 """
 
 import contextlib
@@ -19,6 +25,7 @@ from requests import RequestException
 from mtg_utils import _scryfall
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json
+from mtg_utils.bulk_loader import default_bulk_path
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_pool import CardPool
 
@@ -322,13 +329,29 @@ def build_digest(results: list[dict | None], names: list[str]) -> dict:
 @click.option("--batch", type=click.Path(exists=True, path_type=Path), default=None)
 @click.option("--bulk-data", type=click.Path(exists=True, path_type=Path), default=None)
 @click.option("--cache-dir", type=click.Path(path_type=Path), default=None)
+@click.option(
+    "--online",
+    is_flag=True,
+    help="Ask Scryfall for every name; don't read the local card data.",
+)
 def main(
     card_name: str | None,
     batch: Path | None,
     bulk_data: Path | None,
     cache_dir: Path | None,
+    *,
+    online: bool,
 ) -> None:
-    """Look up MTG card data from Scryfall."""
+    """Look up MTG card data: the local card data first, Scryfall on a miss.
+
+    Without ``--bulk-data`` the downloaded MTGJSON bulk is used when there is
+    one (``download-mtgjson``), as ``rulings-lookup`` does; a name it doesn't
+    hold is asked of Scryfall. ``--online`` skips the local data.
+    """
+    if online and bulk_data is not None:
+        raise click.UsageError("--online and --bulk-data are mutually exclusive.")
+    if bulk_data is None and not online:
+        bulk_data = default_bulk_path()
     if batch:
         results, cache_path, names = lookup_cards(
             batch, bulk_path=bulk_data, cache_dir=cache_dir

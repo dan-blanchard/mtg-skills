@@ -418,6 +418,83 @@ class TestBulkIndexCheapestPrinting:
         assert index["fire // ice"]["name"] == "Fire // Ice"
 
 
+_WIRE_CARD = {
+    "id": "wire-card-id",
+    "name": "Viscera Seer",
+    "oracle_text": "From the wire.",
+    "mana_cost": "{B}",
+    "cmc": 1.0,
+    "type_line": "Creature — Vampire Wizard",
+    "keywords": [],
+    "colors": ["B"],
+    "color_identity": ["B"],
+    "legalities": {"commander": "legal"},
+    "prices": {"usd": "9.99"},
+    "game_changer": False,
+}
+
+
+class TestCLILocalFirst:
+    """Without ``--bulk-data`` the CLI reads the downloaded bulk when there is one,
+    and asks Scryfall only for a name it doesn't hold (or under ``--online``)."""
+
+    @pytest.fixture
+    def bulk(self, monkeypatch, sample_bulk_data):
+        monkeypatch.setattr(
+            "mtg_utils.scryfall_lookup.default_bulk_path", lambda: sample_bulk_data
+        )
+        return sample_bulk_data
+
+    @pytest.fixture
+    def no_bulk(self, monkeypatch):
+        monkeypatch.setattr("mtg_utils.scryfall_lookup.default_bulk_path", lambda: None)
+
+    def test_a_single_name_is_read_from_the_downloaded_bulk(self, bulk, scryfall_wire):
+        result = CliRunner().invoke(main, ["Viscera Seer"])
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["name"] == "Viscera Seer"
+        assert scryfall_wire.urls() == []
+
+    def test_a_name_the_bulk_lacks_is_asked_of_scryfall(self, bulk, scryfall_wire):
+        scryfall_wire.route(
+            "/cards/named", {**_WIRE_CARD, "name": "Newly Printed Card"}
+        )
+        result = CliRunner().invoke(main, ["Newly Printed Card"])
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["name"] == "Newly Printed Card"
+        assert len(scryfall_wire.urls()) == 1
+
+    def test_online_skips_the_bulk(self, bulk, scryfall_wire):
+        scryfall_wire.route("/cards/named", _WIRE_CARD)
+        result = CliRunner().invoke(main, ["Viscera Seer", "--online"])
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["oracle_text"] == "From the wire."
+        assert len(scryfall_wire.urls()) == 1
+
+    def test_with_no_bulk_downloaded_scryfall_is_asked(self, no_bulk, scryfall_wire):
+        scryfall_wire.route("/cards/named", _WIRE_CARD)
+        result = CliRunner().invoke(main, ["Viscera Seer"])
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["oracle_text"] == "From the wire."
+
+    def test_a_batch_reads_the_downloaded_bulk_too(self, bulk, tmp_path, scryfall_wire):
+        names = tmp_path / "names.json"
+        names.write_text(json.dumps(["Viscera Seer", "Sol Ring"]))
+        result = CliRunner().invoke(
+            main, ["--batch", str(names), "--cache-dir", str(tmp_path / "cache")]
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["missing"] == []
+        assert scryfall_wire.urls() == []
+
+    def test_online_and_bulk_data_together_is_a_usage_error(self, sample_bulk_data):
+        result = CliRunner().invoke(
+            main, ["Viscera Seer", "--online", "--bulk-data", str(sample_bulk_data)]
+        )
+        assert result.exit_code == 2
+        assert "mutually exclusive" in result.output
+
+
 class TestCLI:
     def test_single_card_output(self, sample_bulk_data):
         runner = CliRunner()
