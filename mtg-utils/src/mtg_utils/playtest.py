@@ -88,6 +88,13 @@ def _timeout_option(budget: str) -> Callable:
 
 # ------------------------------------------------------------------ cube reads
 
+_WUBRG = "WUBRG"
+
+
+def _wubrg_rank(color: str) -> tuple[int, str]:
+    """A colour's place in WUBRG order (anything else after, by name)."""
+    return (_WUBRG.index(color) if color in _WUBRG else len(_WUBRG), color)
+
 
 def _load_cube(cube_path: str, hydrated_path: str) -> tuple[dict, NameIndex, list]:
     """The cube JSON, a name index over its hydrated records, and the cube's cards
@@ -706,7 +713,10 @@ def draft_main(
                 )
                 continue
 
-            ctr: dict[str, int] = dict.fromkeys(colors, 0)
+            # Count in WUBRG order, so a tie in colour counts breaks the same way in
+            # every process (a set's order follows the string hash, which
+            # PYTHONHASHSEED varies).
+            ctr: dict[str, int] = dict.fromkeys(sorted(colors, key=_wubrg_rank), 0)
             for card in pile:
                 for c in card.get("color_identity") or []:
                     ctr[c] = ctr.get(c, 0) + 1

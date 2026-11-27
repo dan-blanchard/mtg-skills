@@ -255,9 +255,7 @@ class TestFromCubeWithGroups:
 
 
 #: The full ``results`` of a seeded shared-library run over ``small_cube``, captured at
-#: b56f0295 (before the playtest refactor) and unchanged since. (The draft path has no
-#: such pin: with this kind of pool its colour-count ties break by set order, which
-#: ``PYTHONHASHSEED`` varies between processes; see docs/plans/backlog.md.)
+#: b56f0295 (before the playtest refactor) and unchanged since.
 _GOLDEN_CUSTOM = {
     0: {
         "per_archetype": {},

@@ -67,10 +67,14 @@ files written, the results, warnings, exit codes and stderr. Kept on purpose:
 `--bulk-data`, two seeds, the full `results`) and
 `test_playtest_custom_format.py::test_seeded_run_is_pinned`. Unit tests cover the
 helpers (`test_playtest_helpers.py`), and a hub-parity test checks that the panel's
-report equals `goldfish_envelope`'s. The draft has no golden pin: on a pool with
-colour-count ties, its top-two colours break the tie by set order, which
-`PYTHONHASHSEED` varies between processes. That is a backlog item, not part of this
-change.
+report equals `goldfish_envelope`'s.
+
+**A bug fix beside it.** `playtest-draft` was not reproducible across processes for
+a fixed `--seed`. A pile's colour counts were keyed off a set, so a tie broke by set
+order, and `PYTHONHASHSEED` changes that per process. Ties now break in WUBRG order,
+a separate commit from the refactor. A seed with no tie gives the same results as
+before; the real cube's two captured seeds are unchanged. A subprocess test runs
+the same draft under two hash seeds, and a golden test pins it.
 
 **What this stops re-suggesting.** Splitting `playtest.py` into one module per
 mode. A second goldfish result-builder: a new caller calls `goldfish_envelope`.
