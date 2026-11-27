@@ -837,13 +837,25 @@ phase-rs issue.
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 
-- Speculative: `playtest.py`'s mode functions; copies of the Scryfall client policy.
+- Speculative: `playtest.py`'s mode functions.
+
+- **`scryfall-lookup "<name>"` asks Scryfall even when the local bulk exists**
+  (left on purpose by ADR-0068, 2026-11-27). Single-name mode never calls
+  `default_bulk_path()` (`rulings-lookup` does), so without `--bulk-data` every
+  name goes to `/cards/named`. The skills always pass `--bulk-data`. Making it
+  local-first changes the price source (the bulk's cheapest printing instead of
+  Scryfall's fuzzy match), so it is its own piece of work.
 
 **Discovery ranking:** see ADR-0043's terminal-state amendment for the unclaimed
 headroom and parked items.
 
 ## Settled: don't re-suggest
 
+- **One shared Scryfall client; Scryfall sees `mtg-utils/<version>`** (Dan,
+  2026-11-27; ADR-0068). Every Scryfall site goes through
+  `_scryfall.ScryfallClient`, its caches unified under `<cache_root>/scryfall/`.
+  The identity is the package's metadata version, not `commander-utils/0.1.0`, and
+  not the art fetcher's identity, which stays for the ASCII-art sites.
 - **No plan-fit rule for job-page upgrades** (Dan, 2026-11-26). Asked whether the
   settle-up should refuse a popular job card with no tie to the deck's plan, Dan
   ruled it lands as built: the tuner's own need reads call Phyrexian Altar and Esper

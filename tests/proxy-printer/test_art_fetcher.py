@@ -347,6 +347,7 @@ def test_run_end_to_end_writes_attributed_files(
 
     fetcher = FakeFetcher(routes=routes)
     monkeypatch.setattr(art_fetcher, "HttpFetcher", lambda **_kw: fetcher)
+    monkeypatch.setattr(art_fetcher, "ScryfallClient", lambda *_a, **_kw: fetcher)
 
     cache = tmp_path / "cache"
     out = tmp_path / "out"
@@ -381,6 +382,7 @@ def test_run_records_missing_when_no_fit(
 
     fetcher = FakeFetcher(routes=routes)
     monkeypatch.setattr(art_fetcher, "HttpFetcher", lambda **_kw: fetcher)
+    monkeypatch.setattr(art_fetcher, "ScryfallClient", lambda *_a, **_kw: fetcher)
 
     written, _skipped, missing, missing_keys = run(
         cache_dir=tmp_path / "cache",
@@ -408,6 +410,7 @@ def test_run_skips_known_non_art_subtypes(
 
     fetcher = FakeFetcher(routes=routes)
     monkeypatch.setattr(art_fetcher, "HttpFetcher", lambda **_kw: fetcher)
+    monkeypatch.setattr(art_fetcher, "ScryfallClient", lambda *_a, **_kw: fetcher)
 
     written, skipped, _missing, _missing_keys = run(
         cache_dir=tmp_path / "cache",

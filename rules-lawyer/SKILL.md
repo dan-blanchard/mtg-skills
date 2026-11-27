@@ -229,5 +229,6 @@ call.
 - **Rules file:** Store under the calling skill's working directory
   (e.g., `<wd>/comprehensive-rules-20260417.txt`), NOT the skill
   install directory.
-- **Cache directory for rulings:** `$TMPDIR/scryfall-rulings/` is
-  used automatically; callers don't need to manage it.
+- **Cache directory for rulings:** `~/.cache/mtg-skills/scryfall/rulings/`
+  (or under `$MTG_SKILLS_CACHE_DIR`) is used automatically; callers don't
+  need to manage it.

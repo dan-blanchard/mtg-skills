@@ -51,7 +51,7 @@ internet), "provider" (overloaded with payment / oauth).
 The card symbols (`{W}`, `{T}`, `{2/U}`, …) one print run can draw as
 images. Built once per run from the symbols the run's cards actually
 use, by fetching Scryfall's symbol SVGs into
-`$MTG_SKILLS_CACHE_DIR/card-symbols/`. Layout measures text through
+`$MTG_SKILLS_CACHE_DIR/scryfall/card-symbols/`. Layout measures text through
 the set and emission draws through the same set, so a wrapped line is
 as wide on paper as it was measured. A symbol the set does not hold
 (offline, `--text-symbols`, an unknown code) stays as its `{CODE}`

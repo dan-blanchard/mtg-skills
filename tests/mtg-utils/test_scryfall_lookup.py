@@ -2,12 +2,12 @@
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import click
 import pytest
 from click.testing import CliRunner
 
+from mtg_utils import _scryfall
 from mtg_utils.card_pool import CardPool
 from mtg_utils.scryfall_lookup import (
     build_digest,
@@ -93,46 +93,38 @@ class TestLookupSingle:
         assert result is not None
         assert result["game_changer"] is True
 
-    def test_api_fallback_when_not_in_bulk(self, sample_bulk_data):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "id": "newly-printed-card-id",
-            "name": "Newly Printed Card",
-            "oracle_text": "Does something new.",
-            "mana_cost": "{2}{W}",
-            "cmc": 3.0,
-            "type_line": "Creature — Human",
-            "keywords": [],
-            "colors": ["W"],
-            "color_identity": ["W"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "1.00", "usd_foil": "3.00"},
-            "game_changer": False,
-        }
-        mock_resp.raise_for_status = MagicMock()
+    def test_api_fallback_when_not_in_bulk(self, sample_bulk_data, scryfall_wire):
+        scryfall_wire.route(
+            "/cards/named",
+            {
+                "id": "newly-printed-card-id",
+                "name": "Newly Printed Card",
+                "oracle_text": "Does something new.",
+                "mana_cost": "{2}{W}",
+                "cmc": 3.0,
+                "type_line": "Creature — Human",
+                "keywords": [],
+                "colors": ["W"],
+                "color_identity": ["W"],
+                "legalities": {"commander": "legal"},
+                "prices": {"usd": "1.00", "usd_foil": "3.00"},
+                "game_changer": False,
+            },
+        )
 
-        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
-            mock_session = MagicMock()
-            mock_session.get.return_value = mock_resp
-            mock_requests.Session.return_value = mock_session
-
-            result = lookup_single("Newly Printed Card", bulk_path=sample_bulk_data)
+        result = lookup_single("Newly Printed Card", bulk_path=sample_bulk_data)
 
         assert result is not None
         assert result["id"] == "newly-printed-card-id"
         assert result["name"] == "Newly Printed Card"
+        assert scryfall_wire.urls() == [
+            "https://api.scryfall.com/cards/named?fuzzy=Newly+Printed+Card"
+        ]
 
-    def test_returns_none_when_not_found(self, sample_bulk_data):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 404
+    def test_returns_none_when_not_found(self, sample_bulk_data, scryfall_wire):
+        scryfall_wire.route("/cards/named", (404, b'{"object": "error"}'))
 
-        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
-            mock_session = MagicMock()
-            mock_session.get.return_value = mock_resp
-            mock_requests.Session.return_value = mock_session
-
-            result = lookup_single("Totally Fake Card", bulk_path=sample_bulk_data)
+        result = lookup_single("Totally Fake Card", bulk_path=sample_bulk_data)
 
         assert result is None
 
@@ -214,6 +206,35 @@ class TestLookupBatch:
         # File is now valid JSON again
         json.loads(path2.read_text())
 
+    def test_a_batch_file_lives_a_day_and_expired_ones_are_pruned(
+        self, sample_bulk_data, tmp_path
+    ):
+        import os
+
+        from mtg_utils.scryfall_lookup import BATCH_CACHE_SECONDS
+
+        names_path = tmp_path / "names.json"
+        names_path.write_text(json.dumps(["Viscera Seer"]))
+        cache_dir = tmp_path / "cache"
+        _, path, _ = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
+        )
+        stale = cache_dir / "hydrated-0000000000000000.json"
+        stale.write_text("[]")
+        old = path.stat().st_mtime - BATCH_CACHE_SECONDS - 60
+        for p in (path, stale):
+            os.utime(p, (old, old))
+        path.write_text("[]")  # an expired file is not served...
+        os.utime(path, (old, old))
+
+        results, again, _ = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
+        )
+        assert again == path
+        assert results[0]["name"] == "Viscera Seer"  # ...it is rebuilt
+        assert path.stat().st_mtime > old
+        assert not stale.exists()  # and another expired file is pruned
+
     def test_empty_cache_dir_falls_back_to_default(self, sample_bulk_data, tmp_path):
         """An empty-string cache_dir is treated as unset, not as CWD."""
         names_path = tmp_path / "names.json"
@@ -228,50 +249,36 @@ class TestLookupBatch:
             bulk_path=sample_bulk_data,
             cache_dir=empty,
         )
-        assert "scryfall-cache" in str(path)
+        # The Scryfall cache's lookup/ dir (redirected under tests), never $TMPDIR.
+        assert path.parent == (_scryfall.cache_dir() / "lookup").resolve()
 
-    def test_includes_not_found_as_none(self, sample_bulk_data, tmp_path):
+    def test_includes_not_found_as_none(
+        self, sample_bulk_data, tmp_path, scryfall_wire
+    ):
         names_path = tmp_path / "names.json"
         names_path.write_text(json.dumps(["Viscera Seer", "Totally Fake Card"]))
+        scryfall_wire.route("/cards/named", (404, b"{}"))
 
-        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 404
-            mock_session = MagicMock()
-            mock_session.get.return_value = mock_resp
-            mock_requests.Session.return_value = mock_session
-
-            results, _, _ = lookup_cards(
-                names_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
-            )
+        results, _, _ = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
+        )
 
         found = [r for r in results if r is not None]
         assert len(found) == 1
 
     def test_a_scryfall_error_on_one_name_is_that_name_missing(
-        self, sample_bulk_data, tmp_path
+        self, sample_bulk_data, tmp_path, scryfall_wire
     ):
         # One 503 on the cache-miss path lands the name in ``missing`` instead of
         # aborting the batch, and the batch is not cached, so a rerun retries it.
-        import requests as real_requests
-
         names_path = tmp_path / "names.json"
         names_path.write_text(json.dumps(["Viscera Seer", "Brand New Card"]))
         cache_dir = tmp_path / "cache"
+        scryfall_wire.route("/cards/named", (503, b"Server Error"))
 
-        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 503
-            mock_resp.raise_for_status.side_effect = real_requests.HTTPError(
-                "503 Server Error"
-            )
-            mock_session = MagicMock()
-            mock_session.get.return_value = mock_resp
-            mock_requests.Session.return_value = mock_session
-
-            results, cache_path, names = lookup_cards(
-                names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
-            )
+        results, cache_path, names = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
+        )
 
         assert [r["name"] if r else None for r in results] == ["Viscera Seer", None]
         assert build_digest(results, names)["missing"] == ["Brand New Card"]
@@ -473,32 +480,28 @@ class TestCLI:
         sol_ring = next(c for c in cached if c["name"] == "Sol Ring")
         assert sol_ring["produced_mana"] == ["C"]
 
-    def test_batch_envelope_lists_missing_cards(self, sample_bulk_data, tmp_path):
+    def test_batch_envelope_lists_missing_cards(
+        self, sample_bulk_data, tmp_path, scryfall_wire
+    ):
         names_path = tmp_path / "names.json"
         names_path.write_text(
             json.dumps(["Viscera Seer", "Totally Fake Card", "Sol Ring"])
         )
         cache_dir = tmp_path / "cache"
+        scryfall_wire.route("/cards/named", (404, b"{}"))
 
-        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 404
-            mock_session = MagicMock()
-            mock_session.get.return_value = mock_resp
-            mock_requests.Session.return_value = mock_session
-
-            runner = CliRunner()
-            result = runner.invoke(
-                main,
-                [
-                    "--batch",
-                    str(names_path),
-                    "--bulk-data",
-                    str(sample_bulk_data),
-                    "--cache-dir",
-                    str(cache_dir),
-                ],
-            )
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "--batch",
+                str(names_path),
+                "--bulk-data",
+                str(sample_bulk_data),
+                "--cache-dir",
+                str(cache_dir),
+            ],
+        )
 
         assert result.exit_code == 0, result.output
         envelope = json.loads(result.output)

@@ -11,20 +11,25 @@ were byte-for-byte (or near-byte-for-byte) duplicated across those modules.
 
 What stays bespoke, deliberately: each consumer's own cache **layout** and
 **freshness window** where those genuinely differ from the 24h default here
-(``rulings_lookup``'s 30-day oracle_id-keyed cache; ``art_fetcher``'s 7-day
-window, threaded through :class:`HttpFetcher`'s ``max_age_seconds``;
-``download_mtgjson``'s gzip streaming decompress), and any source-specific
-identity (``art_fetcher``'s own ``USER_AGENT``, naming the ASCII-art crawler
-distinctly; ``_phase``'s ``mtg-skills/_phase``, naming the phase subsystem
-to GitHub) — a shared default doesn't mean every caller must use it.
+(``art_fetcher``'s 7-day window, threaded through :class:`HttpFetcher`'s
+``max_age_seconds``; ``download_mtgjson``'s gzip streaming decompress), and any
+source-specific identity (``art_fetcher``'s own ``USER_AGENT``, naming the
+ASCII-art crawler distinctly; ``_phase``'s ``mtg-skills/_phase``, naming the
+phase subsystem to GitHub) — a shared default doesn't mean every caller must use
+it. Scryfall is one configured :class:`HttpFetcher` for every site:
+``_scryfall.ScryfallClient`` (ADR-0068), paced per endpoint class by one
+process-wide :class:`RequestGap`.
 """
 
 from __future__ import annotations
 
+import email.utils
 import os
 import subprocess
+import threading
 import time
 import urllib.request
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Protocol
 
@@ -36,7 +41,7 @@ import requests
 def cache_root() -> Path:
     """The shared on-disk cache root: ``$MTG_SKILLS_CACHE_DIR`` when set (and
     non-empty), else :func:`default_cache_root`. Each consumer keeps its own
-    subdirectory under it (``untapped/``, ``card-images/``, ``phase/``, …). The one
+    subdirectory under it (``untapped/``, ``scryfall/``, ``phase/``, …). The one
     place this lookup lives; read the environment at call time, so a test's
     ``monkeypatch.setenv`` takes effect."""
     base = os.environ.get("MTG_SKILLS_CACHE_DIR")
@@ -54,10 +59,10 @@ def default_cache_root() -> Path:
 # --- User agent --------------------------------------------------------------
 
 # Shared default identity for HTTP clients that don't need a distinct one
-# (Scryfall, EDHREC, Commander Spellbook). Was duplicated verbatim as
-# "commander-utils/0.1.0" in scryfall_lookup.py, edhrec_lookup.py, and
+# (EDHREC, Commander Spellbook, CubeCobra's API, MTGJSON). Was duplicated verbatim
+# as "commander-utils/0.1.0" in scryfall_lookup.py, edhrec_lookup.py, and
 # combo_search.py, and as a near-duplicate ("mtg-skills/0.1.0") in
-# download_mtgjson.py.
+# download_mtgjson.py. Scryfall gets ``_scryfall.user_agent()`` instead (ADR-0068).
 USER_AGENT = "commander-utils/0.1.0"
 
 
@@ -198,6 +203,79 @@ class Fetcher(Protocol):
         ...
 
 
+class RequestGap:
+    """Minimum gaps between the starts of requests, per *lane*, shared by every
+    caller in the process that holds the same instance (``_scryfall.GAP``).
+
+    A request names the lanes it belongs to (a Scryfall card search belongs to both
+    ``search`` and ``api``) and waits until every one of them has had its gap since
+    that lane's last request began. Measured on a monotonic clock, so a wall-clock
+    change can't shrink it. ``clock`` and ``sleep`` are injectable for tests;
+    ``sleep`` left ``None`` is ``time.sleep`` looked up at call time. Thread-safe:
+    deck-forge's server serves requests from a thread pool, and the lock is held
+    through the sleep so two threads can't both take the same opening."""
+
+    def __init__(
+        self,
+        gaps: Mapping[str, float],
+        *,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] | None = None,
+    ) -> None:
+        self.gaps = dict(gaps)
+        self._clock = clock
+        self._sleep = sleep
+        self._last: dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def wait(self, lanes: Iterable[str]) -> None:
+        """Sleep until each of *lanes* has had its gap since its last request began,
+        then mark this request as begun in each."""
+        lanes = tuple(lanes)
+        with self._lock:
+            now = self._clock()
+            remaining = max(
+                (
+                    self.gaps[lane] - (now - self._last[lane])
+                    for lane in lanes
+                    if lane in self._last
+                ),
+                default=0.0,
+            )
+            if remaining > 0:
+                (self._sleep or time.sleep)(remaining)
+            begun = self._clock()
+            for lane in lanes:
+                self._last[lane] = begun
+
+
+# The longest ``Retry-After`` a fetcher honours; a server asking for longer gets this.
+MAX_RETRY_AFTER_SECONDS = 120.0
+
+
+def retry_after_seconds(resp: requests.Response) -> float | None:
+    """A response's ``Retry-After`` in seconds (delta-seconds or an HTTP date),
+    capped at :data:`MAX_RETRY_AFTER_SECONDS`; ``None`` when absent or unreadable."""
+    headers = getattr(resp, "headers", None)
+    value = headers.get("Retry-After") if isinstance(headers, Mapping) else None
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        seconds = float(value)
+    except ValueError:
+        try:
+            when = email.utils.parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            return None
+        seconds = when.timestamp() - time.time()
+    return min(max(seconds, 0.0), MAX_RETRY_AFTER_SECONDS)
+
+
+def linear_backoff(attempt: int, _resp: requests.Response | None) -> float:
+    """The default retry wait: 5 s, 10 s, … for a 429 or a connection error alike."""
+    return 5.0 * (attempt + 1)
+
+
 class HttpFetcher:
     """Production :class:`Fetcher`. Wraps a private ``requests.Session``."""
 
@@ -207,23 +285,49 @@ class HttpFetcher:
         *,
         user_agent: str = USER_AGENT,
         cookies: dict[str, dict[str, str]] | None = None,
-        max_age_seconds: int = DEFAULT_FRESHNESS_SECONDS,
+        max_age_seconds: float = DEFAULT_FRESHNESS_SECONDS,
+        headers: Mapping[str, str] | None = None,
+        timeout: float | tuple[float, float] = 30.0,
+        pace: Callable[[str], None] | None = None,
+        backoff: Callable[[int, requests.Response | None], float] = linear_backoff,
+        session: requests.Session | None = None,
+        sleep: Callable[[float], None] | None = None,
     ) -> None:
-        """``cache_dir`` is the on-disk cache root (auto-created).
+        """``cache_dir`` is the on-disk cache root (created on the first write).
         ``cookies`` maps domain → {name: value} for cookies that must
         be pre-set (e.g. asciiart.website's sort-order cookie).
         ``max_age_seconds`` is how long a cached ``fetch`` response is
         considered fresh before a re-fetch (default 7 days).
+        ``headers`` are sent on every request; ``timeout`` bounds each one (a
+        ``(connect, read)`` pair, as ``requests`` takes it, or one number).
+        ``pace(url)`` runs before every network attempt: a shared pacer's wait, or a
+        refusal (it may raise). ``backoff(attempt, response)`` is the wait before a
+        retry (``response`` is the 429's, or ``None`` after a connection error or
+        timeout). ``session`` and ``sleep`` (the backoff's; ``None`` is
+        ``time.sleep`` at call time) are injectable for tests.
         """
-        cache_dir.mkdir(parents=True, exist_ok=True)
         self._cache_dir = cache_dir
         self._max_age_seconds = max_age_seconds
-        self._session = requests.Session()
+        self._timeout = timeout
+        self._pace = pace
+        self._backoff = backoff
+        self._backoff_sleep = sleep
+        self._session = session if session is not None else requests.Session()
         self._session.headers["User-Agent"] = user_agent
+        if headers:
+            self._session.headers.update(headers)
         if cookies:
             for domain, by_name in cookies.items():
                 for name, value in by_name.items():
                     self._session.cookies.set(name, value, domain=domain)
+
+    @property
+    def cache_dir(self) -> Path:
+        return self._cache_dir
+
+    def close(self) -> None:
+        """Release the session's pooled connections."""
+        self._session.close()
 
     def fetch(
         self,
@@ -232,42 +336,48 @@ class HttpFetcher:
         *,
         throttle: float = 0.0,
         max_retries: int = 2,
+        max_age_seconds: float | None = None,
+        refresh: bool = False,
+        headers: Mapping[str, str] | None = None,
+        check: Callable[[bytes], object] | None = None,
     ) -> bytes:
+        """The :class:`Fetcher` read, plus: ``cache_key`` may name a file in a
+        subdirectory; ``max_age_seconds`` overrides the fetcher's freshness window
+        for this call; ``refresh`` skips the cached copy (and replaces it);
+        ``headers`` are added to this request only; ``check`` runs on a fetched
+        body before it is cached, and a body it raises on is never written."""
         path = self._cache_dir / cache_key
+        max_age = self._max_age_seconds if max_age_seconds is None else max_age_seconds
         if (
-            path.is_file()
-            and (time.time() - path.stat().st_mtime) < self._max_age_seconds
+            not refresh
+            and path.is_file()
+            and (time.time() - path.stat().st_mtime) < max_age
         ):
             return path.read_bytes()
-        for attempt in range(max_retries + 1):
-            if throttle > 0:
-                time.sleep(throttle)
-            try:
-                resp = self._session.get(url, timeout=30)
-            except (requests.ConnectionError, requests.Timeout):
-                if attempt < max_retries:
-                    time.sleep(5.0 * (attempt + 1))
-                    continue
-                raise
-            status = getattr(resp, "status_code", 200)
-            if status == 429 and attempt < max_retries:
-                time.sleep(5.0 * (attempt + 1))
-                continue
-            resp.raise_for_status()
-            tmp = path.with_name(path.name + ".tmp")
-            tmp.write_bytes(resp.content)
-            tmp.replace(path)
-            return resp.content
-        # Unreachable: the loop either returns or raises.
-        msg = "exhausted retries without raising or returning"
-        raise RuntimeError(msg)
-
-    def fetch_uncached(self, url: str, *, throttle: float = 0.0) -> bytes:
-        if throttle > 0:
-            time.sleep(throttle)
-        resp = self._session.get(url, timeout=30)
-        resp.raise_for_status()
+        resp = self._send(
+            "GET", url, throttle=throttle, max_retries=max_retries, headers=headers
+        )
+        if check is not None:
+            check(resp.content)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_bytes(resp.content)
+        tmp.replace(path)
         return resp.content
+
+    def fetch_uncached(
+        self,
+        url: str,
+        *,
+        throttle: float = 0.0,
+        max_retries: int = 0,
+        headers: Mapping[str, str] | None = None,
+    ) -> bytes:
+        """The :class:`Fetcher` uncached GET; retries like ``fetch`` when
+        ``max_retries`` is raised from its default of none."""
+        return self._send(
+            "GET", url, throttle=throttle, max_retries=max_retries, headers=headers
+        ).content
 
     def post_form(
         self,
@@ -277,21 +387,47 @@ class HttpFetcher:
         throttle: float = 0.0,
         max_retries: int = 2,
     ) -> bytes:
+        return self._send(
+            "POST", url, throttle=throttle, max_retries=max_retries, data=form_fields
+        ).content
+
+    def _send(
+        self,
+        method: str,
+        url: str,
+        *,
+        throttle: float,
+        max_retries: int,
+        headers: Mapping[str, str] | None = None,
+        data: dict[str, str] | None = None,
+    ) -> requests.Response:
+        """One request with the retry loop: a 429 or a connection / timeout error is
+        retried after ``backoff`` up to ``max_retries`` more times; the last failure
+        raises. Any other HTTP error raises at once (``raise_for_status``)."""
+        sleep = self._backoff_sleep or time.sleep
         for attempt in range(max_retries + 1):
             if throttle > 0:
                 time.sleep(throttle)
+            if self._pace is not None:
+                self._pace(url)
             try:
-                resp = self._session.post(url, data=form_fields, timeout=30)
+                if method == "POST":
+                    resp = self._session.post(url, data=data, timeout=self._timeout)
+                else:
+                    resp = self._session.get(
+                        url, headers=headers, timeout=self._timeout
+                    )
             except (requests.ConnectionError, requests.Timeout):
                 if attempt < max_retries:
-                    time.sleep(5.0 * (attempt + 1))
+                    sleep(self._backoff(attempt, None))
                     continue
                 raise
             status = getattr(resp, "status_code", 200)
             if status == 429 and attempt < max_retries:
-                time.sleep(5.0 * (attempt + 1))
+                sleep(self._backoff(attempt, resp))
                 continue
             resp.raise_for_status()
-            return resp.content
+            return resp
+        # Unreachable: the loop either returns or raises.
         msg = "exhausted retries without raising or returning"
         raise RuntimeError(msg)

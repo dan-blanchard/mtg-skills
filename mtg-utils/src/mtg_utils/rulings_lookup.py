@@ -11,10 +11,10 @@ to the Scryfall API's ``/cards/:id/rulings`` endpoint, unchanged from
 before this local-first rewire.
 
 Cache layout (fallback path only): one JSON file per ``oracle_id`` at
-``$TMPDIR/scryfall-rulings/<oracle_id>.json`` holding the raw Scryfall
-response, normalized (see below) the same as a local hit. ``oracle_id``
-is used (not ``id``) so rulings are shared across printings — rulings
-are attached to the Oracle card, not an individual printing.
+``<cache_root>/scryfall/rulings/<oracle_id>.json`` holding the raw Scryfall
+response, kept by the shared Scryfall client (``_scryfall``, ADR-0068).
+``oracle_id`` is used (not ``id``) so rulings are shared across printings —
+rulings are attached to the Oracle card, not an individual printing.
 
 Freshness: rulings rarely change once a card is released. The fallback
 cache is valid for 30 days, after which a re-fetch is triggered
@@ -32,26 +32,20 @@ an additive ``source`` field (``"mtgjson-bulk"`` or ``"scryfall-api"``).
 from __future__ import annotations
 
 import json
-import os
-import tempfile
-import time
 from pathlib import Path
 from typing import Any
 
 import click
-import requests
 
-from mtg_utils._http import USER_AGENT
+from mtg_utils import _scryfall
 from mtg_utils._mtgjson.rulings_index import RulingsIndex, load_rulings_index
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.bulk_loader import default_bulk_path
-from mtg_utils.scryfall_lookup import (
-    RATE_LIMIT_DELAY,
-    lookup_single,
-)
+from mtg_utils.scryfall_lookup import lookup_single
 
-SCRYFALL_RULINGS_URL = "https://api.scryfall.com/cards/{card_id}/rulings"
+#: The rulings cache's directory under the Scryfall cache (``_scryfall.cache_dir()``).
+CACHE_SUBDIR = "rulings"
 
 # 30 days — rulings are stable; the occasional errata-driven update is
 # rare enough that a monthly re-fetch is more than sufficient.
@@ -59,31 +53,29 @@ _CACHE_TTL_SECONDS = 30 * 86400
 
 
 def _cache_dir() -> Path:
-    base = os.environ.get("TMPDIR") or tempfile.gettempdir()
-    return Path(base) / "scryfall-rulings"
+    return _scryfall.cache_dir() / CACHE_SUBDIR
 
 
-def _cache_path(oracle_id: str) -> Path:
-    return _cache_dir() / f"{oracle_id}.json"
-
-
-def _cache_is_fresh(path: Path) -> bool:
-    if not path.exists():
-        return False
-    return (time.time() - path.stat().st_mtime) < _CACHE_TTL_SECONDS
+def _new_client() -> _scryfall.ScryfallClient:
+    return _scryfall.ScryfallClient()
 
 
 def _fetch_rulings(
     card_id: str,
-    session: requests.Session,
+    client: _scryfall.ScryfallClient,
+    *,
+    oracle_id: str,
+    refresh: bool = False,
 ) -> list[dict]:
-    """Hit Scryfall ``/cards/:id/rulings`` and return its ``data`` list."""
-    time.sleep(RATE_LIMIT_DELAY)
-    url = SCRYFALL_RULINGS_URL.format(card_id=card_id)
-    resp = session.get(url, timeout=15)
-    resp.raise_for_status()
-    body = resp.json()
-    data = body.get("data")
+    """Scryfall's ``/cards/:id/rulings`` ``data`` list, cached per *oracle_id* for
+    30 days (*refresh* re-fetches)."""
+    body = client.get_json(
+        f"/cards/{card_id}/rulings",
+        cache=_scryfall.Cache(
+            f"{CACHE_SUBDIR}/{oracle_id}.json", _CACHE_TTL_SECONDS, refresh
+        ),
+    )
+    data = body.get("data") if isinstance(body, dict) else None
     if not isinstance(data, list):
         return []
     return data
@@ -106,7 +98,7 @@ def lookup_rulings(
     bulk_index: NameIndex | None = None,
     rulings_index: RulingsIndex | None = None,
     refresh: bool = False,
-    session: requests.Session | None = None,
+    client: _scryfall.ScryfallClient | None = None,
 ) -> dict[str, Any]:
     """Return ``{name, oracle_id, rulings, source}`` for a single card.
 
@@ -152,20 +144,6 @@ def lookup_rulings(
             "source": "mtgjson-bulk",
         }
 
-    cache_path = _cache_path(oracle_id)
-    if not refresh and _cache_is_fresh(cache_path):
-        try:
-            cached = json.loads(cache_path.read_text(encoding="utf-8"))
-            if isinstance(cached, list):
-                return {
-                    "name": name,
-                    "oracle_id": oracle_id,
-                    "rulings": cached,
-                    "source": "scryfall-api",
-                }
-        except (OSError, json.JSONDecodeError):
-            pass  # fall through to refetch
-
     if not card_id:
         return {
             "name": name,
@@ -174,10 +152,11 @@ def lookup_rulings(
             "source": "scryfall-api",
         }
 
-    session = session or _new_session()
-    rulings = _fetch_rulings(card_id, session)
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_json(cache_path, rulings)
+    if client is None:
+        with _new_client() as own:
+            rulings = _fetch_rulings(card_id, own, oracle_id=oracle_id, refresh=refresh)
+    else:
+        rulings = _fetch_rulings(card_id, client, oracle_id=oracle_id, refresh=refresh)
     return {
         "name": name,
         "oracle_id": oracle_id,
@@ -192,7 +171,7 @@ def lookup_rulings_batch(
     bulk_path: Path | None = None,
     refresh: bool = False,
 ) -> list[dict]:
-    """Fetch rulings for a list of card names, reusing a single session.
+    """Fetch rulings for a list of card names, reusing a single client.
 
     Loads the bulk name index AND the local rulings sidecar exactly once
     and threads both through every per-card ``lookup_rulings`` call.
@@ -201,7 +180,6 @@ def lookup_rulings_batch(
     index alone, and the API fallback was hit once per LOCAL MISS at
     worst rather than once per card.
     """
-    session = _new_session()
     bulk_index: NameIndex | None = None
     rulings_index: RulingsIndex | None = None
     if bulk_path is not None:
@@ -211,22 +189,17 @@ def lookup_rulings_batch(
 
         bulk_index = CardPool.load(bulk_path).by_name
         rulings_index = load_rulings_index(bulk_path)
-    return [
-        lookup_rulings(
-            name,
-            bulk_index=bulk_index,
-            rulings_index=rulings_index,
-            refresh=refresh,
-            session=session,
-        )
-        for name in names
-    ]
-
-
-def _new_session() -> requests.Session:
-    session = requests.Session()
-    session.headers["User-Agent"] = USER_AGENT
-    return session
+    with _new_client() as client:
+        return [
+            lookup_rulings(
+                name,
+                bulk_index=bulk_index,
+                rulings_index=rulings_index,
+                refresh=refresh,
+                client=client,
+            )
+            for name in names
+        ]
 
 
 # ---------------------------------------------------------------------------

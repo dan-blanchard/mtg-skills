@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 
 import click
-import requests
 
-from mtg_utils._http import USER_AGENT
+from mtg_utils import scryfall_lookup
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import extract_price, finish_price
@@ -26,11 +24,7 @@ from mtg_utils.formats import (
 )
 from mtg_utils.names import normalize_card_name
 from mtg_utils.ownership import printing_index, special_requests
-from mtg_utils.scryfall_lookup import (
-    RATE_LIMIT_DELAY,
-    SCRYFALL_NAMED_URL,
-    lookup_single,
-)
+from mtg_utils.scryfall_lookup import lookup_single
 
 _extract_price = extract_price
 
@@ -139,19 +133,10 @@ def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
 
 
 def _api_price_lookup(name: str) -> float | None:
-    """Fall back to Scryfall API for price when bulk data has null."""
-    session = requests.Session()
-    session.headers["User-Agent"] = USER_AGENT
-    try:
-        time.sleep(RATE_LIMIT_DELAY)
-        resp = session.get(SCRYFALL_NAMED_URL, params={"fuzzy": name})
-        if resp.status_code == 404:
-            return None
-        resp.raise_for_status()
-        return extract_price(resp.json())
-    finally:
-        # Close so the per-card price fallback doesn't leak pooled sockets.
-        session.close()
+    """Fall back to Scryfall's record (``scryfall_lookup.fetch_card``) for a price
+    the bulk has as null; ``None`` when Scryfall doesn't know the card either."""
+    card = scryfall_lookup.fetch_card(name)
+    return extract_price(card) if card is not None else None
 
 
 def arena_wildcard_cost(

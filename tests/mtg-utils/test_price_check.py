@@ -1,7 +1,7 @@
 """Tests for price_check module."""
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
@@ -219,31 +219,35 @@ class TestCheckPrices:
         assert result["total_cost"] == 30.00
         assert result["cards"][0]["deck_quantity"] == 1
 
-    def test_api_fallback_for_null_prices(self):
+    def test_api_fallback_for_null_prices(self, scryfall_wire):
         bulk_card = {
             "name": "Priceless Card",
             "prices": {"usd": None, "usd_foil": None},
         }
-        api_resp = MagicMock()
-        api_resp.status_code = 200
-        api_resp.json.return_value = {
-            "name": "Priceless Card",
-            "prices": {"usd": "42.00", "usd_foil": "80.00"},
-        }
-        api_resp.raise_for_status = MagicMock()
+        scryfall_wire.route(
+            "/cards/named",
+            {
+                "name": "Priceless Card",
+                "prices": {"usd": "42.00", "usd_foil": "80.00"},
+            },
+        )
 
-        with (
-            patch("mtg_utils.price_check.lookup_single", return_value=bulk_card),
-            patch("mtg_utils.price_check.requests") as mock_requests,
-        ):
-            mock_session = MagicMock()
-            mock_session.get.return_value = api_resp
-            mock_requests.Session.return_value = mock_session
-
+        with patch("mtg_utils.price_check.lookup_single", return_value=bulk_card):
             result = check_prices(["Priceless Card"])
 
         assert result["cards"][0]["price_usd"] == 42.00
         assert result["total_cost"] == 42.00
+        # The same /cards/named read scryfall-lookup's cache-miss path makes.
+        assert scryfall_wire.urls() == [
+            "https://api.scryfall.com/cards/named?fuzzy=Priceless+Card"
+        ]
+
+    def test_api_fallback_for_a_card_scryfall_lacks_is_unpriced(self, scryfall_wire):
+        bulk_card = {"name": "Priceless Card", "prices": {"usd": None}}
+        scryfall_wire.route("/cards/named", (404, b"{}"))
+        with patch("mtg_utils.price_check.lookup_single", return_value=bulk_card):
+            result = check_prices(["Priceless Card"])
+        assert result["cards"][0]["price_usd"] is None
 
 
 class TestArenaWildcardMode:

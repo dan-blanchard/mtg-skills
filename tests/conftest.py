@@ -158,6 +158,115 @@ def _no_user_arena_meta(monkeypatch, tmp_path_factory):
     )
 
 
+@pytest.fixture(autouse=True)
+def _scryfall_isolated(monkeypatch, tmp_path_factory):
+    """The shared Scryfall client (``_scryfall``, ADR-0068) never waits out its
+    gaps or retry backoff in a test, starts every test with its "unavailable" latch clear (a test
+    that trips it can't fail the next), and never caches into the user's cache:
+    unless the test points ``MTG_SKILLS_CACHE_DIR`` at its own dir,
+    ``_scryfall.cache_dir()`` is a fresh empty dir of the test's own (rulings,
+    symbols, card images, catalogs and the lookup batch files all live under it)."""
+    from mtg_utils import _http, _scryfall
+
+    monkeypatch.setattr(
+        _scryfall, "GAP", _http.RequestGap(_scryfall.GAPS, sleep=lambda _s: None)
+    )
+    monkeypatch.setattr(_scryfall, "_unavailable", [])
+    monkeypatch.setattr(_scryfall, "_backoff_sleep", lambda _s: None)
+    real = _scryfall.cache_dir
+    own: dict[str, object] = {}
+
+    def resolve():
+        if (os.environ.get("MTG_SKILLS_CACHE_DIR") or None) != _OUTER_CACHE_DIR:
+            return real()  # the test chose its own cache dir
+        if "root" not in own:
+            own["root"] = tmp_path_factory.mktemp("scryfall")
+        return own["root"]
+
+    monkeypatch.setattr(_scryfall, "cache_dir", resolve)
+
+
+class ScryfallWire:
+    """Stands in for Scryfall below a real ``requests.Session``: every request a
+    ``ScryfallClient`` sends in the test lands here (headers, URL and timeout as
+    sent) and is answered from ``routes``. An unrouted request fails the test."""
+
+    def __init__(self) -> None:
+        import requests
+
+        self.sent: list = []  # requests.PreparedRequest, in order
+        self.timeouts: list = []
+        self.routes: dict[str, list] = {}
+        self._requests = requests
+
+    def route(self, fragment: str, *answers) -> None:
+        """Answer requests whose URL contains *fragment* with *answers* in turn (the
+        last repeats). An answer is a ``(status, body)`` or ``(status, body,
+        headers)`` tuple, a dict / list (200 JSON), bytes (200), or an exception
+        to raise."""
+        self.routes[fragment] = list(answers)
+
+    def urls(self) -> list[str]:
+        return [r.url for r in self.sent]
+
+    def session(self):
+        requests = self._requests
+        wire = self
+
+        class _Adapter(requests.adapters.BaseAdapter):
+            def send(self, request, timeout=None, **_kwargs):
+                wire.sent.append(request)
+                wire.timeouts.append(timeout)
+                return wire._answer(request)
+
+            def close(self):
+                pass
+
+        session = requests.Session()
+        session.mount("https://", _Adapter())
+        session.mount("http://", _Adapter())
+        return session
+
+    def _answer(self, request):
+        import json as _json
+
+        from requests.structures import CaseInsensitiveDict
+
+        for fragment, answers in self.routes.items():
+            if fragment not in request.url:
+                continue
+            answer = answers.pop(0) if len(answers) > 1 else answers[0]
+            if isinstance(answer, BaseException):
+                raise answer
+            if isinstance(answer, (dict, list)):
+                answer = (200, _json.dumps(answer).encode())
+            elif isinstance(answer, bytes):
+                answer = (200, answer)
+            status, body, *rest = answer
+            resp = self._requests.Response()
+            resp.status_code = status
+            resp._content = body if isinstance(body, bytes) else body.encode()
+            resp.headers = CaseInsensitiveDict(rest[0] if rest else {})
+            resp.url = request.url
+            resp.request = request
+            resp.encoding = "utf-8"
+            return resp
+        msg = f"unrouted Scryfall request in a test: {request.url}"
+        raise AssertionError(msg)
+
+
+@pytest.fixture
+def scryfall_wire(monkeypatch) -> ScryfallWire:
+    """Every ``ScryfallClient`` the test builds sends through a :class:`ScryfallWire`
+    (``_scryfall._new_session``), so the client's own headers, pacing, retries and
+    cache run for real with no network."""
+    from mtg_utils import _scryfall
+
+    wire = ScryfallWire()
+    monkeypatch.setattr(_scryfall, "_new_session", wire.session)
+    return wire
+
+
 @pytest.fixture
 def meta_tiebreak_pair() -> tuple[dict, dict]:
     """``(staple, rogue)``: two synthetic candidates (machinery only, ADR-0056) with

@@ -40,6 +40,8 @@ import click
 import requests
 
 from mtg_utils._http import Fetcher, HttpFetcher
+from mtg_utils._scryfall import API_ROOT as SCRYFALL_BASE
+from mtg_utils._scryfall import ScryfallClient
 from mtg_utils.deck import slug
 from mtg_utils.proxy_print import attributed_art_dir
 
@@ -49,9 +51,10 @@ if TYPE_CHECKING:
 
 # --- Endpoints -------------------------------------------------------------
 
-SCRYFALL_BASE = "https://api.scryfall.com"
 ASCIIART_BASE = "https://www.asciiart.eu"
 WEBSITE_BASE = "https://asciiart.website"
+# The ASCII-art crawler's identity, for asciiart.eu / asciiart.website only: the
+# Scryfall catalogs go through the shared Scryfall client and its identity.
 USER_AGENT = "mtg-utils/art-fetcher"
 
 SCRYFALL_CATALOGS: tuple[str, ...] = (
@@ -879,12 +882,20 @@ SKIP_SUBTYPES: frozenset[str] = frozenset(
 # --- Pool builders ---------------------------------------------------------
 
 
-def fetch_subtypes(fetcher: Fetcher) -> list[str]:
-    """Return every MTG subtype slug, lowercased, deduped, sorted."""
+#: Scryfall's catalogs change only with a new set; a week's cache is plenty.
+CATALOG_CACHE_SECONDS = 7 * 86400
+
+
+def fetch_subtypes(fetcher: Fetcher | None = None) -> list[str]:
+    """Return every MTG subtype slug, lowercased, deduped, sorted. The catalogs come
+    through *fetcher*, by default the shared Scryfall client (its identity and its
+    gap between requests), cached a week under ``<cache>/scryfall/catalog/``."""
+    if fetcher is None:
+        fetcher = ScryfallClient("catalog", max_age_seconds=CATALOG_CACHE_SECONDS)
     seen: set[str] = set()
     for catalog in SCRYFALL_CATALOGS:
         url = f"{SCRYFALL_BASE}/catalog/{catalog}"
-        raw = fetcher.fetch(url, f"scryfall-{catalog}.json")
+        raw = fetcher.fetch(url, f"{catalog}.json")
         data = json.loads(raw.decode("utf-8"))
         for name in data.get("data", []):
             seen.add(slug(name))
@@ -1338,7 +1349,7 @@ def run(
     )
 
     log("Fetching Scryfall subtype catalogs...")
-    subtypes = fetch_subtypes(fetcher)
+    subtypes = fetch_subtypes()
     if limit is not None:
         subtypes = subtypes[:limit]
     log(f"  {len(subtypes)} subtype slugs")

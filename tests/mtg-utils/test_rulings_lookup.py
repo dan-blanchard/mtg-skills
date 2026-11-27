@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+import requests
 from click.testing import CliRunner
 
+from mtg_utils import _scryfall
 from mtg_utils.rulings_lookup import (
     _cache_dir,
     lookup_rulings,
@@ -29,107 +31,94 @@ _FAKE_RULINGS = [
 ]
 
 
+_RULINGS_URL = "https://api.scryfall.com/cards/card-test-relic/rulings"
+
+
 @pytest.fixture(autouse=True)
 def _isolated_rulings_cache(tmp_path, monkeypatch):
-    """Redirect ``$TMPDIR`` so rulings cache files land in a per-test dir."""
-    monkeypatch.setenv("TMPDIR", str(tmp_path))
-    # Ensure the module picks up the redirect (``_cache_dir`` reads the
-    # env var on every call, so no manual reset needed).
-    assert _cache_dir().parent == tmp_path
+    """Point the cache root at a per-test dir: the rulings cache lives under it."""
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+    assert _cache_dir() == tmp_path / "scryfall" / "rulings"
 
 
-def _mock_session() -> MagicMock:
-    resp = MagicMock()
-    resp.raise_for_status = MagicMock()
-    resp.json.return_value = {"data": _FAKE_RULINGS}
-    session = MagicMock()
-    session.get.return_value = resp
-    return session
+@pytest.fixture
+def wire(scryfall_wire):
+    """Scryfall answering every rulings request with ``_FAKE_RULINGS``."""
+    scryfall_wire.route("/rulings", {"object": "list", "data": _FAKE_RULINGS})
+    return scryfall_wire
 
 
 class TestLookupRulings:
-    def test_returns_card_rulings(self, tmp_path):
-        session = _mock_session()
+    def test_returns_card_rulings(self, wire):
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
-            result = lookup_rulings(
-                "Test Relic",
-                session=session,
-                refresh=True,
-            )
+            result = lookup_rulings("Test Relic", refresh=True)
         assert result["name"] == "Test Relic"
         assert result["oracle_id"] == "oid-test-relic"
         assert len(result["rulings"]) == 2
-        session.get.assert_called_once_with(
-            "https://api.scryfall.com/cards/card-test-relic/rulings",
-            timeout=15,
-        )
+        assert wire.urls() == [_RULINGS_URL]
+        assert wire.timeouts == [_scryfall.TIMEOUT_SECONDS]
 
-    def test_rulings_lookup_uses_card_id_not_oracle_id(self, tmp_path):
+    def test_rulings_lookup_uses_card_id_not_oracle_id(self, wire):
         card = {
             "id": "card-uuid",
             "oracle_id": "oracle-uuid",
             "name": "Test Walker",
         }
-        session = _mock_session()
-
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=card):
-            lookup_rulings(
-                "Test Walker",
-                session=session,
-                refresh=True,
-            )
+            lookup_rulings("Test Walker", refresh=True)
 
-        session.get.assert_called_once_with(
-            "https://api.scryfall.com/cards/card-uuid/rulings",
-            timeout=15,
-        )
+        assert wire.urls() == ["https://api.scryfall.com/cards/card-uuid/rulings"]
         assert (_cache_dir() / "oracle-uuid.json").exists()
 
-    def test_cached_result_reused(self, tmp_path):
+    def test_cached_result_reused(self, wire):
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
-            s1 = _mock_session()
-            lookup_rulings("Test Relic", session=s1, refresh=True)
-            # Second call should NOT hit the network (we pass a session
-            # that would blow up if .get were called).
-            s2 = MagicMock()
-            s2.get.side_effect = AssertionError("cache should serve this call")
-            result = lookup_rulings("Test Relic", session=s2, refresh=False)
+            lookup_rulings("Test Relic", refresh=True)
+            # Second call should NOT hit the network.
+            result = lookup_rulings("Test Relic", refresh=False)
         assert len(result["rulings"]) == 2
+        assert wire.urls() == [_RULINGS_URL]
 
-    def test_refresh_flag_bypasses_cache(self, tmp_path):
+    def test_cache_expires_after_thirty_days(self, wire):
+        import os
+        import time
+
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
-            lookup_rulings("Test Relic", session=_mock_session(), refresh=True)
-            s = _mock_session()
-            lookup_rulings("Test Relic", session=s, refresh=True)
+            lookup_rulings("Test Relic")
+            cached = _cache_dir() / "oid-test-relic.json"
+            old = time.time() - 31 * 86400
+            os.utime(cached, (old, old))
+            lookup_rulings("Test Relic")
+        assert wire.urls() == [_RULINGS_URL, _RULINGS_URL]
+
+    def test_refresh_flag_bypasses_cache(self, wire):
+        with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
+            lookup_rulings("Test Relic", refresh=True)
+            lookup_rulings("Test Relic", refresh=True)
         # Two calls to Scryfall: one to seed the cache, one because
         # --refresh was set.
-        assert s.get.call_count == 1
+        assert wire.urls() == [_RULINGS_URL, _RULINGS_URL]
 
-    def test_missing_card_returns_empty_oracle_id(self):
+    def test_missing_card_returns_empty_oracle_id(self, wire):
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=None):
-            result = lookup_rulings("Nonexistent", session=_mock_session())
+            result = lookup_rulings("Nonexistent")
         assert result["oracle_id"] is None
         assert result["rulings"] == []
+        assert wire.urls() == []
 
-    def test_card_without_oracle_id(self):
+    def test_card_without_oracle_id(self, wire):
         token = {"name": "Token", "oracle_id": None, "legalities": {}}
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=token):
-            result = lookup_rulings("Token", session=_mock_session())
+            result = lookup_rulings("Token")
         assert result["oracle_id"] is None
         assert result["rulings"] == []
 
-    def test_batch_returns_list(self, tmp_path):
-        with (
-            patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD),
-            patch(
-                "mtg_utils.rulings_lookup._new_session",
-                return_value=_mock_session(),
-            ),
-        ):
+    def test_batch_returns_list(self, wire):
+        with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
             results = lookup_rulings_batch(["Test Relic", "Test Relic"])
         assert len(results) == 2
+        assert wire.urls() == [_RULINGS_URL]  # the second is a cache hit
 
-    def test_local_hit_never_calls_http(self, tmp_path):
+    def test_local_hit_never_calls_http(self, scryfall_wire):
         """Task #89: a rulings-index hit must serve locally — zero network."""
         rulings_index = {
             "oid-test-relic": (
@@ -137,81 +126,66 @@ class TestLookupRulings:
                 {"date": "2022-06-01", "text": "Still legal."},
             )
         }
-        session = MagicMock()
-        session.get.side_effect = AssertionError("local hit must not call HTTP")
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
-            result = lookup_rulings(
-                "Test Relic",
-                rulings_index=rulings_index,
-                session=session,
-            )
+            result = lookup_rulings("Test Relic", rulings_index=rulings_index)
         assert result["oracle_id"] == "oid-test-relic"
         assert result["source"] == "mtgjson-bulk"
         assert result["rulings"] == [
             {"published_at": "2020-01-01", "comment": "Taps for 2."},
             {"published_at": "2022-06-01", "comment": "Still legal."},
         ]
-        session.get.assert_not_called()
+        assert scryfall_wire.urls() == []
 
-    def test_local_miss_falls_back_to_api(self, tmp_path):
+    def test_local_miss_falls_back_to_api(self, wire):
         """A rulings-index that lacks the resolved oracle_id must fall
         back to the (unchanged, PR #21 id-threaded) Scryfall API path."""
         rulings_index: dict = {"some-other-oid": ({"date": "x", "text": "y"},)}
-        session = _mock_session()
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
             result = lookup_rulings(
-                "Test Relic",
-                rulings_index=rulings_index,
-                session=session,
-                refresh=True,
+                "Test Relic", rulings_index=rulings_index, refresh=True
             )
         assert result["source"] == "scryfall-api"
         assert len(result["rulings"]) == 2
-        session.get.assert_called_once_with(
-            "https://api.scryfall.com/cards/card-test-relic/rulings",
-            timeout=15,
-        )
+        assert wire.urls() == [_RULINGS_URL]
 
-    def test_no_rulings_index_falls_back_to_api(self, tmp_path):
+    def test_no_rulings_index_falls_back_to_api(self, wire):
         """No bulk configured at all (``rulings_index=None``,
         ``bulk_path=None``) preserves the pre-#89 API-only behavior."""
-        session = _mock_session()
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
-            result = lookup_rulings("Test Relic", session=session, refresh=True)
+            result = lookup_rulings("Test Relic", refresh=True)
         assert result["source"] == "scryfall-api"
-        session.get.assert_called_once_with(
-            "https://api.scryfall.com/cards/card-test-relic/rulings",
-            timeout=15,
-        )
+        assert wire.urls() == [_RULINGS_URL]
 
-    def test_local_and_api_output_schema_equivalence(self):
+    def test_a_scryfall_error_raises(self, scryfall_wire):
+        # Error handling is the caller's, as before the shared client: a 500 raises.
+        scryfall_wire.route("/rulings", (500, b"oops"))
+        with (
+            patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD),
+            pytest.raises(requests.HTTPError),
+        ):
+            lookup_rulings("Test Relic")
+
+    def test_local_and_api_output_schema_equivalence(self, scryfall_wire):
         """A local-served entry and an API-served entry for the same
         underlying rulings must be byte-identical in shape — the CLI
         text report and JSON sidecar don't special-case the source."""
         rulings_index = {
             "oid-test-relic": ({"date": "2020-01-01", "text": "Taps for 2."},)
         }
+        scryfall_wire.route(
+            "/rulings",
+            {"data": [{"published_at": "2020-01-01", "comment": "Taps for 2."}]},
+        )
         with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
-            local = lookup_rulings(
-                "Test Relic",
-                rulings_index=rulings_index,
-                session=MagicMock(),
-            )
-            api_session = MagicMock()
-            resp = MagicMock()
-            resp.raise_for_status = MagicMock()
-            resp.json.return_value = {
-                "data": [{"published_at": "2020-01-01", "comment": "Taps for 2."}]
-            }
-            api_session.get.return_value = resp
-            api = lookup_rulings("Test Relic", session=api_session, refresh=True)
+            local = lookup_rulings("Test Relic", rulings_index=rulings_index)
+            api = lookup_rulings("Test Relic", refresh=True)
 
         assert local["rulings"] == api["rulings"]
         assert set(local.keys()) == set(api.keys())
         assert local["source"] == "mtgjson-bulk"
         assert api["source"] == "scryfall-api"
 
-    def test_batch_hits_api_only_for_local_misses(self, tmp_path):
+    def test_batch_hits_api_only_for_local_misses(self, tmp_path, wire):
         """Batch mode (#89 item 3): the rulings index loads once and the
         API is only hit for cards that miss it locally."""
         bulk_path = tmp_path / "AllPrintings.json"
@@ -246,10 +220,6 @@ class TestLookupRulings:
                 "mtg_utils.rulings_lookup.load_rulings_index",
                 return_value=rulings_index,
             ),
-            patch(
-                "mtg_utils.rulings_lookup._new_session",
-                return_value=_mock_session(),
-            ),
         ):
             results = lookup_rulings_batch(
                 ["Test Relic", "Local Card"],
@@ -263,7 +233,7 @@ class TestLookupRulings:
             {"published_at": "2015-01-01", "comment": "Local ruling."}
         ]
 
-    def test_batch_loads_bulk_index_once(self, tmp_path):
+    def test_batch_loads_bulk_index_once(self, tmp_path, wire):
         """Pins the I-1 perf fix: the bulk pickle sidecar is loaded
         exactly once per batch invocation, not once per card.
         Regressing this would make 100-card batches pay ~30s of
@@ -280,10 +250,6 @@ class TestLookupRulings:
 
         with (
             patch("mtg_utils.card_pool.CardPool.load", _fake_load),
-            patch(
-                "mtg_utils.rulings_lookup._new_session",
-                return_value=_mock_session(),
-            ),
         ):
             results = lookup_rulings_batch(
                 ["Test Relic"] * 10,
@@ -306,13 +272,9 @@ class TestCLI:
         # the local-first path has its own fixture-backed tests above.
         monkeypatch.setattr("mtg_utils.rulings_lookup.default_bulk_path", lambda: None)
 
-    def test_cli_single_card(self, tmp_path):
+    def test_cli_single_card(self, tmp_path, wire):
         with (
             patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD),
-            patch(
-                "mtg_utils.rulings_lookup._new_session",
-                return_value=_mock_session(),
-            ),
         ):
             runner = CliRunner()
             result = runner.invoke(main, ["--card", "Test Relic"])
@@ -320,23 +282,19 @@ class TestCLI:
         assert "Test Relic" in result.output
         assert "Full JSON:" in result.output
 
-    def test_cli_batch_file(self, tmp_path):
+    def test_cli_batch_file(self, tmp_path, wire):
         names_path = tmp_path / "names.json"
         names_path.write_text(json.dumps(["Test Relic", "Test Relic"]))
 
         with (
             patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD),
-            patch(
-                "mtg_utils.rulings_lookup._new_session",
-                return_value=_mock_session(),
-            ),
         ):
             runner = CliRunner()
             result = runner.invoke(main, ["--batch", str(names_path)])
         assert result.exit_code == 0, result.output
         assert "2 card(s)" in result.output
 
-    def test_cli_batch_deck_json(self, tmp_path):
+    def test_cli_batch_deck_json(self, tmp_path, wire):
         deck_path = tmp_path / "deck.json"
         deck_path.write_text(
             json.dumps(
@@ -348,10 +306,6 @@ class TestCLI:
         )
         with (
             patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD),
-            patch(
-                "mtg_utils.rulings_lookup._new_session",
-                return_value=_mock_session(),
-            ),
         ):
             runner = CliRunner()
             result = runner.invoke(main, ["--batch", str(deck_path)])

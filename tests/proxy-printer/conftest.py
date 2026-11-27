@@ -9,7 +9,7 @@ from mtg_utils import card_symbols
 
 
 class _OfflineFetcher:
-    """Stands in for ``HttpFetcher``: every fetch fails like a dead network."""
+    """Stands in for ``ScryfallClient``: every fetch fails like a dead network."""
 
     def __init__(self, *_args, **_kwargs) -> None:
         pass
@@ -20,7 +20,7 @@ class _OfflineFetcher:
 
 @pytest.fixture(autouse=True)
 def offline_card_symbols(monkeypatch):
-    """``SymbolSet.load`` with no fetcher builds an ``HttpFetcher`` on the real
-    cache; replace it so a CLI test prints symbols as text instead of fetching
-    (or reading the developer's cached images)."""
-    monkeypatch.setattr(card_symbols, "HttpFetcher", _OfflineFetcher)
+    """``SymbolSet.load`` with no fetcher builds a ``ScryfallClient``; replace it so
+    a CLI test prints symbols as text instead of fetching (or reading cached
+    images)."""
+    monkeypatch.setattr(card_symbols, "ScryfallClient", _OfflineFetcher)

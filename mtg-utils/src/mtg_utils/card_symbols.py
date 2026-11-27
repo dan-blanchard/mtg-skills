@@ -1,11 +1,12 @@
 """Card symbols ({W}, {T}, {2/U}, …) drawn as Scryfall's symbol images.
 
 Scryfall publishes one SVG per symbol at ``svgs.scryfall.io/card-symbols/``.
-:class:`SymbolSet` fetches the ones a print run needs into
-``<cache>/card-symbols/``, parses each into filled outlines, and draws them on a
-reportlab canvas. Text that mixes words and symbols is measured and drawn through
-the set (:meth:`SymbolSet.measure`, :meth:`SymbolSet.draw_text`), so the wrap a
-layout computes and the line the canvas draws agree.
+:class:`SymbolSet` fetches the ones a print run needs through the shared Scryfall
+client (``_scryfall``) into ``<cache>/scryfall/card-symbols/``, parses each into
+filled outlines, and draws them on a reportlab canvas. Text that mixes words and
+symbols is measured and drawn through the set (:meth:`SymbolSet.measure`,
+:meth:`SymbolSet.draw_text`), so the wrap a layout computes and the line the canvas
+draws agree.
 
 A symbol the set does not hold (offline, an unknown code, an SVG feature the
 parser does not read) is measured and drawn as its ``{CODE}`` text, so a missing
@@ -30,10 +31,13 @@ from xml.etree import ElementTree as ET
 
 import requests
 
-from mtg_utils._http import Fetcher, HttpFetcher, cache_root
+from mtg_utils import _scryfall
+from mtg_utils._scryfall import ScryfallClient
 
 if TYPE_CHECKING:
     from reportlab.pdfgen.canvas import Canvas
+
+    from mtg_utils._http import Fetcher
 
 SYMBOL_URL = "https://svgs.scryfall.io/card-symbols/{name}.svg"
 
@@ -84,9 +88,13 @@ class Symbol:
     shapes: tuple[Shape, ...]
 
 
+#: The symbol cache's directory under the Scryfall cache.
+SYMBOLS_SUBDIR = "card-symbols"
+
+
 def symbols_dir() -> Path:
     """Where fetched symbol SVGs are cached."""
-    return cache_root() / "card-symbols"
+    return _scryfall.cache_dir() / SYMBOLS_SUBDIR
 
 
 def symbol_file_name(code: str) -> str:
@@ -445,16 +453,14 @@ class SymbolSet:
         fetching (so an offline run warns once and prints ``{CODE}`` text).
         """
         if fetcher is None:
-            fetcher = HttpFetcher(symbols_dir(), max_age_seconds=_CACHE_SECONDS)
+            fetcher = ScryfallClient(SYMBOLS_SUBDIR, max_age_seconds=_CACHE_SECONDS)
         symbols: dict[str, Symbol] = {}
         for code in sorted(set(codes)):
             name = symbol_file_name(code)
             if not re.fullmatch(r"[A-Z0-9]+", name):
                 continue
             try:
-                raw = fetcher.fetch(
-                    SYMBOL_URL.format(name=name), f"{name}.svg", throttle=0.05
-                )
+                raw = fetcher.fetch(SYMBOL_URL.format(name=name), f"{name}.svg")
             except requests.HTTPError:
                 _warn(f"no symbol image for {code}; printing it as text")
                 continue

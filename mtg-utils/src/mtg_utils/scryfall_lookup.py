@@ -10,16 +10,13 @@ the cache-miss path: a card newer than the last ``download-mtgjson``.
 import contextlib
 import hashlib
 import json
-import os
-import tempfile
 import time
 from pathlib import Path
 
 import click
-import requests
 from requests import RequestException
 
-from mtg_utils._http import USER_AGENT
+from mtg_utils import _scryfall
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.card_classify import get_oracle_text
@@ -34,8 +31,10 @@ __all__ = [
     "lookup_single",
 ]
 
-SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
-RATE_LIMIT_DELAY = 0.1
+#: How long a ``--batch`` result file is reused: the bulk's own 24 h freshness
+#: (``download-mtgjson``), since a name the bulk lacked was fetched from Scryfall
+#: and its prices age like the bulk's. Expired files are pruned on each write.
+BATCH_CACHE_SECONDS = 24 * 3600
 
 # The fields a terminal read of one card wants (``scryfall-lookup <name>`` and
 # ``card-search --json``): a DISPLAY projection, never the hydration shape — hydration
@@ -81,21 +80,10 @@ def display_fields(card: dict) -> dict:
 def fetch_card(name: str) -> dict | None:
     """Scryfall's per-card endpoint (fuzzy name): the cache-miss path for a card the
     bulk doesn't carry yet. The raw record (Scryfall's shape, which the MTGJSON adapter
-    mirrors), or ``None`` on a 404."""
-    session = requests.Session()
-    session.headers["User-Agent"] = USER_AGENT
-    try:
-        time.sleep(RATE_LIMIT_DELAY)
-        resp = session.get(SCRYFALL_NAMED_URL, params={"fuzzy": name})
-
-        if resp.status_code == 404:
-            return None
-
-        resp.raise_for_status()
-        return resp.json()
-    finally:
-        # Close so a batch lookup (one call per name) doesn't leak pooled sockets.
-        session.close()
+    mirrors), or ``None`` on a 404; any other failure raises. A name tests and
+    ``HydratedDeck.acquire`` patch or import, over the shared
+    ``_scryfall.fetch_named``."""
+    return _scryfall.fetch_named(name)
 
 
 def lookup_single(
@@ -130,13 +118,18 @@ def _extract_names(data: list | dict) -> list[str]:
 
 
 def _default_cache_dir() -> Path:
-    """Return the default cache directory for hydrated card data.
+    """The default directory for ``--batch`` result files: ``lookup/`` under the
+    Scryfall cache (``_scryfall.cache_dir()``). ``--cache-dir`` overrides it."""
+    return _scryfall.cache_dir() / "lookup"
 
-    Uses ``$TMPDIR/scryfall-cache`` (falls back to the platform temp dir via
-    ``tempfile.gettempdir()``). Agents and tests can override via
-    ``--cache-dir``.
-    """
-    return Path(os.environ.get("TMPDIR") or tempfile.gettempdir()) / "scryfall-cache"
+
+def _prune_expired(cache_dir: Path) -> None:
+    """Delete the result files older than :data:`BATCH_CACHE_SECONDS`."""
+    cutoff = time.time() - BATCH_CACHE_SECONDS
+    for path in cache_dir.glob("hydrated-*.json"):
+        with contextlib.suppress(OSError):
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
 
 
 def _build_cache_key(content: str, bulk_path: Path | None) -> str:
@@ -175,7 +168,8 @@ def lookup_cards(
     Always writes the full hydrated results to a sha-keyed cache file so the
     caller can pass the absolute path downstream without re-hydrating. The
     cache key includes the bulk data file's mtime+size so refreshing bulk
-    data invalidates the cache.
+    data invalidates the cache; a file older than :data:`BATCH_CACHE_SECONDS` is
+    rebuilt.
 
     Returns a 3-tuple so ``main()`` can build the digest envelope without
     re-reading and re-parsing the batch file.
@@ -206,7 +200,11 @@ def lookup_cards(
     # Cache hit: reuse prior hydration for identical input + bulk data.
     # If the file exists but is corrupt (truncated write, disk full),
     # unlink it and fall through to recompute.
-    if cache_path.exists():
+    fresh = (
+        cache_path.exists()
+        and time.time() - cache_path.stat().st_mtime < BATCH_CACHE_SECONDS
+    )
+    if fresh:
         try:
             results = json.loads(cache_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
@@ -234,6 +232,7 @@ def lookup_cards(
 
     # A transient failure is not cached as "unknown card": the next run retries it.
     if not failed:
+        _prune_expired(cache_dir)
         atomic_write_json(cache_path, results)
     return results, cache_path, names
 

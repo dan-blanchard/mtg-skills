@@ -307,7 +307,7 @@ def test_cli_adds_guests_from_the_stats_cache_and_from_card(
         guide_card_hovers, "cached_stat_names", lambda _set: {"Sol Ring": "OLD"}
     )
     monkeypatch.setattr(
-        guide_card_hovers, "HttpFetcher", lambda *_a, **_k: FakeFetcher()
+        guide_card_hovers, "ScryfallClient", lambda *_a, **_k: FakeFetcher()
     )
     guide = _guide(tmp_path, "<p>Sol Ring, Counterspell and Murder.</p>")
     base = [str(guide), "--set", SET, "--out", str(tmp_path / "out")]

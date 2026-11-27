@@ -23,11 +23,12 @@ shows the card. ``guide-card-hovers`` fills that map from the page's own text:
    in its newest printing with an image: every card the set's cached
    ``limited-stats`` data lists (``limited_stats.cached_stat_names``; nothing
    when that tool has not run for the set here), and each ``--card "Name"``.
-4. **Images.** Downloaded once into a shared cache
-   ``<cache>/card-images/<scryfall-id>.jpg`` (``_http.cache_root()``), throttled
-   between network fetches, then written to ``<out>/cards/<slug>.jpg`` (slug: the
-   front face's name, ASCII-folded, lowercased, apostrophes dropped and every other
-   non-alphanumeric run a ``-`` — ``names.slug``).
+4. **Images.** Downloaded once, through the shared Scryfall client (``_scryfall``:
+   its identity, its 100 ms gap between requests), into a shared cache
+   ``<cache>/scryfall/card-images/<scryfall-id>.jpg``, then written to
+   ``<out>/cards/<slug>.jpg`` (slug: the front face's name, ASCII-folded,
+   lowercased, apostrophes dropped and every other non-alphanumeric run a ``-`` —
+   ``names.slug``).
 5. **Output.** ``<out>/<guide file name>`` with the map rewritten, and
    ``<out>/files.json`` — ``[{"path": "cards/<slug>.jpg"}, ...]``, the shape an
    Artifact publish's ``files`` takes with ``root`` set to ``<out>``.
@@ -46,7 +47,9 @@ import click
 from bs4 import BeautifulSoup
 from bs4.element import PreformattedString
 
-from mtg_utils._http import Fetcher, HttpFetcher, cache_root
+from mtg_utils import _scryfall
+from mtg_utils._http import Fetcher
+from mtg_utils._scryfall import ScryfallClient
 from mtg_utils.card_images import image_urls
 from mtg_utils.card_pool import CardPool
 from mtg_utils.companion import _front_name
@@ -76,6 +79,8 @@ _SKIP_TAGS = ("a", "h2", "script", "style", "template", "footer")
 
 #: A card image never changes once Scryfall serves it: keep cached ones a year.
 _IMAGE_MAX_AGE_SECONDS = 365 * 86400
+#: The card-image cache's directory under the Scryfall cache.
+IMAGES_SUBDIR = "card-images"
 
 
 # --- Finding names ------------------------------------------------------------
@@ -228,12 +233,13 @@ def build_hovers(
     out_dir: Path,
     fetcher: Fetcher,
     aliases: dict[str, str] | None = None,
-    throttle: float = 0.1,
+    throttle: float = 0.0,
 ) -> HoverResult:
     """Fill *guide*'s card-hover map from *set_cards* (one printing per card, as
     ``CardPool.set_records`` lists them) and write the page, its card images and
     ``files.json`` under *out_dir*. Images come through *fetcher*, cached under
-    ``<scryfall-id>.jpg`` and throttled by *throttle* seconds per network fetch.
+    ``<scryfall-id>.jpg``; a Scryfall client spaces its own requests, and *throttle*
+    adds that many seconds before each network fetch.
 
     Raises ``ValueError`` when the page has no ``CARDS`` map or an alias names a card
     the set lacks."""
@@ -359,8 +365,8 @@ def main(
             f"{len(from_stats) + len(asked)} guest card(s) from other sets "
             f"({len(from_stats)} from the limited-stats cache)"
         )
-    images = cache_root() / "card-images"
-    fetcher = HttpFetcher(images, max_age_seconds=_IMAGE_MAX_AGE_SECONDS)
+    images = _scryfall.cache_dir() / IMAGES_SUBDIR
+    fetcher = ScryfallClient(IMAGES_SUBDIR, max_age_seconds=_IMAGE_MAX_AGE_SECONDS)
     try:
         result = build_hovers(
             guide, set_cards, out_dir=out_dir, fetcher=fetcher, aliases=aliases

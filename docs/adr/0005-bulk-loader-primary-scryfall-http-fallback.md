@@ -24,11 +24,16 @@ or add a sidecar index instead.
   dump for rulings; the rulings_lookup CLI hits `/cards/:id/rulings`
   with a 30-day file cache to keep the request count low.
 
+Every Scryfall request these carve-outs make (and the symbol, card-image and
+catalog fetches) goes through the one shared client, paced process-wide per
+endpoint class (ADR-0068).
+
 **Why this is the right call:** the bulk path is faster (no network
 round-trip), works offline (which the lgs-search Phase-2 sweep relies
-on for 62 sequential card lookups), avoids rate limits (Scryfall asks
-for 50–100ms gaps; 31-card batches would burn a couple of seconds just
-on throttling), and is reproducible (`compute_input_hash` on a card
+on for 62 sequential card lookups), avoids rate limits (Scryfall allows 2
+requests a second on `/cards/named` and the other card searches, 10 on the
+rest of the API; ADR-0068 has the limits. A 31-card batch of named lookups
+would spend over 15 s on throttling alone), and is reproducible (`compute_input_hash` on a card
 list returns the same value regardless of when the orchestrator runs).
 
 **What this stops re-suggesting:** future code reviews looking at
