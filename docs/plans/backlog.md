@@ -12,7 +12,7 @@ v0.131.0 on 2026-11-24). Posting them is Dan's; its README has the posting order
 ranked by the workaround code each retires. Phase also publishes a
 `metadata.confirmed_misparse` category on about 2,500 records now, so some of these
 are already known to it (each draft says where). **Vetted 2026-11-25 against
-v0.133.0:** 6 issues filed the same day as phase-rs/phase #11359 to #11364, and 3 more on 2026-11-26 against v0.134.0, #11383 to #11385 (the text
+v0.133.0:** 6 issues filed the same day as phase-rs/phase #11359 to #11364, and 3 more on 2026-11-26 against v0.134.0, #11383 to #11385, and #11406 on 2026-11-27 (the text
 as posted is in `docs/plans/phase-upstream-issues/filed/`). Every other draft and backlog row is recorded as not filed, with its reason, in
 `docs/plans/phase-upstream-issues/vetting-2026-11-25.md`: parked and not a regression,
 already in phase's confirmed-misparse census, ours, or a duplicate of an open
@@ -105,9 +105,12 @@ phase-rs issue.
   canaries no earlier pass had checked, against phase v0.134.0). 141 are already
   flagged unsupported by phase on that clause, 50 are in its census, 7 were
   ours, 3 have no game impact, one was fixed, one is a Dungeon (no record), one
-  is the class of the filed phase-rs/phase #11385, and one is staged for the
-  owner to file: Bumi's Feast Lecture's earthbend return bound to the Food
-  token (`LastCreated`; the batch-5 notes' `issues/01`). Acted on the same day
+  is the class of the filed phase-rs/phase #11385, and one was filed the same
+  day as phase-rs/phase #11406: Bumi's Feast Lecture's earthbend return bound
+  to the Food token (`LastCreated`, and `origin: Battlefield`; `filed/10`).
+  Dan widened the bar that day to real engine faults too (not only the parser),
+  as long as they change how a card plays and are not about our use of phase.
+  Acted on the same day
   (the backlog reads block): three ledger rows retired and one trimmed where phase typed the
   clause at every tag back to v0.66.0 (`keep_n_wrath_unimplemented_choose` for
   Duneblast and Mount Doom, kept for Stick Together;
