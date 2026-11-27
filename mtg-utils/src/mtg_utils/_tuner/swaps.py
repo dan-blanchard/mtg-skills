@@ -255,8 +255,17 @@ _COMBO_PIECE_ADDS = 2
 #: five per hundred. Below it the need is a mention, not the plan.
 _NEED_BUILT_FLOOR = 5
 
-#: How many candidates past the first pick the near tie looks at.
+#: How many candidates past the first pick the near tie looks at, counting only
+#: the ones that pass every gate the pick must pass.
 _CHEAPER_WINDOW = 10
+#: How far down the page, in positions past the first pick, the cheaper window
+#: reaches whatever it has counted: twice its count, so it may pass over as
+#: many gate-refused cards as it counts. Measured on the 55 precons
+#: (2026-11-27) with no bound: a take past the share's first pick stood a
+#: median 7 positions down, p90 25, and up to 393; twenty positions keeps
+#: Silverquill Influence's Sephara (eleventh, behind one rejected card) and
+#: cuts the 14% of takes past it.
+_WINDOW_REACH = 2
 #: On a theme page under a TIGHT purse — an even share under ``_TIGHT_SHARE``
 #: a swap, below what a played staple costs — the window reaches further for
 #: the cheaper near tie: Counter Intelligence's $40 (a $1.35 share) went on
@@ -1576,10 +1585,10 @@ def propose_swaps(
 
         for position, card in enumerate(ranked):
             at[id(card)] = position
-            if first is not None:
-                looked += 1
-                if looked > window:
-                    break
+            if first is not None and position - at[id(first[0])] > (
+                _WINDOW_REACH * window
+            ):
+                break  # past the window's reach down the page
             if card.get("name") == settle_stop[0]:
                 # Settling up: only a card ranked ahead of the add the swap
                 # holds may replace it.
@@ -1720,6 +1729,14 @@ def propose_swaps(
                 fallback = fallback or (card, cost)  # keep the best overshooting option
                 continue
             if not guard:
+                if first is not None:
+                    # The window counts the cards the pick could be: one a
+                    # gate above refused never pushes a near tie out of it
+                    # (Silverquill Influence's Immortal Obligation, rejected,
+                    # pushed Sephara, Sky's Blade from tenth to eleventh).
+                    looked += 1
+                    if looked > window:
+                        break
                 if not ctx.playrate or cost <= share:
                     return picked_here(card, cost)
                 if first is None:

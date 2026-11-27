@@ -213,6 +213,19 @@ Organic Extinction beside thirty one-drops would raise the top from 1 to 10.
   - A filter on the search itself took the over-cap cards out of the match set the
     blend ranks over, which moved Quick Draw's interaction upgrades though nothing
     the cap refused was picked (N23, 2026-11-26).
+  - Since 2026-11-27 the cheaper window (`swaps._CHEAPER_WINDOW`) counts only
+    the cards that pass every gate the pick must pass, the cap among them. A card
+    the cap refuses no longer pushes a near tie out of the window
+    (`test_the_cheaper_window_counts_only_cards_the_pick_could_be`). The window
+    also ends twenty positions past the first pick (`_WINDOW_REACH`, twice its
+    count; eighty under a tight purse's forty-card window). On the 55 precons,
+    with no bound, a take past the share stood a median 7 positions down, p90 25
+    and up to 393. Measured alone against N28 (N34): 236 swap pairs in 35 decks
+    move; guide adds 128 → 123 / 110 → 112 / 51 → 46 on the 25, the held-out 20
+    and the fresh 10, plan 505 → 497 / 415 → 412 / 167 → 169, both floors held;
+    a reading of twenty changed pairs was 6 better, 7 worse, 7 sideways. It
+    misses the gate's primary; Dan landed it on the floors (2026-11-27), since
+    the old window let a card the pick could never be push the pick out.
 
 **Consequences.** A low-curve Commander deck is capped by design: a deck topping at
 four is offered nothing past six outside its thin top-end page

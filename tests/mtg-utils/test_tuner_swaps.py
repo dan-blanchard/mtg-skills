@@ -1157,14 +1157,15 @@ def test_a_commander_that_cheats_lifts_the_cap_for_what_it_reaches():
     ]
 
 
-def test_the_cap_changes_no_pick_it_does_not_refuse():
-    """The cap is the last gate a candidate meets, so a card over it still holds
-    its place on the page: in the window past a first pick over the even share
-    (``_CHEAPER_WINDOW`` counts every card after it), Huge Thing (a twelve the
-    page passes over anyway: past the share, no cheaper) keeps Cheap Thing
-    eleventh, outside the window, and the slot is First Pick's with the cap or
-    without it. Taking Huge Thing off the page instead (the in-search filter
-    that moved Quick Draw's interaction upgrades, 2026-11-26) let Cheap Thing in."""
+def test_the_cheaper_window_counts_only_cards_the_pick_could_be():
+    """Past a first pick over the even share, the near tie looks ten cards on
+    (``_CHEAPER_WINDOW``), counting only cards that pass every gate the pick
+    must pass. Huge Thing, a twelve past the curve cap, is no such card, so
+    Cheap Thing is the tenth and takes the slot. With no cap Huge Thing counts,
+    pushing Cheap Thing to eleventh, and First Pick keeps the slot. A
+    card a gate refuses never pushes a near tie out (Silverquill Influence's
+    Immortal Obligation, rejected by the upgrade gate, pushed Sephara, Sky's
+    Blade from tenth to eleventh, 2026-11-26)."""
 
     def card(name, rank, usd, cmc=3.0):
         return {
@@ -1179,14 +1180,65 @@ def test_the_cap_changes_no_pick_it_does_not_refuse():
         }
 
     pool = [
-        card("First Pick", 10, "5.00"),
-        card("Huge Thing", 11, "7.00", cmc=12.0),
-        *(card(f"Dear Thing {i}", 12 + i, "6.00") for i in range(9)),
-        card("Cheap Thing", 30, "1.00"),
+        card("First Pick", 100, "5.00"),
+        card("Huge Thing", 101, "7.00", cmc=12.0),
+        *(card(f"Dear Thing {i}", 102 + i, "6.00") for i in range(9)),
+        card("Cheap Thing", 111, "1.00"),
     ]
-    common = {"budget": 10.0, "max_swaps": 5}
-    assert _capped_add([_top(7.0)], pool, **common) == ["First Pick"]
+    # No settle-up: it would spend the money left on First Pick either way.
+    common = {"budget": 10.0, "max_swaps": 5, "settle_up": False}
+    assert _capped_add([_top(7.0)], pool, **common) == ["Cheap Thing"]
     assert _capped_add([_top(7.0)], pool, curve_room=None, **common) == ["First Pick"]
+
+
+def _window_pick(refused, passing, *, budget=10.0):
+    """First Pick ($5, past a $2 share of ``budget``), then ``refused`` twelves
+    past the curve cap, then ``passing`` dear cards ($6) that pass every gate,
+    then Cheap Thing ($1, a near tie): the slot's add, no settle-up."""
+
+    def card(name, rank, usd, cmc=3.0):
+        return {
+            "name": name,
+            "type_line": "Creature",
+            "oracle_text": "",
+            "cmc": cmc,
+            "mana_cost": "{" + str(int(cmc)) + "}",
+            "prices": {"usd": usd},
+            "color_identity": [],
+            "edhrec_rank": rank,
+        }
+
+    pool = [
+        card("First Pick", 100, "5.00"),
+        *(card(f"Huge {i}", 101 + i, "7.00", cmc=12.0) for i in range(refused)),
+        *(card(f"Dear {i}", 101 + refused + i, "6.00") for i in range(passing)),
+        card("Cheap Thing", 101 + refused + passing, "1.00"),
+    ]
+    return _capped_add([_top(7.0)], pool, budget=budget, max_swaps=5, settle_up=False)
+
+
+def test_the_cheaper_window_ends_at_its_count_or_its_reach():
+    """The window ends at whichever comes first: ten cards that pass the
+    pick's gates (``_CHEAPER_WINDOW``), or twenty positions down the page
+    (``_WINDOW_REACH`` times the count). Cheap Thing as the tenth passing card,
+    behind one refused card, is in (Sephara's case); as the eleventh it is out.
+    Behind nineteen refused cards (twenty positions down) it is in; behind
+    twenty it is out."""
+    assert _window_pick(1, 9) == ["Cheap Thing"]
+    assert _window_pick(0, 10) == ["First Pick"]
+    assert _window_pick(19, 0) == ["Cheap Thing"]
+    assert _window_pick(20, 0) == ["First Pick"]
+
+
+def test_a_tight_purse_widens_the_window_and_its_reach():
+    """Under a tight purse (a share under ``_TIGHT_SHARE``: $9 over five swaps)
+    a theme page's window is forty passing cards (``_CHEAPER_WINDOW_THEME``),
+    and its reach eighty positions."""
+    tight = {"budget": 9.0}
+    assert _window_pick(1, 39, **tight) == ["Cheap Thing"]
+    assert _window_pick(0, 40, **tight) == ["First Pick"]
+    assert _window_pick(79, 0, **tight) == ["Cheap Thing"]
+    assert _window_pick(80, 0, **tight) == ["First Pick"]
 
 
 def test_a_deck_with_nothing_to_set_a_top_end_has_no_cap():

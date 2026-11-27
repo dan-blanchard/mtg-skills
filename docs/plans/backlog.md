@@ -20,22 +20,17 @@ phase-rs issue.
 
 **From the closing precon scoreboard (2026-11-26, N18 at e25fb0d3 against N17 at 2720444a; `~/mtg/tuner-work/w-2026-11-25/`)**
 
-- **Two upgrade orders turn on a card the pick never takes** (traced 2026-11-26,
-  `~/mtg/tuner-work/w-2026-11-26/rift/`; both followed a changed input, neither is a
-  defect yet). `find_add`'s cheaper window counts every candidate after the first
-  pick, the ones the upgrade gate rejects too: at v0.133.0 Immortal Obligation reads
-  as protection (0.38, from none) and sits second on Silverquill Influence's page,
-  failing the gate for Combat Calligrapher but pushing Sephara, Sky's Blade ($0.97,
-  inside the share) from tenth to eleventh, so Avacyn ($42.49) took the slot. And
-  `_theme_ties` anchors on the page's head: CallForBackup_MOC's card-draw blend had
-  Guardian Project and Sylvan Library tied exactly (2.7676), Guardian Project first;
-  0493e4e2's evasion read (`CantBeBlockedBy`) raised three creatures' quality
-  reads by 0.55, two of them (Old Fat Spider, Ox Drover's "can't be blocked by
-  Oxen") past Guardian Project's but not Sylvan Library's, so Sylvan Library led and
-  the on-theme card within `_THEME_TIE` of the head became Mask of Memory (read
-  0.339, near Sylvan Library's 0.389) instead of Tribute to the World Tree (0.58,
-  Guardian Project's). Counting only gate-passing candidates, or anchoring the tie
-  on more than one head card, would steady both; neither is measured.
+- **The theme tie anchors on the page's single head card** (traced 2026-11-26,
+  `~/mtg/tuner-work/w-2026-11-26/rift/`). `_theme_ties` anchors on the page's head:
+  CallForBackup_MOC's card-draw blend had Guardian Project and Sylvan Library tied
+  exactly (2.7676), Guardian Project first; 0493e4e2's evasion read
+  (`CantBeBlockedBy`) raised three creatures' quality reads by 0.55, two of them
+  (Old Fat Spider, Ox Drover's "can't be blocked by Oxen") past Guardian Project's
+  but not Sylvan Library's, so Sylvan Library led and the on-theme card within
+  `_THEME_TIE` of the head became Mask of Memory (read 0.339, near Sylvan
+  Library's 0.389) instead of Tribute to the World Tree (0.58, Guardian
+  Project's). The cheaper window's half of this entry was fixed 2026-11-27: it
+  counts only candidates that pass the pick's gates.
 - **A reanimation bound phase drops whole is read as none** (ADR-0066).
   Reunion of the House's "total power 10 or less" is absent from its typed target,
   so the curve cap counts it as returning any creature card (UPSTREAM-KNOWN). The
