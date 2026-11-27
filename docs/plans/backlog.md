@@ -366,16 +366,21 @@ phase-rs issue.
 
 - **What `arena-crosscheck` doesn't check yet (ADR-0064).** Since 2026-11-27 a
   trigger is checked both ways: each fired trigger against the event before it,
-  and each trigger phase expects on an object's own event against the instances
-  Arena created (`expected` rows). Not checked: a trigger phase expects that
-  watches other objects or players, or that a card grants another object (Nadu,
-  Winged Wisdom's granted "becomes the target" trigger, whose "only twice each
-  turn" phase leaves `Unimplemented`), and every own-event trigger it counts but
-  doesn't score (a condition, limit, filter or parked clause; a target; a
-  copy, a face-down object, a token's own printing, a rebalanced card, a
-  rolled-back cast; the last turn of a game; a suppressing static on the
-  battlefield; an unsure or unpaired ability, or one Arena files as no trigger),
-  as well as damage, counter, tap and targeting events of the object itself.
+  each trigger phase expects on an object's own event against the instances
+  Arena created (`expected` rows), and each trigger of a permanent watching
+  another object's enter, death, leave, attack, block or cast (`watched` rows).
+  Not checked: a trigger that a card grants another object (Nadu, Winged
+  Wisdom's granted "becomes the target" trigger, whose "only twice each turn"
+  phase leaves `Unimplemented`); a watcher's trigger in another zone, on a
+  `changes_zone` or sacrifice event, or on a player's event with no object
+  filter ("Whenever you attack"); and every row either check counts but doesn't
+  score (a condition, limit, filter the log can't show or parked clause; a
+  target; a copy, a face-down object, a token's own printing, a rebalanced card,
+  a rolled-back cast; the last turn of a game; a watcher that moved in the
+  event's message; a suppressing static on the battlefield; an unsure or
+  unpaired ability, or one Arena files as no trigger), as well as damage,
+  counter, tap and targeting events. A phased-out permanent (CR 702.26b)
+  would be read as present: no log yet shows how Arena logs phasing.
   Also not checked yet: amounts phase
   writes as a count ("equal to the number of …") evaluated against the logged
   board, continuous effects other than a pump's size (an object's abilities before

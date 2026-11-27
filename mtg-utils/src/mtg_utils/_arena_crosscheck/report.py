@@ -36,7 +36,7 @@ RESOLUTION_FINDINGS = ("arena-extra", "phase-extra")
 TRIGGER_FINDINGS = ("mismatch",)
 EXPECTED_FINDINGS = ("unfired",)
 #: The report's row sections, each keyed on its own.
-SECTIONS = ("resolutions", "triggers", "expected")
+SECTIONS = ("resolutions", "triggers", "expected", "watched")
 
 
 def _keyed(rows: Sequence[dict]) -> list[dict]:
@@ -63,6 +63,23 @@ def _keyed_expected(rows: Sequence[dict]) -> list[dict]:
     return out
 
 
+def _keyed_watched(rows: Sequence[dict]) -> list[dict]:
+    """A watched row's key is its event's place in the game, its watcher's id
+    (the log's) and its trigger's text: stable whatever parses the logs, as
+    :func:`_keyed_expected`'s."""
+    seen: collections.Counter = collections.Counter()
+    out = []
+    for row in rows:
+        game = tuple(row["game"])
+        base = (
+            f"{game[0]}#{game[1]}#e{row['event_index']}#w{row['watcher_id']}"
+            f"#{row['phase_text']}"
+        )
+        out.append({**row, "key": base + (f"#{seen[base]}" if seen[base] else "")})
+        seen[base] += 1
+    return out
+
+
 def build_report(
     resolutions: Sequence[dict],
     triggers: Sequence[dict],
@@ -70,11 +87,20 @@ def build_report(
     phase_tag: str,
     *,
     expected: Sequence[dict] = (),
+    watched: Sequence[dict] = (),
 ) -> dict:
     """``expected`` holds the reverse check's rows: a trigger phase expects on
-    an object's own event, fired or not (``check.Checker.expected``)."""
+    an object's own event, fired or not (``check.Checker.expected``);
+    ``watched`` those on a permanent watching another object's
+    (``check.Checker.watched``)."""
     resolutions, triggers = _keyed(resolutions), _keyed(triggers)
     expected = _keyed_expected(expected)
+    watched = _keyed_watched(watched)
+    by_event: dict[str, collections.Counter] = collections.defaultdict(
+        collections.Counter
+    )
+    for w in watched:
+        by_event[w["event"]][w["status"]] += 1
     checks: dict[str, list[int]] = collections.defaultdict(lambda: [0, 0])
     for row in resolutions:
         if row["status"] == "ignored":
@@ -89,6 +115,8 @@ def build_report(
             "resolutions": dict(collections.Counter(r["status"] for r in resolutions)),
             "triggers": dict(collections.Counter(t["status"] for t in triggers)),
             "expected": dict(collections.Counter(e["status"] for e in expected)),
+            "watched": dict(collections.Counter(w["status"] for w in watched)),
+            "watched_by_event": {k: dict(v) for k, v in sorted(by_event.items())},
             "checks": {
                 k: {"pass": v[0], "fail": v[1]} for k, v in sorted(checks.items())
             },
@@ -96,6 +124,7 @@ def build_report(
         "resolutions": resolutions,
         "triggers": triggers,
         "expected": expected,
+        "watched": watched,
     }
 
 
@@ -127,6 +156,13 @@ def _findings(report: dict) -> list[str]:
                 f"- **{t['card']}** trigger: {t['arena_text']} — phase watches "
                 f"`{t['phase_event']}`, Arena logged {t['events']}"
             )
+    for w in report.get("watched", ()):
+        if w["status"] in EXPECTED_FINDINGS:
+            lines.append(
+                f"- **{w['card']}** never fired for {w.get('watched')}'s "
+                f"`{w['event']}` (turn {w['turn']}): phase's `{w['phase_text']}`; "
+                f"Arena lists it as {w.get('arena_category')} `{w.get('arena_text')}`"
+            )
     for e in report.get("expected", ()):
         if e["status"] in EXPECTED_FINDINGS:
             lines.append(
@@ -157,6 +193,14 @@ def render_markdown(report: dict) -> str:
         "",
         "## Own-event triggers phase expects",
         *_counts(s.get("expected", {})),
+        "",
+        "## Triggers watching other objects",
+        *_counts(s.get("watched", {})),
+        *(
+            f"- {event}: "
+            + ", ".join(f"{k} {v}" for k, v in sorted(c.items(), key=lambda kv: -kv[1]))
+            for event, c in s.get("watched_by_event", {}).items()
+        ),
         "",
         "## Findings (check each with /rules-lawyer before calling it a misparse)",
         *(_findings(report) or ["- none"]),

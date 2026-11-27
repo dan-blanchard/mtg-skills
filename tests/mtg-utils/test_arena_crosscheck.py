@@ -7,6 +7,7 @@ game-state messages Arena's rules engine sends, for real cards whose text comes 
 
 from __future__ import annotations
 
+import dataclasses
 import gzip
 import json
 import re
@@ -18,17 +19,20 @@ import pytest
 from mtg_utils._arena_crosscheck.align import abilities_of, norm, pair
 from mtg_utils._arena_crosscheck.check import Checker, crosscheck, watches_own_event
 from mtg_utils._arena_crosscheck.effects import compare_kinds
-from mtg_utils._arena_crosscheck.log import ObjectEvent, read_logs
+from mtg_utils._arena_crosscheck.log import BoardObject, ObjectEvent, read_logs
 from mtg_utils._arena_crosscheck.report import (
     build_report,
     diff_reports,
     render_markdown,
 )
 from mtg_utils._card_ir.crosswalk import (
+    LoggedObject,
+    ObjectFacts,
     TriggerSuppression,
     chosen_x_sign,
     effect_is_delayed,
     effect_targets_optional,
+    filter_admits,
     trigger_gates,
     trigger_suppressions,
 )
@@ -654,7 +658,8 @@ def test_an_activated_ability_is_no_trigger(card_db, tmp_path):
 def test_a_game_in_two_logs_is_read_once(tmp_path):
     first = _write(tmp_path / "a.log.gz", _bolt_game("same"))
     second = _write(tmp_path / "Player.log", _bolt_game("same"))
-    resolutions, _, games, _ = read_logs([first, second])
+    logs = read_logs([first, second])
+    resolutions, games = logs.resolutions, logs.games
     assert games == [("same", 1)]
     assert len(resolutions) == 1
 
@@ -927,7 +932,7 @@ def test_a_created_token_entered_the_battlefield(tmp_path):
         ),
     ]
     game[1]["gameObjects"].append(token)
-    _, (fired,), _, _ = read_logs([_write(tmp_path / "a.log", game)])
+    (fired,) = read_logs([_write(tmp_path / "a.log", game)]).triggers
     assert fired.events == {"enters", "zone_change"}
     # a creature on the battlefield before combat, declared an attacker
     declared = [
@@ -935,7 +940,7 @@ def test_a_created_token_entered_the_battlefield(tmp_path):
         _fired("t2", _ability_obj(311, 8888, 7777, 200), 310),
     ]
     declared[1]["gameObjects"].append(_obj(310, 9999, types=("Creature",), **attacking))
-    _, (fired,), _, _ = read_logs([_write(tmp_path / "b.log", declared)])
+    (fired,) = read_logs([_write(tmp_path / "b.log", declared)]).triggers
     assert fired.events == {"attacks"}
 
 
@@ -972,12 +977,12 @@ def test_a_spells_cast_is_remembered_while_it_is_on_the_stack(tmp_path):
         *taps,
         _fired("t2", _ability_obj(301, 8888, 7777, 200), 100),
     ]
-    _, (fired,), _, _ = read_logs([_write(tmp_path / "a.log", game)])
+    (fired,) = read_logs([_write(tmp_path / "a.log", game)]).triggers
     assert "cast_spell" in fired.events
     left = _state("t2", annotations=[])
     left["zones"] = _zones()  # the spell resolved: off the stack
     game = [*game[:-1], left, _fired("t2", _ability_obj(302, 8888, 7777, 200), 100)]
-    _, (fired,), _, _ = read_logs([_write(tmp_path / "b.log", game)])
+    (fired,) = read_logs([_write(tmp_path / "b.log", game)]).triggers
     assert "cast_spell" not in fired.events
 
 
@@ -995,9 +1000,9 @@ def test_a_trigger_logged_before_its_event_reads_its_whole_message(tmp_path):
         ],
     )
     del fired["turnInfo"]
-    _, (trigger,), _, _ = read_logs(
+    (trigger,) = read_logs(
         [_write(tmp_path / "Player.log", [_state("t3", first=True), fired])]
-    )
+    ).triggers
     assert "zone_change" in trigger.events
     assert trigger.turn == 3
 
@@ -1995,7 +2000,9 @@ def test_a_reflexive_instance_is_not_the_trigger(card_db, tmp_path):
     )
     game = _enters_game("h1", instance=reflexive)
     (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
-    assert row["status"] == "unfired"
+    # Arena files more than a "When you do" that way (an ability shared with a
+    # token another card makes): never an answer, but no finding either
+    assert row["status"] == "unfired-unsure"
 
 
 HUSHBRINGER = 3541
@@ -2396,3 +2403,639 @@ def test_counters_damage_removes(
     ]
     (row,) = _run(card_db, _write(tmp_path / "a.log", game))["resolutions"]
     assert row["status"] == status
+
+
+# -- the watched check: triggers watching other objects ---------------------------
+#
+# A permanent on the battlefield (the watcher, 500) whose trigger watches another
+# object's event; each instance it makes names what set it off (TriggeringObject).
+WATCHER, WATCHER_T = 3801, 4801
+
+
+def _watcher(card_db: Path, name: str, line: int = 0, **ability) -> None:
+    _add_card(card_db, WATCHER, test_card(name)["name"])
+    _add_ability(card_db, WATCHER_T, _arena_text(name).splitlines()[line], **ability)
+
+
+def _watch_game(
+    match: str,
+    *,
+    entering=((200, 1),),
+    instances=((201, 200),),
+    controller: int = 1,
+    watcher_extra=None,
+    move="ZoneTransfer",
+    turn_ends: bool = True,
+    watcher_types=("Creature",),
+    subtypes=(),
+) -> list[dict]:
+    """The watcher (seat ``controller``) on the battlefield; Elvish Visionary
+    objects (id, seat) entering in one message, with the watcher's instances
+    (id, the object Arena names as setting it off, or ``None``)."""
+    watcher = _listing(
+        _obj(
+            500,
+            WATCHER,
+            types=watcher_types,
+            controller=controller,
+            **(watcher_extra or {}),
+        ),
+        WATCHER_T,
+    )
+    first = _state(match, [watcher], first=True)
+    first["zones"] = _zones(battlefield=[500])
+    objs = [
+        _obj(
+            i,
+            VISIONARY,
+            types=("Creature",),
+            controller=c,
+            subtypes=[f"SubType_{t}" for t in subtypes],
+        )
+        for i, c in entering
+    ]
+    anns = [
+        _ann(
+            10 + n,
+            "ZoneTransfer",
+            None,
+            [i],
+            zone_src=STACK,
+            zone_dest=BATTLEFIELD,
+            category="Resolve",
+        )
+        if move == "ZoneTransfer"
+        else _ann(10 + n, "TokenCreated", None, [i])
+        for n, (i, _) in enumerate(entering)
+    ]
+    state = _state(match, objs, anns)
+    state["zones"] = _zones(battlefield=[500, *(i for i, _ in entering)])
+    state["persistentAnnotations"] = []
+    for n, (iid, cause) in enumerate(instances):
+        state["gameObjects"].append(_ability_obj(iid, WATCHER_T, WATCHER, 500))
+        state["annotations"].append(_ann(30 + n, "AbilityInstanceCreated", 500, [iid]))
+        if cause is not None:
+            state["persistentAnnotations"].append(
+                _ann(60 + n, "TriggeringObject", iid, [cause])
+            )
+    game = [first, state]
+    if turn_ends:
+        game.append(_turn(_state(match), 4))
+    return game
+
+
+def _watched(
+    card_db: Path, tmp_path: Path, game: list[dict], name="a.log"
+) -> list[dict]:
+    return _run(card_db, _write(tmp_path / name, game))["watched"]
+
+
+def test_a_watcher_that_fired_and_one_that_did_not(card_db, tmp_path):
+    """Impact Tremors: "Whenever a creature you control enters"."""
+    _watcher(card_db, "Impact Tremors")
+    (row,) = _watched(card_db, tmp_path, _watch_game("w1"))
+    assert (row["card"], row["watched"], row["event"], row["status"]) == (
+        "Impact Tremors",
+        "Elvish Visionary",
+        "enters",
+        "fired",
+    )
+    (row,) = _watched(card_db, tmp_path, _watch_game("w2", instances=()), "b.log")
+    assert (row["status"], row["arena_category"]) == ("unfired", "triggered")
+    report = _run(card_db, _write(tmp_path / "c.log", _watch_game("w3", instances=())))
+    assert "never fired for Elvish Visionary" in render_markdown(report)
+
+
+@pytest.mark.parametrize(
+    ("name", "seat", "rows"),
+    [
+        # "a creature you control": not an opponent's
+        ("Impact Tremors", 2, 0),
+        # "a creature an opponent controls": only an opponent's
+        ("Authority of the Consuls", 2, 1),
+        ("Authority of the Consuls", 1, 0),
+    ],
+)
+def test_the_watched_objects_controller(card_db, tmp_path, name, seat, rows):
+    _watcher(card_db, name)
+    game = _watch_game("c1", entering=((200, seat),), instances=())
+    assert len(_watched(card_db, tmp_path, game)) == rows
+
+
+def test_another_is_not_the_watcher(card_db, tmp_path):
+    """Herd Gnarr's "Whenever another creature you control enters": not its
+    own entering."""
+    _watcher(card_db, "Herd Gnarr")
+    me = _listing(_obj(500, WATCHER, types=("Creature",)), WATCHER_T)
+    enters = _state(
+        "g1",
+        [me],
+        [
+            _ann(
+                10,
+                "ZoneTransfer",
+                None,
+                [500],
+                zone_src=STACK,
+                zone_dest=BATTLEFIELD,
+                category="Resolve",
+            )
+        ],
+    )
+    enters["zones"] = _zones(battlefield=[500])
+    game = [_state("g1", first=True), enters, _turn(_state("g1"), 4)]
+    assert _watched(card_db, tmp_path, game) == []
+
+
+def test_another_and_the_watcher_itself(card_db, tmp_path):
+    """Angelic Sell-Sword's "Whenever ~ or another nontoken creature you
+    control enters": its own entering, and not a token."""
+    _watcher(card_db, "Angelic Sell-Sword", 1)
+    # a token Elvish Visionary: "nontoken" rules it out
+    game = _watch_game("t1", move="TokenCreated", instances=())
+    game[1]["gameObjects"][0]["type"] = "GameObjectType_Token"
+    assert _watched(card_db, tmp_path, game) == []
+    # Sell-Sword itself entering: the watcher's own event, never "moved"
+    first = _state("t2", first=True)
+    me = _listing(_obj(500, WATCHER, types=("Creature",)), WATCHER_T)
+    enters = _state(
+        "t2",
+        [me],
+        [
+            _ann(
+                10,
+                "ZoneTransfer",
+                None,
+                [500],
+                zone_src=STACK,
+                zone_dest=BATTLEFIELD,
+                category="Resolve",
+            )
+        ],
+    )
+    enters["zones"] = _zones(battlefield=[500])
+    (row,) = _watched(
+        card_db, tmp_path, [first, enters, _turn(_state("t2"), 4)], "b.log"
+    )
+    assert row["status"] == "unfired-targeted"  # its token's ability says target
+
+
+def test_a_filter_the_log_cannot_show(card_db, tmp_path):
+    """Elemental Bond's "a creature you control with power 3 or greater": the
+    log shows no power, so the row is no finding either way."""
+    _watcher(card_db, "Elemental Bond")
+    (row,) = _watched(card_db, tmp_path, _watch_game("p1", instances=()))
+    assert row["status"] == "filter-unknown"
+    # and an instance answers no row whose filter is unknown
+    (row,) = _watched(card_db, tmp_path, _watch_game("p2"), "b.log")
+    assert row["status"] == "filter-unknown"
+
+
+def test_each_instance_answers_its_own_object(card_db, tmp_path):
+    """Three creatures entering at once and Impact Tremors' instances, each
+    naming the creature that set it off."""
+    _watcher(card_db, "Impact Tremors")
+    three = ((200, 1), (210, 1), (220, 1))
+
+    def statuses(log: str, instances) -> list[str]:
+        game = _watch_game(log, entering=three, instances=instances)
+        return [r["status"] for r in _watched(card_db, tmp_path, game, log)]
+
+    assert statuses("a.log", ((301, 200), (302, 210), (303, 220))) == ["fired"] * 3
+    # the instance for 210 missing: its row is the finding
+    assert statuses("b.log", ((301, 200), (303, 220))) == ["fired", "unfired", "fired"]
+    # a doubled instance for 200 answers nothing else
+    doubled = statuses("c.log", ((301, 200), (302, 200), (303, 220)))
+    assert doubled == ["fired", "unfired", "fired"]
+
+
+def test_a_doubled_instance_answers_no_earlier_event(card_db, tmp_path):
+    """Impact Tremors seeing one creature enter twice in a turn (it left and
+    came back under a new id), the first entering's instance missing and the
+    second's doubled: the first is still the finding."""
+    _watcher(card_db, "Impact Tremors")
+    game = _watch_game("b9", instances=())
+    back = _state(
+        "b9",
+        [
+            _obj(210, VISIONARY, types=("Creature",)),
+            _ability_obj(301, WATCHER_T, WATCHER, 500),
+            _ability_obj(302, WATCHER_T, WATCHER, 500),
+        ],
+        [
+            _ann(40, "ObjectIdChanged", None, [200], orig_id=200, new_id=210),
+            _ann(
+                41,
+                "ZoneTransfer",
+                None,
+                [210],
+                zone_src=EXILE,
+                zone_dest=BATTLEFIELD,
+                category="Return",
+            ),
+            _ann(42, "AbilityInstanceCreated", 500, [301]),
+            _ann(43, "AbilityInstanceCreated", 500, [302]),
+        ],
+    )
+    back["persistentAnnotations"] = [
+        _ann(70, "TriggeringObject", 301, [210]),
+        _ann(71, "TriggeringObject", 302, [210]),
+    ]
+    back["zones"] = _zones(battlefield=[500, 210])
+    game.insert(2, back)
+    rows = _watched(card_db, tmp_path, game)
+    assert [r["status"] for r in rows] == ["unfired", "fired"]
+    # one instance naming the creature's first id: the later entering's, the
+    # earlier one's a guess, never the earlier credited
+    back["gameObjects"] = back["gameObjects"][:2]
+    back["annotations"] = back["annotations"][:3]
+    back["persistentAnnotations"] = [_ann(70, "TriggeringObject", 301, [200])]
+    rows = _watched(card_db, tmp_path, game, "b.log")
+    assert [r["status"] for r in rows] == ["unfired-unsure", "fired"]
+
+
+def test_an_instance_naming_no_object(card_db, tmp_path):
+    """No ``TriggeringObject``: which object it was for the log can't tell."""
+    _watcher(card_db, "Impact Tremors")
+    (row,) = _watched(card_db, tmp_path, _watch_game("n1", instances=((201, None),)))
+    assert row["status"] == "unfired-unsure"
+
+
+def test_a_batched_trigger_is_one_row_per_message(card_db, tmp_path):
+    """Elvish Warmaster's "Whenever one or more other Elves you control enter"
+    fires once for Elves entering together."""
+    _watcher(card_db, "Elvish Warmaster")
+    two = ((200, 1), (210, 1))
+    game = _watch_game("e1", entering=two, instances=((301, 210),), subtypes=("Elf",))
+    (row,) = _watched(card_db, tmp_path, game)
+    assert (row["objects"], row["status"]) == (2, "fired")
+    game = _watch_game("e2", entering=two, instances=(), subtypes=("Elf",))
+    (row,) = _watched(card_db, tmp_path, game, "b.log")
+    assert row["status"] == "unfired-conditional"  # "only once each turn"
+
+
+def test_a_watcher_entering_in_the_same_message(card_db, tmp_path):
+    """A watcher that entered in the event's message may or may not have seen
+    it (entering at the same time it does, CR 603.6a)."""
+    _watcher(card_db, "Impact Tremors")
+    game = _watch_game("m1", instances=(), watcher_types=("Enchantment",))
+    game[0]["zones"] = _zones()
+    game[1]["annotations"].append(
+        _ann(
+            19,
+            "ZoneTransfer",
+            None,
+            [500],
+            zone_src=STACK,
+            zone_dest=BATTLEFIELD,
+            category="Resolve",
+        )
+    )
+    statuses = sorted(r["status"] for r in _watched(card_db, tmp_path, game))
+    assert statuses == ["watcher-moved"]
+
+
+def test_a_creature_dying_beside_its_watcher(card_db, tmp_path):
+    """Slaughter Specialist's "Whenever a creature an opponent controls dies"
+    sees a creature dying at the same time as it (CR 603.10a), and the watcher
+    leaving in that message makes it no finding."""
+    _watcher(card_db, "Slaughter Specialist", 1)
+    first = _state(
+        "d1",
+        [
+            _listing(_obj(500, WATCHER, types=("Creature",)), WATCHER_T),
+            _obj(300, VISIONARY, types=("Creature",), controller=2),
+        ],
+        first=True,
+    )
+    first["zones"] = _zones(battlefield=[500, 300])
+
+    def death(*, with_watcher: bool) -> dict:
+        moved = [300, 500] if with_watcher else [300]
+        anns = [
+            _ann(20, "ObjectIdChanged", None, [300], orig_id=300, new_id=310),
+            _ann(
+                21,
+                "ZoneTransfer",
+                None,
+                [310],
+                zone_src=BATTLEFIELD,
+                zone_dest=GRAVEYARD,
+                category="SBA_Damage",
+            ),
+        ]
+        if with_watcher:
+            anns.append(
+                _ann(22, "ObjectIdChanged", None, [500], orig_id=500, new_id=510)
+            )
+            anns.append(
+                _ann(
+                    23,
+                    "ZoneTransfer",
+                    None,
+                    [510],
+                    zone_src=BATTLEFIELD,
+                    zone_dest=GRAVEYARD,
+                    category="SBA_Damage",
+                )
+            )
+        state = _state(
+            "d1", [_obj(310, VISIONARY, types=("Creature",), controller=2)], anns
+        )
+        state["zones"] = _zones(battlefield=[i for i in (500, 300) if i not in moved])
+        return state
+
+    rows = _watched(
+        card_db, tmp_path, [first, death(with_watcher=False), _turn(_state("d1"), 4)]
+    )
+    assert [(r["event"], r["status"]) for r in rows] == [("leaves", "unfired")]
+    rows = _watched(
+        card_db,
+        tmp_path,
+        [first, death(with_watcher=True), _turn(_state("d1"), 4)],
+        "b.log",
+    )
+    assert [(r["event"], r["status"]) for r in rows] == [("leaves", "watcher-moved")]
+
+
+def _cast_watch(match, *, caster=1, copy=False, sacrificed=False):
+    """Lightning Bolt cast by ``caster`` beside the watcher (seat 1)."""
+    bolt = _obj(303, BOLT, controller=caster, **({"isCopy": True} if copy else {}))
+    cast = _ann(
+        10,
+        "ZoneTransfer",
+        None,
+        [303],
+        zone_src=HAND,
+        zone_dest=STACK,
+        category="CastSpell",
+    )
+    first = _state(
+        match,
+        [_listing(_obj(500, WATCHER, types=("Creature",)), WATCHER_T)],
+        first=True,
+    )
+    first["zones"] = _zones(battlefield=[500])
+    casting = _state(match, [bolt], [cast])
+    casting["zones"] = _zones(stack=[303], battlefield=[500])
+    game = [first, casting]
+    if sacrificed:  # sacrificed as the spell's cost, after the cast move
+        gone = _state(
+            match,
+            [_obj(510, WATCHER, types=("Creature",))],
+            [
+                _ann(20, "ObjectIdChanged", None, [500], orig_id=500, new_id=510),
+                _ann(
+                    21,
+                    "ZoneTransfer",
+                    None,
+                    [510],
+                    zone_src=BATTLEFIELD,
+                    zone_dest=GRAVEYARD,
+                    category="Sacrifice",
+                ),
+            ],
+        )
+        gone["zones"] = _zones(stack=[303])
+        game.append(gone)
+    return [*game, _turn(_state(match), 4)]
+
+
+@pytest.mark.parametrize(
+    ("caster", "copy", "sacrificed", "statuses"),
+    [
+        (1, False, False, ["unfired"]),
+        # "Whenever you cast": not an opponent's spell
+        (2, False, False, []),
+        # a copy of a spell isn't cast (CR 707.10)
+        (1, True, False, ["copy"]),
+        # the watcher gone while the spell was being cast: it may not have seen it
+        (1, False, True, ["watcher-left"]),
+    ],
+)
+def test_a_cast_watcher(card_db, tmp_path, caster, copy, sacrificed, statuses):
+    """Burning Prophet's "Whenever you cast a noncreature spell"."""
+    _watcher(card_db, "Burning Prophet")
+    game = _cast_watch("s1", caster=caster, copy=copy, sacrificed=sacrificed)
+    assert [r["status"] for r in _watched(card_db, tmp_path, game)] == statuses
+
+
+def test_an_opponents_cast_and_any_spell(card_db, tmp_path):
+    """Bloodvial Purveyor's "Whenever an opponent casts a spell": no object
+    filter, any spell, an opponent's only."""
+    _watcher(card_db, "Bloodvial Purveyor", 1)
+    mine = _cast_watch("s2", caster=1)
+    assert _watched(card_db, tmp_path, mine) == []
+    theirs = _cast_watch("s3", caster=2)
+    assert [r["status"] for r in _watched(card_db, tmp_path, theirs, "b.log")] == [
+        "unfired"
+    ]
+
+
+def test_elesh_norn_silences_by_the_watchers_controller(card_db, tmp_path):
+    """Authority of the Consuls (seat 1) watching seat 2's creature enter
+    beside seat 2's Elesh Norn: Authority is a permanent Norn's controller's
+    opponent controls, whoever controls the creature."""
+    norn = 3812
+    _add_card(card_db, norn, test_card("Elesh Norn, Mother of Machines")["name"])
+    _watcher(card_db, "Authority of the Consuls")
+    game = _watch_game("n9", entering=((200, 2),), instances=())
+    game[0]["gameObjects"].append(_obj(520, norn, types=("Creature",), controller=2))
+    game[0]["zones"] = _zones(battlefield=[500, 520])
+    game[1]["zones"] = _zones(battlefield=[500, 520, 200])
+    (row,) = _watched(card_db, tmp_path, game)
+    assert row["status"] == "suppressed"
+
+
+def test_a_watcher_silenced_by_an_opponents_elesh_norn(card_db, tmp_path):
+    """Elesh Norn, Mother of Machines: "Permanents entering don't cause
+    abilities of permanents your opponents control to trigger"; the watcher's
+    controller is the one that matters."""
+    norn = 3811
+    _add_card(card_db, norn, test_card("Elesh Norn, Mother of Machines")["name"])
+    _watcher(card_db, "Impact Tremors")
+    for log, seat, status in (("a.log", 2, "suppressed"), ("b.log", 1, "unfired")):
+        game = _watch_game(log, instances=())
+        game[0]["gameObjects"].append(
+            _obj(520, norn, types=("Creature",), controller=seat)
+        )
+        game[0]["zones"] = _zones(battlefield=[500, 520])
+        game[1]["zones"] = _zones(battlefield=[500, 520, 200])
+        (row,) = _watched(card_db, tmp_path, game, log)
+        assert row["status"] == status
+
+
+@pytest.mark.parametrize(
+    ("extra", "status"),
+    [({"isFacedown": True}, "face-down"), ({"isCopy": True}, "copy")],
+)
+def test_a_watcher_the_log_cannot_score(card_db, tmp_path, extra, status):
+    _watcher(card_db, "Impact Tremors")
+    game = _watch_game("x1", instances=(), watcher_extra=extra)
+    (row,) = _watched(card_db, tmp_path, game)
+    assert row["status"] == status
+
+
+def test_an_instance_arena_files_under_another_ability(card_db, tmp_path):
+    """Arena files an ability it shares with a token another card makes under
+    that card's ability (``HiddenByAbilityIds``: Sazh's Chocobo's landfall
+    under Zabu's maker); its instance still answers."""
+    _watcher(card_db, "Impact Tremors", hidden_by=VISIONARY_ETB)
+    (row,) = _watched(card_db, tmp_path, _watch_game("h2"))
+    assert row["status"] == "fired"
+
+
+def test_a_watched_rows_key_survives_a_parse_change():
+    def row(index: int, text: str, status: str) -> dict:
+        return {
+            "game": ["m", 1],
+            "event_index": index,
+            "watcher_id": 500,
+            "event": "enters",
+            "phase_text": text,
+            "status": status,
+        }
+
+    def report(*rows: dict) -> dict:
+        return build_report([], [], [("m", 1)], "vtest", watched=rows)
+
+    before = report(row(0, "a", "fired"), row(1, "b", "unfired"))
+    (change,) = diff_reports(before, report(row(1, "b", "fired")))
+    assert (change["section"], change["phase_text"]) == ("watched", "b")
+
+
+def test_a_filter_matching_one_logged_object():
+    """``filter_admits`` with a ``LoggedObject``: strict, the object's own."""
+    (tremors,) = (
+        a.unit.node
+        for a in abilities_of(trees_for(_card_of("Impact Tremors")))
+        if a.trigger_event == "enters"
+    )
+    creature = ObjectFacts(
+        frozenset({"Creature"}), frozenset(), frozenset(), frozenset()
+    )
+    land = creature._replace(types=frozenset({"Land"}))
+    mine = LoggedObject(
+        is_source=False, token=False, controller_side="you", owner_side="you"
+    )
+    theirs = mine._replace(controller_side="opponents")
+    assert filter_admits(tremors.valid_card, creature, mine) is True
+    assert filter_admits(tremors.valid_card, creature, theirs) is False
+    assert filter_admits(tremors.valid_card, land, mine) is False
+
+
+def _trigger_filter(name: str, event: str = "", line: int | None = None):
+    triggers = [
+        a.unit.node
+        for a in abilities_of(trees_for(_card_of(name)))
+        if a.unit and a.origin == "trigger" and (not event or a.trigger_event == event)
+    ]
+    return triggers[line or 0].valid_card
+
+
+_CREATURE = ObjectFacts(frozenset({"Creature"}), frozenset(), frozenset(), frozenset())
+_MINE = LoggedObject(
+    is_source=False, token=False, controller_side="you", owner_side="you"
+)
+
+
+def test_strict_filter_properties():
+    """``filter_admits`` with a ``LoggedObject``: each property the log shows."""
+    blue = _trigger_filter("Circu, Dimir Lobotomist")  # "a blue spell"
+    assert filter_admits(blue, _CREATURE._replace(colors=frozenset("U")), _MINE)
+    assert (
+        filter_admits(blue, _CREATURE._replace(colors=frozenset("R")), _MINE) is False
+    )
+    token = _trigger_filter("Anointer Priest")  # "a creature token you control"
+    assert filter_admits(token, _CREATURE, _MINE._replace(token=True)) is True
+    assert filter_admits(token, _CREATURE, _MINE) is False
+    another = _trigger_filter("Herd Gnarr")  # "another creature you control"
+    assert filter_admits(another, _CREATURE, _MINE) is True
+    assert filter_admits(another, _CREATURE, _MINE._replace(is_source=True)) is False
+    big = _trigger_filter("Gandalf, Westward Voyager")  # "mana value 5 or greater"
+    assert filter_admits(big, _CREATURE._replace(mana_value=7), _MINE) is True
+    assert filter_admits(big, _CREATURE._replace(mana_value=3), _MINE) is False
+    assert filter_admits(big, _CREATURE, _MINE) is None  # unknown mana value
+
+
+def test_strict_or_and_and():
+    """One matching arm makes an ``Or`` match and one ruling out arm an
+    ``And`` fail, whatever the others; otherwise an unknown arm is unknown."""
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
+        T_valid_card__And,
+        T_valid_card__Or,
+    )
+
+    mine = _trigger_filter("Impact Tremors")  # "a creature you control"
+    power = _trigger_filter("Elemental Bond")  # "... with power 3 or greater"
+    blue = _trigger_filter("Circu, Dimir Lobotomist")
+    red = _CREATURE._replace(colors=frozenset("R"))
+    assert filter_admits(power, red, _MINE) is None
+    assert filter_admits(T_valid_card__Or(filters=[power, mine]), red, _MINE) is True
+    assert filter_admits(T_valid_card__Or(filters=[power, blue]), red, _MINE) is None
+    assert filter_admits(T_valid_card__And(filters=[power, blue]), red, _MINE) is False
+    assert filter_admits(T_valid_card__And(filters=[power, mine]), red, _MINE) is None
+
+
+def test_a_mana_value_the_record_may_not_be():
+    """A card's record gives its mana value only when it is surely the
+    object's: not a prototype (CR 718.3b: Phyrexian Fleshgorger prototyped
+    is mana value 3, its record 7), nor a card with faces (CR 712.8)."""
+    from mtg_utils._arena_crosscheck.check import _mana_value
+
+    assert _mana_value(test_card("Gandalf, Westward Voyager")) == 5
+    assert _mana_value(test_card("Phyrexian Fleshgorger")) is None
+    assert _mana_value(test_card("Brutal Cathar // Moonrage Brute")) is None
+
+
+@pytest.mark.parametrize(
+    ("spell", "copy", "status"),
+    [
+        # mana value 15: the cast matches "mana value 5 or greater"
+        ("Emrakul, the Aeons Torn", False, "unfired-conditional"),
+        # a prototype: the cast may be its prototype's mana value
+        ("Phyrexian Fleshgorger", False, "filter-unknown"),
+    ],
+)
+def test_a_cast_watcher_reading_mana_value(card_db, tmp_path, spell, copy, status):
+    """Gandalf, Westward Voyager's "Whenever you cast a spell with mana value
+    5 or greater" (phase parks a clause of its effect: a gate)."""
+    cast_grp = 3901
+    _add_card(card_db, cast_grp, test_card(spell)["name"])
+    _watcher(card_db, "Gandalf, Westward Voyager")
+    game = _cast_watch("g7", copy=copy)
+    game[1]["gameObjects"][0]["grpId"] = cast_grp
+    game[1]["gameObjects"][0]["cardTypes"] = ["CardType_Creature"]
+    (row,) = _watched(card_db, tmp_path, game)
+    assert row["status"] == status
+
+
+def test_a_copy_has_no_mana_value_from_its_record(card_db):
+    """A copy takes the copied object's values (CR 707.2), so its card's
+    record says nothing of its mana value."""
+    emrakul = 3902
+    _add_card(card_db, emrakul, test_card("Emrakul, the Aeons Torn")["name"])
+    checker = Checker(CardText(card_db), _card_of, trees_for, [])
+    (gandalf,) = (
+        a
+        for a in abilities_of(trees_for(_card_of("Gandalf, Westward Voyager")))
+        if a.trigger_event == "cast_spell"
+    )
+    watcher = BoardObject(
+        id=500,
+        grpid=WATCHER,
+        controller=1,
+        kind="Card",
+        abilities=(),
+        copy=False,
+        face_down=False,
+        moved=False,
+    )
+    for copy, match in ((False, True), (True, None)):
+        event = dataclasses.replace(
+            _event("cast_spell", "Hand", "Stack"),
+            grpid=emrakul,
+            card_types=("Creature",),
+            copy=copy,
+        )
+        assert checker._matches(gandalf, event, watcher, is_source=False) is match

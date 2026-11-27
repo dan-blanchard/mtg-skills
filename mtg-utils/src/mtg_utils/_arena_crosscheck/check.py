@@ -29,6 +29,10 @@ Rows, one per resolution, fired trigger or expected trigger, each with a
   library search), ``unchecked`` (phase's event has no Arena counterpart),
   ``reflexive`` (a "When you do" or delayed trigger, set off by its parent's action),
   ``rules-object``, or why it wasn't scored;
+* watched (:meth:`Checker.watched`: a trigger of a permanent on the battlefield
+  that watches another object's event, "Whenever another creature you control
+  enters"): ``fired`` / ``unfired``, or why it is no evidence
+  (:data:`WATCHED_STATUSES`);
 * expected (the reverse check, :meth:`Checker.expected`: a trigger of the card that
   watches an event of the object itself, ``log.ObjectEvent``): ``fired`` /
   ``unfired`` (Arena created no instance of it by the turn's end, though it lists
@@ -51,7 +55,7 @@ import collections
 import re
 import tomllib
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
@@ -74,7 +78,9 @@ from mtg_utils._arena_crosscheck.effects import (
     strict_checks,
 )
 from mtg_utils._arena_crosscheck.log import (
+    BoardObject,
     Instance,
+    InstanceLog,
     ObjectEvent,
     Resolution,
     TriggerFired,
@@ -85,10 +91,14 @@ from mtg_utils._card_ir.crosswalk import (
     PERMANENT_CARD_TYPES,
     AbilityUnit,
     ConceptTree,
+    LoggedObject,
+    ObjectFacts,
     TriggerSuppression,
     effect_targets,
+    filter_admits,
     own_keyword_bodies,
     replacement_event_tag,
+    tag_of,
     trigger_gates,
     trigger_suppressions,
     trigger_zone_changes,
@@ -538,14 +548,15 @@ class Checker:
         # the one it answers, its row credited or not
         answers: dict[tuple, int] = {}
         for p in pending:
-            for instance, _ability, pairing in p.instances:
-                if p.trig in pairing.abilities:
+            for instance, ability, pairing in p.instances:
+                if p.trig in pairing.abilities and ability.parent is None:
                     key = (p.event.game, instance.id)
                     answers[key] = max(answers.get(key, -1), p.event.ordinal)
         for p in pending:
-            for instance, _ability, pairing in p.instances:
+            for instance, ability, pairing in p.instances:
                 if (
                     not p.credited
+                    and ability.parent is None
                     and p.trig in pairing.abilities
                     and answers[(p.event.game, instance.id)] == p.event.ordinal
                 ):
@@ -590,7 +601,6 @@ class Checker:
             (instance, ability, self._pair(ability, found, _is_trigger))
             for instance in event.fired
             if (ability := self.text.ability(instance.grpid)).category == TRIGGERED
-            and ability.parent is None
         ]
         return [_Expect(event, trig, row, found, instances) for trig in expected]
 
@@ -624,7 +634,7 @@ class Checker:
             return {"status": "fired"}
         if not event.turn_ended:
             return {"status": "game-over"}
-        if (by := self._suppressed_by(event, trig)) is not None:
+        if (by := self._suppressed_by(event, trig, event.controller)) is not None:
             return {"status": "suppressed", "suppressed_by": by}
         if "rebalanced" in p.row["warnings"]:
             return {"status": "rebalanced"}
@@ -633,7 +643,10 @@ class Checker:
             return {"status": "unfired-unsure"}
         if any(trig in pairing.abilities for _, _, pairing in p.instances):
             # an instance of this trigger that answered another event (or
-            # none): which event it was for, the log can't tell
+            # none: one Arena files under another ability, a "When you do" or
+            # an ability it shares with a token another card makes, as Sazh's
+            # Chocobo's landfall under Zabu's maker): which event it was for,
+            # or whether it is this trigger, the log can't tell
             return {"status": "unfired-unsure", "unsure": "another event's"}
         if not event.abilities:
             return {"status": "no-abilities"}
@@ -662,19 +675,22 @@ class Checker:
             return {**out, "status": "ignored", "ignored": reason}
         return {**out, "status": "unfired"}
 
-    def _suppressed_by(self, event: ObjectEvent, trig: PhaseAbility) -> str | None:
+    def _suppressed_by(
+        self, event: ObjectEvent, trig: PhaseAbility, seat: int | None
+    ) -> str | None:
         """The card on the battlefield whose static stops ``event`` from
-        triggering ``trig`` (``crosswalk.trigger_suppressions``: Hushbringer's
-        "Creatures entering the battlefield or dying don't cause abilities to
-        trigger"), if any: :func:`_silences`. An event name phase gives that
-        this reader doesn't know is taken to silence every trigger."""
+        triggering ``trig``, an ability of a permanent ``seat`` controls
+        (``crosswalk.trigger_suppressions``: Hushbringer's "Creatures entering
+        the battlefield or dying don't cause abilities to trigger"), if any:
+        :func:`_silences`. An event name phase gives that this reader doesn't
+        know is taken to silence every trigger."""
         for grp, controller in event.battlefield:
             card = self.text.card(grp)
             name = card.paper_name if card else None
             for s in self._suppressions(name):
-                if s.trigger_side == "opponents" and controller == event.controller:
+                if s.trigger_side == "opponents" and controller == seat:
                     continue
-                if s.trigger_side == "you" and controller != event.controller:
+                if s.trigger_side == "you" and controller != seat:
                     continue
                 if s.source_types and not (
                     "Permanent" in s.source_types
@@ -696,6 +712,372 @@ class Checker:
                 for s in trigger_suppressions(tree)
             )
         return self._suppression[name]
+
+    # -- triggers watching other objects ------------------------------------
+    def watched(
+        self, events: Sequence[ObjectEvent], instances: Sequence[InstanceLog]
+    ) -> list[dict]:
+        """One row per trigger of a permanent on the battlefield at an object
+        event (the watcher, :attr:`ObjectEvent.board`) that watches that kind
+        of event of an object its filter matches (:func:`watches_other`:
+        "Whenever another creature you control enters", "Whenever a creature
+        dies", "Whenever you cast a noncreature spell"): whether Arena created
+        an instance of it from the watcher for the event (``fired``), and when
+        it didn't, whether that is a finding (``unfired``) or why it isn't one
+        (:data:`WATCHED_STATUSES`). A trigger that watches "one or more"
+        objects (phase's ``batched``) is one row for the objects of one
+        message.
+
+        An instance answers a row of its watcher and trigger only when Arena
+        names the object that set it off (``TriggeringObject``) and the row's
+        event is that object's, earlier in the same turn; of such rows, the
+        latest, and nothing when it is answered already: a doubled trigger's
+        extra instance (Elesh Norn, Mother of Machines) answers no earlier
+        event. A row whose watcher, event or filter the log can't score
+        (``face-down``, ``copy``, ``rolled-back``, ``filter-unknown``) takes its
+        status before ``fired``, so an instance answering it proves nothing.
+        An instance with no such link answers nothing (every instance that
+        answered a row over both log sets on 2026-11-27 had one). A row left
+        unanswered though an instance offered it pairs with its trigger is
+        ``unfired-unsure``."""
+        leaves: dict[tuple, list[ObjectEvent]] = collections.defaultdict(list)
+        for event in events:
+            if event.event == "leaves":
+                leaves[(event.game, event.object_id)].append(event)
+        rows: list[_Watch] = []
+        batches: dict[tuple, _Watch] = {}
+        for event in events:
+            for watcher in event.board:
+                for watch in self._watching(event, watcher):
+                    if watch.batched:
+                        key = (event.game, event.message, watcher.id, watch.trig.desc)
+                        if key in batches:
+                            batches[key].events.append(event)
+                            continue
+                        batches[key] = watch
+                    rows.append(watch)
+        by_source: dict[tuple, list[InstanceLog]] = collections.defaultdict(list)
+        for inst in instances:
+            for source in inst.sources:
+                by_source[(inst.game, source)].append(inst)
+        offered: dict[tuple, list[_Watch]] = collections.defaultdict(list)
+        for w in rows:
+            for inst in by_source.get((w.event.game, w.watcher.id), ()):
+                if inst.turn != w.event.turn or inst.message < w.event.message:
+                    continue
+                if inst.cause is not None and not any(
+                    inst.cause in e.ids for e in w.events
+                ):
+                    continue
+                pairing = self._watch_pair(w, inst.grpid)
+                if pairing is None:
+                    continue
+                w.instances.append((inst, pairing))
+                # only Arena's own link ties an instance to one object's event
+                if w.trig in pairing.abilities and inst.cause is not None:
+                    offered[(inst.game, inst.id)].append(w)
+        for _key, candidates in sorted(offered.items(), key=lambda kv: kv[0][1]):
+            # the latest of the object's events before it; none if answered
+            max(candidates, key=lambda w: w.event.ordinal).credited = True
+        out = []
+        for w in rows:
+            row = {
+                **w.row,
+                "phase_text": w.trig.desc,
+                "phase_event": w.trig.trigger_event,
+            }
+            if len(w.events) > 1:
+                row["objects"] = len(w.events)
+            row.update(self._watch_status(w, leaves))
+            if row["status"] != "fired":
+                row["fired"] = [self.text.ability(i.grpid).text for i, _ in w.instances]
+            out.append(row)
+        return out
+
+    def _watching(self, event: ObjectEvent, watcher: BoardObject) -> list[_Watch]:
+        """The triggers of ``watcher``'s card that watch ``event`` of another
+        object (or of itself beside others, "~ or another creature"), with
+        whether its filter matches the event's object."""
+        row: dict = {
+            "game": list(event.game),
+            "turn": event.turn,
+            "event": event.event,
+            "event_index": event.ordinal,
+            "watcher_id": watcher.id,
+            "warnings": [],
+        }
+        found = self._lookup(watcher.grpid, row)
+        if isinstance(found, dict):
+            return []
+        card = self.text.card(watcher.grpid)
+        face = card.paper_name if card else None
+        on_face = [a for a in found.abilities if a.face == face] or found.abilities
+        triggers = [a for a in on_face if watches_other(a, event)]
+        if not triggers:
+            return []
+        watched = self.text.card(event.grpid)
+        row["watched"] = watched.paper_name if watched else None
+        is_source = watcher.id == event.object_id or watcher.id in event.ids
+        out = []
+        for trig in triggers:
+            match = self._matches(trig, event, watcher, is_source=is_source)
+            if match is False:
+                continue
+            out.append(
+                _Watch(
+                    event,
+                    watcher,
+                    trig,
+                    {**row, "warnings": list(row["warnings"])},
+                    found,
+                    match=match,
+                    is_source=is_source,
+                )
+            )
+        return out
+
+    def _matches(
+        self,
+        trig: PhaseAbility,
+        event: ObjectEvent,
+        watcher: BoardObject,
+        *,
+        is_source: bool,
+    ) -> bool | None:
+        """Whether the trigger's filter matches the event's object, as the log
+        shows it (``crosswalk.filter_admits`` with a ``LoggedObject``), and for
+        a cast, its caster; ``None`` when the log can't show it."""
+        node = trig.unit.node if trig.unit else None
+        side = "you" if event.controller == watcher.controller else "opponents"
+        owner = "you" if event.owner == watcher.controller else "opponents"
+        record = (
+            None
+            if event.kind != "Card" or event.face_down or event.copy
+            else (self._record_of(event.grpid))
+        )
+        cost = (record or {}).get("mana_cost") or ""
+        facts = ObjectFacts(
+            types=frozenset(event.card_types),
+            subtypes=frozenset(event.subtypes),
+            supertypes=frozenset(event.supertypes),
+            colors=frozenset(event.colors),
+            every_creature_type="AllCreatureTypes" in event.subtypes,
+            mana_value=_mana_value(record),
+            x_cost="{X}" in cost,
+        )
+        logged = LoggedObject(is_source, event.kind == "Token", side, owner)
+        spell = getattr(node, "valid_card", None)
+        match = (
+            True
+            if spell is None  # "Whenever you cast a spell": any
+            else filter_admits(spell, facts, logged)
+        )
+        if event.event != "cast_spell" or match is False:
+            return match
+        caster = _caster_side(getattr(node, "valid_target", None))
+        if caster is _UNKNOWN:
+            return None
+        if caster is not None and caster != side:
+            return False
+        return match
+
+    def _record_of(self, grp: int | None) -> dict | None:
+        card = self.text.card(grp)
+        return self._card_of(card.paper_name) if card and card.paper_name else None
+
+    def _watch_pair(self, w: _Watch, grp: int) -> Pairing | None:
+        """The pairing of an instance from the watcher, when it is a triggered
+        ability (``None`` otherwise). One Arena files under another
+        (``HiddenByAbilityIds``) pairs too: Arena files there not only a "When
+        you do" (which pairs with no watcher trigger: phase keeps it inside
+        its parent, and a text held inside another is not the same ability)
+        but an ability it shares with a token another card makes (Sazh's
+        Chocobo's landfall, under the ability that makes Zabu)."""
+        ability = self.text.ability(grp)
+        if ability.category != TRIGGERED:
+            return None
+        return self._pair(ability, w.found, _is_trigger)
+
+    def _watch_status(self, w: _Watch, leaves: dict[tuple, list]) -> dict:
+        """The status of a watched row (:data:`WATCHED_STATUSES`, in their
+        order), and what it rests on."""
+        event, watcher, trig = w.event, w.watcher, w.trig
+        if watcher.face_down:
+            return {"status": "face-down"}
+        if watcher.copy or watcher.kind != "Card":
+            return {"status": "copy"}
+        if event.event == "cast_spell" and event.copy:
+            return {"status": "copy"}  # a copy of a spell isn't cast (CR 707.10)
+        if event.rolled_back:
+            return {"status": "rolled-back"}
+        if w.match is None:
+            return {"status": "filter-unknown"}
+        if w.credited:
+            return {"status": "fired"}
+        if not event.turn_ended:
+            return {"status": "game-over"}
+        if watcher.moved and not w.is_source:
+            return {"status": "watcher-moved"}
+        if event.event == "cast_spell" and any(
+            e.ordinal > event.ordinal and e.turn == event.turn
+            for e in leaves.get((event.game, watcher.id), ())
+        ):
+            return {"status": "watcher-left"}
+        if (by := self._suppressed_by(event, trig, watcher.controller)) is not None:
+            return {"status": "suppressed", "suppressed_by": by}
+        if "rebalanced" in w.row["warnings"]:
+            return {"status": "rebalanced"}
+        if any(
+            pairing.method == "unsure" or trig in pairing.abilities
+            for _, pairing in w.instances
+        ):
+            return {"status": "unfired-unsure"}
+        if not watcher.abilities:
+            return {"status": "no-abilities"}
+        paired = (
+            (ability, self._pair(ability, w.found))
+            for ability in map(self.text.ability, watcher.abilities)
+        )
+        listed = [(a, pairing) for a, pairing in paired if trig in pairing.abilities]
+        if not listed:
+            return {"status": "unfired-unpaired"}
+        arena, pairing = listed[0]
+        out: dict = {
+            "arena_text": arena.text,
+            "arena_category": _CATEGORY.get(arena.category, str(arena.category)),
+        }
+        if arena.category != TRIGGERED:
+            return {**out, "status": "arena-not-triggered"}
+        unit = trig.unit
+        gates = trigger_gates(unit.node if unit else None)
+        if event.event == "cast_spell":
+            gates = tuple(g for g in gates if g != "valid_target")  # the caster
+        if gates:
+            return {**out, "status": "unfired-conditional", "gates": list(gates)}
+        if _targets(arena, pairing, unit):
+            return {**out, "status": "unfired-targeted"}
+        if (reason := self._ignored(w.row["card"], arena.text)) is not None:
+            return {**out, "status": "ignored", "ignored": reason}
+        return {**out, "status": "unfired"}
+
+
+@dataclass
+class _Watch:
+    """A trigger of a watcher on the battlefield at an object event, before
+    its status: the events it watches (several for a "one or more" trigger in
+    one message), whether its filter matches, the instances from the watcher
+    offered to it, and whether one answers it."""
+
+    event: ObjectEvent
+    watcher: BoardObject
+    trig: PhaseAbility
+    row: dict
+    found: _Parsed
+    match: bool | None = True
+    is_source: bool = False
+    events: list[ObjectEvent] = field(default_factory=list)
+    instances: list[tuple[InstanceLog, Pairing]] = field(default_factory=list)
+    credited: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.events:
+            self.events.append(self.event)
+
+    @property
+    def batched(self) -> bool:
+        node = self.trig.unit.node if self.trig.unit else None
+        return bool(getattr(node, "batched", False))
+
+
+def _mana_value(record: dict | None) -> int | None:
+    """The object's mana value when its card's record is surely it, else
+    ``None``. Not for a copy or a token (a copy takes the copied object's
+    values, CR 707.2: the caller passes no record), a face-down object (CR
+    708.2), a card with faces (each face of a double-faced card has its own
+    characteristics, CR 712.8; an Adventure or a split card on the stack is the
+    half cast, CR 715.4, 709.3), or one with a prototype (a prototyped spell
+    and permanent have only the prototype's mana cost, CR 718.3b)."""
+    if not record or record.get("card_faces") or "cmc" not in record:
+        return None
+    if "prototype" in {k.lower() for k in record.get("keywords") or ()}:
+        return None
+    return int(record["cmc"])
+
+
+#: A trigger's caster filter this read can't place.
+_UNKNOWN = object()
+
+
+def _caster_side(valid_target: object) -> object:
+    """The side of the player a cast trigger watches cast (its
+    ``valid_target``): ``"you"`` ("Whenever you cast"), ``"opponents"``
+    ("Whenever an opponent casts"), ``None`` (any player), or
+    :data:`_UNKNOWN`."""
+    tag = tag_of(valid_target)
+    if valid_target is None or tag == "Player":
+        return None
+    if tag == "Controller":
+        return "you"
+    if tag == "Typed" and not getattr(valid_target, "properties", None):
+        controller = getattr(valid_target, "controller", None)
+        if controller is None:
+            return None
+        return {"You": "you", "Opponent": "opponents"}.get(str(controller), _UNKNOWN)
+    return _UNKNOWN
+
+
+#: Phase's trigger events the watched check reads (``Checker.watched``): the
+#: ones an object event is. Not ``changes_zone`` (the log records no move
+#: between other zones), nor ``sacrificed`` (who sacrificed is no field of the
+#: event), nor a trigger with no object filter ("Whenever you attack").
+_WATCHED_EVENTS = frozenset(
+    {
+        "enters",
+        "dies",
+        "leaves",
+        "entersorattacks",
+        "attacks",
+        "blocks",
+        "becomes_blocked",
+        "cast_spell",
+    }
+)
+
+
+def watches_other(ability: PhaseAbility, event: ObjectEvent) -> bool:
+    """Whether a phase trigger of a permanent watches ``event`` of an object
+    its filter may name, not only itself: a trigger on the card (not one it
+    grants), working on the battlefield (its ``trigger_zones``), of an event
+    in :data:`_WATCHED_EVENTS` that ``event`` is, with an object filter that
+    is not the card alone (:func:`watches_own_event`'s), and, for a zone
+    change, a move from and to the zones it names."""
+    if ability.origin != "trigger" or ability.unit is None:
+        return False
+    trig = ability.unit.node
+    shown = shown_by(ability.trigger_event)
+    if (
+        ability.trigger_event not in _WATCHED_EVENTS
+        or shown is None
+        or not shown & event.events
+        or watches_itself(trig)
+    ):
+        return False
+    # no object filter: a player's event ("Whenever you attack"), but for a
+    # cast any spell ("Whenever you cast a spell")
+    if getattr(trig, "valid_card", None) is None and ability.trigger_event != (
+        "cast_spell"
+    ):
+        return False
+    zones = getattr(trig, "trigger_zones", None)
+    if zones and list(zones) != ["Battlefield"]:
+        return False
+    if ability.trigger_event not in _MOVES:
+        return True
+    return any(
+        (origin is None or origin == event.origin)
+        and (dest is None or dest == event.destination)
+        for origin, dest in trigger_zone_changes(trig)
+    )
 
 
 @dataclass
@@ -757,8 +1139,9 @@ EXPECTED_STATUSES: dict[str, str] = {
     "abilities (crosswalk.trigger_suppressions: Hushbringer)",
     "rebalanced": "a rebalanced (A-) card, scored against the paper card's parse",
     "unfired-unsure": "Arena created an instance from the object that pairs "
-    "with no phase trigger confidently, or one of this trigger that answered "
-    "another of the object's events: it could be this one",
+    "with no phase trigger confidently, one of this trigger that answered "
+    "another of the object's events, or one Arena files under another ability "
+    "(HiddenByAbilityIds): it could be this one",
     "no-abilities": "Arena lists no abilities on the object (it lost them)",
     "unfired-unpaired": "none of the abilities Arena lists on the object pairs "
     "with it confidently (lost, or a text phase writes otherwise)",
@@ -796,6 +1179,32 @@ def _targets(arena: ArenaAbility, pairing: Pairing, unit: AbilityUnit | None) ->
     )
 
 
+#: The watched check's statuses (:meth:`Checker.watched`), one per trigger of a
+#: permanent watching another object's event, in the order they are decided.
+#: The rest are :data:`EXPECTED_STATUSES`', read for the watcher: ``game-over``,
+#: ``suppressed`` (a suppressor of its controller's triggers), ``rebalanced``,
+#: ``unfired-unsure``, ``no-abilities``, ``unfired-unpaired``,
+#: ``arena-not-triggered``, ``unfired-conditional``, ``unfired-targeted``,
+#: ``ignored``, ``unfired``.
+WATCHED_STATUSES: dict[str, str] = {
+    "face-down": "the watcher is face down (CR 708.2)",
+    "copy": "the watcher is a copy or a token of a card's printing, or the "
+    "event is a copy of a spell, which isn't cast (CR 707.10)",
+    "rolled-back": "Arena undid the event",
+    "filter-unknown": "the trigger's filter asks what the log can't show "
+    "(power, a keyword, attacking, what it is attached to, a caster this read "
+    "can't place): no evidence either way",
+    "fired": "an instance from the watcher that Arena says the object set off "
+    "answers it",
+    "watcher-moved": "the watcher entered or left the battlefield in the "
+    "event's message: whether it saw the event (entering or leaving at the "
+    "same time, CR 603.6a, 603.10a) the log can't tell",
+    "watcher-left": "the watcher left the battlefield later in the turn of a "
+    "cast: it may have been gone when the spell became cast (a cost; cast "
+    "triggers trigger once the costs are paid, CR 601.2i)",
+}
+
+
 def _is_trigger(ability: PhaseAbility) -> bool:
     return ability.trigger_event is not None
 
@@ -829,4 +1238,5 @@ def crosscheck(paths: Iterable[Path], checker: Checker, phase_tag: str) -> dict:
         logs.games,
         phase_tag,
         expected=checker.expected(logs.events),
+        watched=checker.watched(logs.events, logs.instances),
     )

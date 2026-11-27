@@ -865,7 +865,72 @@ def _describes_off_battlefield(filt: object) -> bool:
     return bool(zones) and "Battlefield" not in zones
 
 
-def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
+class LoggedObject(NamedTuple):
+    """What a game log shows of an object beside its card facts, for asking
+    :func:`filter_admits` whether a filter matches THIS object (not whether it
+    can describe the card): whether it is the filter's own card's object
+    (``SelfRef``; "another"), whether it is a token, and the sides of its
+    controller and owner relative to the filter's card's controller
+    (``"you"`` / ``"opponents"``)."""
+
+    is_source: bool
+    token: bool
+    controller_side: str
+    owner_side: str
+
+
+#: Phase's color words (``HasColor``) → the letters :class:`ObjectFacts` holds.
+_COLOR_LETTERS = {
+    "White": "W",
+    "Blue": "U",
+    "Black": "B",
+    "Red": "R",
+    "Green": "G",
+}
+#: A filter's player word (a ``controller`` or ``Owned``) → the side it names.
+_PLAYER_SIDES = {"You": "you", "Opponent": "opponents"}
+
+
+def _logged_property(
+    prop: object, facts: ObjectFacts, logged: LoggedObject
+) -> bool | None:
+    """One filter property against a logged object (:func:`filter_admits`
+    with ``logged``): ``None`` for one the log can't show (power, "attacking",
+    "with a counter", a keyword) or a bound this read can't fix."""
+    ptag = tag_of(prop)
+    if ptag in ("Another", "Other"):
+        return not logged.is_source
+    if ptag == "Token":
+        return logged.token
+    if ptag == "NonToken":
+        return not logged.token
+    if ptag in ("HasSupertype", "NotSupertype"):
+        has = facts.has_supertype(str(getattr(prop, "value", "")))
+        return has if ptag == "HasSupertype" else not has
+    if ptag == "HasColor":
+        letter = _COLOR_LETTERS.get(str(getattr(prop, "color", "")))
+        return None if letter is None else letter in facts.colors
+    if ptag == "ColorCount":
+        op, count = getattr(prop, "comparator", None), getattr(prop, "count", None)
+        if op not in _COMPARE or not isinstance(count, int):
+            return None
+        return _COMPARE[op](len(facts.colors), count)
+    if ptag == "Cmc":
+        bound = _fixed_cmc(prop)
+        if facts.mana_value is None or facts.x_cost or bound is None:
+            return None
+        if bound[0] not in _COMPARE:
+            return None
+        return _COMPARE[bound[0]](facts.mana_value, bound[1])
+    if ptag == "Owned":
+        side = _PLAYER_SIDES.get(str(getattr(prop, "controller", "")))
+        return None if side is None else side == logged.owner_side
+    return None
+
+
+def filter_admits(
+    filt: object, facts: ObjectFacts, logged: LoggedObject | None = None
+) -> bool | None:
     """Whether a phase object filter can describe the card ``facts`` describes.
 
     Reads the type words (``Permanent`` and ``Card`` admit any type), the negated
@@ -875,10 +940,18 @@ def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
     is a reference this read can't resolve (``ParentTarget``, ``AttachedTo``, …) —
     the caller resolves those against their own context. A filter describing a
     spell or a card in another zone (:func:`_describes_off_battlefield`) sees the
-    card as it is there (:meth:`ObjectFacts.off_battlefield`)."""
+    card as it is there (:meth:`ObjectFacts.off_battlefield`).
+
+    Given ``logged`` (:class:`LoggedObject`), it asks instead whether the
+    filter matches one object a game log shows, strictly: ``SelfRef`` is the
+    filter's own card's object, the filter's controller and the ``Owned`` /
+    token / "another" / color / mana value properties are read off the object,
+    and ``None`` answers anything else (a property the log can't show, a
+    player this read can't place) unless another part of the filter already
+    rules the object out (``False``)."""
     tag = tag_of(filt)
     if tag == "SelfRef":
-        return False
+        return logged.is_source if logged is not None else False
     if tag == "StackSpell":
         return True  # "a spell" — the And beside it carries the constraint
     if (
@@ -886,8 +959,17 @@ def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
     ) and _describes_off_battlefield(filt):
         facts = facts.off_battlefield()
     if tag in ("Or", "And"):
-        answers = [filter_admits(f, facts) for f in getattr(filt, "filters", ()) or ()]
-        if not answers or None in answers:
+        answers = [
+            filter_admits(f, facts, logged) for f in getattr(filt, "filters", ()) or ()
+        ]
+        if not answers:
+            return None
+        if logged is not None:
+            if tag == "Or" and True in answers:
+                return True
+            if tag == "And" and False in answers:
+                return False
+        if None in answers:
             return None
         return any(answers) if tag == "Or" else all(answers)
     if tag != "Typed":
@@ -903,6 +985,18 @@ def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
     subtypes = set(filter_subtypes(filt))
     if subtypes and not any(facts.has_subtype(s) for s in subtypes):
         return False
+    if logged is not None:
+        answers: list[bool | None] = []
+        if getattr(filt, "controller", None) is not None:
+            side = _PLAYER_SIDES.get(str(filter_controller(filt)))
+            answers.append(None if side is None else side == logged.controller_side)
+        answers += [
+            _logged_property(prop, facts, logged)
+            for prop in getattr(filt, "properties", ()) or ()
+        ]
+        if False in answers:
+            return False
+        return None if None in answers else True
     for prop in getattr(filt, "properties", ()) or ():
         ptag = tag_of(prop)
         value = getattr(prop, "value", MISSING)

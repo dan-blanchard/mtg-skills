@@ -186,6 +186,81 @@ Arena created.
   alone until a split's second event could be more than a word, and Brinebound
   Gift's split then paired half with Brine Comber's trigger until a split's halves
   had to be on one face. No resolution or trigger row of either set changed.
+- **The watched check: a trigger watching other objects** (`check.Checker.watched`,
+  the report's `watched` rows; added 2026-11-27). Each object event also records
+  every permanent on the battlefield at it (`log.BoardObject`: its id, card, seat,
+  listed abilities, copy and face-down marks, and whether it entered or left the
+  battlefield in that message), and the log keeps every ability instance Arena
+  created (`log.InstanceLog`) with the objects it came from and the object Arena
+  says set it off (`TriggeringObject`). For an enter the board is the battlefield
+  after the move, newcomers included (CR 603.6a: "all permanents on the
+  battlefield (including the newcomers) are checked"); for a leave, with what left
+  in the same message (CR 603.10a: leaves-the-battlefield abilities look back in
+  time). Each trigger of a watcher's card's face (`check.watches_other`) that
+  watches that kind of event (enters, dies, leaves, attacks, blocks, becomes
+  blocked, cast; working on the battlefield, its `trigger_zones`; zones against the
+  move's) with an object filter that is not the card alone (Blood Artist's "~ or
+  another creature" included) and matches the event's object is one row on the
+  watcher. Matching is `crosswalk.filter_admits` given a `crosswalk.LoggedObject`,
+  strict: the logged types, subtypes, supertypes and colors, the filter's
+  controller and `Owned` side relative to the watcher's controller, token or not,
+  "another" (not the watcher), mana value from the card's record only when the
+  record is surely the object's (not a copy or a token, CR 707.2; not face down;
+  not a card with faces, CR 712.8, 715.4, 709.3; not one with a prototype, whose
+  prototyped spell and permanent have only the prototype's mana cost, CR 718.3b:
+  Phyrexian Fleshgorger's record is 7; no X); for a cast, the caster (`valid_target`: you, an opponent, any) and
+  any spell when phase writes no spell filter ("Whenever you cast a spell"). A
+  filter that rules the object out yields no row; one that asks what the log
+  can't show (power, a keyword, "attacking", what it is attached to) is
+  `filter-unknown`, never a guess. A trigger on "one or more" objects (phase's
+  `batched`) is one row for that message's objects.
+
+  An instance answers a row only when Arena names the object that set it off and
+  the row's event is that object's, earlier in the same turn; of such rows the
+  latest, and nothing when it is answered already, so a doubled trigger's extra
+  instance (Elesh Norn, Mother of Machines) answers no earlier event. Every
+  instance that answered a row over both log sets had that link; one without it
+  answers nothing and leaves the row it pairs with `unfired-unsure`, as does one
+  answering another of the object's events. An instance Arena files under another
+  ability (`HiddenByAbilityIds`) pairs here: Arena files there not only a "When
+  you do" but an ability it shares with a token another card makes (Sazh's
+  Chocobo's landfall under the ability that makes Zabu), and a "When you do" pairs
+  with no watcher trigger. In the own-event check such an instance answers no
+  row but leaves the row it pairs with `unfired-unsure`, never `unfired` (no
+  landed own-event row moved).
+  Statuses (`check.WATCHED_STATUSES`, in the order decided): `face-down` or `copy`
+  (the watcher; a copy of a spell, which isn't cast, CR 707.10), `rolled-back`,
+  `filter-unknown`, `fired`, `game-over`, `watcher-moved` (the watcher entered or
+  left in the event's message, other than its own event: whether at the same time
+  the log can't tell), `watcher-left` (a cast, the watcher leaving the battlefield
+  later that turn: it may have been sacrificed as a cost, and cast triggers trigger
+  only once the costs are paid, CR 601.2i; deliberately broad, any leave that
+  turn, since a cost's payment is logged in messages of its own after the cast
+  move and this read doesn't follow them, so it only loses findings), `suppressed` (by the watcher's
+  controller: Elesh Norn silences its opponents' permanents' triggers), then the
+  own-event check's `rebalanced`, `unfired-unsure`, `no-abilities`,
+  `unfired-unpaired`, `arena-not-triggered`, `unfired-conditional` (a cast
+  trigger's caster is no gate here), `unfired-targeted`, `ignored`, `unfired`.
+  Rows are keyed by the event's place in the game, the watcher's log id and the
+  trigger's text. Out of this piece: triggers in other zones (a graveyard's, a
+  hand's, an emblem's, the command zone's), `changes_zone` watchers (the log
+  records no move between other zones), "whenever you sacrifice", a player's
+  event with no object filter ("Whenever you attack", "attacks or blocks"),
+  damage, counters and targeting, and tokens as watchers (no card behind them).
+  An open limit: a phased-out permanent is treated as though it doesn't exist (CR
+  702.26b), but no log over both sets shows phasing (no annotation or object key
+  naming it beyond the step changes, and no card that phases anything out among
+  the logged objects), so a phased-out watcher or object would be read as
+  present.
+  Measured on 2026-11-27 (phase v0.133.0), archive and live logs, 47 games: 90
+  `fired`, 34 `filter-unknown`, 11 `unfired-conditional`, 5 `copy`, 1
+  `game-over`, 1 `watcher-left`; the corpus, 95 games: 287 `fired`, 49
+  `filter-unknown`, 9 `unfired-conditional`, 4 `game-over`, 3 `copy`, 3
+  `rolled-back`, 2 `watcher-left`; 0 `unfired` on either. Its tool fault was the
+  `HiddenByAbilityIds` exclusion above (Sazh's Chocobo's landfall read
+  `unfired` three times, Glacierwood Siege's cast trigger ten times
+  `arena-not-triggered` or `game-over`). No resolution, trigger or own-event
+  row moved.
 - **Confident pairings only** (`_arena_crosscheck.align`). An Arena ability pairs with
   phase's at near-identical text (0.9, after reading Arena's mana symbols, `CARDNAME`,
   "this permanent" and a leading ability word, which has no rules meaning, CR 207.2c,
