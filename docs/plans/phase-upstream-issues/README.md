@@ -8,7 +8,7 @@ Numbering: `NN` is the report section; issues found after the report (25 on: the
 
 Every draft and every backlog-listed phase misparse without a draft was re-checked against phase v0.133.0 (commit 890e1ee, newest release that day). The bar was the owner's: file only a bug in phase's parser that changes how the card's rules are applied, not one about how this repo reads phase's output.
 
-On 2026-11-27 the owner widened the bar from the parser to phase as a whole: a real engine fault is in scope too, as long as it changes how a card plays and is not about our use of phase (the first such report is staged in the batch-5 working notes; see `vetting-2026-11-27.md`).
+On 2026-11-27 the owner widened the bar from the parser to phase as a whole: a real engine fault is in scope too, as long as it changes how a card plays and is not about our use of phase (the first candidate, Awaken the Maelstrom's destroy target never being announced, turned out on verification to be the fault another reporter's open issue phase-rs/phase #9579 already describes, so it was not filed and, by the owner's rule, not commented on; see `vetting-2026-11-27.md`).
 
 Each card was checked in four places:
 
