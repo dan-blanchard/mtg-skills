@@ -149,4 +149,7 @@ synthetic attacks that passed the first verifier now fail it or are redacted. On
 shape still passes by construction: a name that appears only in free text (`Welcome
 back, Quixotl!`) in a run where no session states it in a field the harvest reads; the
 account's own name is in every session's login response, so it is pooled, and the
-denylist is the owner's backstop for any other name known in advance.
+denylist is the owner's backstop for any other name known in advance. The owner
+confirmed on 2026-11-27 that he has no extra term to add: the harvested names and ids,
+the machine's account names and their full names are the list, so the tool runs with
+no denylist file by design.

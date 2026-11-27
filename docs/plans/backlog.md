@@ -52,26 +52,6 @@ phase-rs issue.
   Likewise an untyped `cheat_into_play` lifts the cap for every permanent card,
   though Genesis Hydra, Emergent Woodwurm and Broodcaller Scourge cheat only up to
   a bound the signal does not carry.
-- **What a generous budget buys off the job pages: the pages' own order**
-  (2026-11-26; what the settle-up buys, N19 / N22 / N25 / N26 / N27,
-  `~/mtg/tuner-work/w-2026-11-26/`; a larger budget picks the same). Not the
-  mana-value gap: both are upgrades, held to their cut's band, and cheap. Each is the
-  job page's most played card once the money reaches it. The tuner's own need reads
-  call both on-plan (the planfit table above), and Dan ruled no plan-fit rule
-  (2026-11-26). Phyrexian Altar ($54.14,
-  rank 305) upgrades Rousing Refrain on Prismari Artistry's ramp page (32nd on it;
-  3rd on the "token maker consumers" need page), over Burnished Hart: a sacrifice
-  outlet as ramp in a spells deck with no sacrifice plan. Esper Sentinel ($51.13,
-  rank 79) upgrades Shimmer Dragon on Deep Clue Sea's card-draw page (4th), over
-  Howling Mine: a draw tax on opponents' first noncreature spell, its X the
-  Sentinel's 1 power, in Morska's Clue deck. Counter Intelligence's card-draw
-  upgrade of Thirst for Knowledge, given $0.82, reads the blend: Silent Hallcreeper
-  ($0.80, rank 1446) 7th, Seize the Spoils ($0.25, rank 725) 13th, everything above
-  Hallcreeper costlier. That is a ranking question: the draw blend against a
-  more-played card that draws two and makes a Treasure.
-
-**The settle-up (2026-11-26; `~/mtg/tuner-work/w-2026-11-26/`)**
-
 - **Settling up the budget the even share held back: v1 held, v2 landed** (2026-11-26).
   - *The cause.* TyranidSwarm_40K lost Cyclonic Rift as an add (traced
     2026-11-26). At Exocrine's board-wipe upgrade, three swaps from the end with
@@ -863,6 +843,32 @@ phase-rs issue.
 headroom and parked items.
 
 ## Settled: don't re-suggest
+
+- **No plan-fit rule for job-page upgrades** (Dan, 2026-11-26). Asked whether the
+  settle-up should refuse a popular job card with no tie to the deck's plan, Dan
+  ruled it lands as built: the tuner's own need reads call Phyrexian Altar and Esper
+  Sentinel on-plan, and no rule tested on the 70 changed pairs moved held-out plan by
+  more than +2 (`~/mtg/tuner-work/w-2026-11-26/planfit/`). The record of what it
+  buys, kept for reference:
+  **What a generous budget buys off the job pages: the pages' own order**
+  (2026-11-26; what the settle-up buys, N19 / N22 / N25 / N26 / N27,
+  `~/mtg/tuner-work/w-2026-11-26/`; a larger budget picks the same). Not the
+  mana-value gap: both are upgrades, held to their cut's band, and cheap. Each is the
+  job page's most played card once the money reaches it. The tuner's own need reads
+  call both on-plan (the planfit table above), and Dan ruled no plan-fit rule
+  (2026-11-26). Phyrexian Altar ($54.14,
+  rank 305) upgrades Rousing Refrain on Prismari Artistry's ramp page (32nd on it;
+  3rd on the "token maker consumers" need page), over Burnished Hart: a sacrifice
+  outlet as ramp in a spells deck with no sacrifice plan. Esper Sentinel ($51.13,
+  rank 79) upgrades Shimmer Dragon on Deep Clue Sea's card-draw page (4th), over
+  Howling Mine: a draw tax on opponents' first noncreature spell, its X the
+  Sentinel's 1 power, in Morska's Clue deck. Counter Intelligence's card-draw
+  upgrade of Thirst for Knowledge, given $0.82, reads the blend: Silent Hallcreeper
+  ($0.80, rank 1446) 7th, Seize the Spoils ($0.25, rank 725) 13th, everything above
+  Hallcreeper costlier. That is a ranking question: the draw blend against a
+  more-played card that draws two and makes a Treasure.
+
+**The settle-up (2026-11-26; `~/mtg/tuner-work/w-2026-11-26/`)**
 
 - **`own_target_spell`'s beneficial arm** (Dan, 2026-11-26): besides a
   non-negative targeted `Pump`, an instant or sorcery whose spell (not a
