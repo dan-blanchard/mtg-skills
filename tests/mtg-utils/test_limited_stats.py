@@ -203,6 +203,30 @@ class TestCardRows:
         )
         assert row["iwd_se"] == pytest.approx(expected, abs=0.01)
 
+    def test_free_tier_sideboard_share_of_not_drawn(self, index):
+        # 100 games, 80 with the card in the main deck, 60 drawn: 20 of the 40
+        # derived not-drawn games were sideboard-only.
+        payload = {
+            "data": {"100": {"ALL": {"b": [[100, 50, 80], [60, 33]]}}},
+            "metadata": {"fields": FREE_FIELDS, "games": {}},
+        }
+        assert ls.card_rows(payload, index)[0]["side_share"] == 50.0
+
+    def test_row_cut_before_in_main_games_counts_no_sideboard_games(self, index):
+        # The fixture's rows stop after wins (no real row with games does:
+        # the free tier drops trailing zeros only). Nothing is counted, where
+        # reading the missing in_main_games as 0 would call every game
+        # sideboard-only.
+        row = _row(ls.card_rows(FREE_PAYLOAD, index), "Glimmerwing Test Angel")
+        assert row["side_share"] == 0.0
+
+    def test_sideboard_share_never_exceeds_the_not_drawn_games(self):
+        # More sideboard-only games than not-drawn ones (inconsistent counts)
+        # is all of them, not more.
+        totals = {"not_available_games": 10, "side_only_games": 25}
+        assert ls.sideboard_share(totals, derived=True) == 100.0
+        assert ls.sideboard_share(totals, derived=False) is None
+
     def test_missing_title_id_gets_placeholder_name(self):
         rows = ls.card_rows(FREE_PAYLOAD, {})
         assert _row(rows, "titleId 100")["rarity"] == "unknown"
@@ -233,6 +257,8 @@ class TestCardRows:
         )
         assert ls.payload_source(payload) == "premium"
         assert ls.payload_source(FREE_PAYLOAD) == "file"
+        # Premium counts its not-drawn games: no sideboard games among them.
+        assert row["side_share"] is None
 
 
 class TestColorPairs:
@@ -875,6 +901,62 @@ class TestPooledCli:
         sealed_line, draft_line = formats.strip().split("\n")
         assert "not drawn =" not in sealed_line
         assert "not drawn = games - drawn" in draft_line
+
+    @pytest.mark.parametrize(("in_main", "flagged"), [(7200, True), (9700, False)])
+    def test_sideboard_heavy_not_drawn_is_said_on_the_line(
+        self, cache, in_main, flagged
+    ):
+        # 10000 games, 6000 drawn: 2800 of the 4000 not-drawn games were
+        # sideboard-only (70%), or 300 of them (7.5%, under
+        # SIDEBOARD_SHARE_FLAG). Drawn wins 70%, not drawn 40%: a standout
+        # over the other card's flat +0.
+        payload = {
+            "data": {
+                "100": {"ALL": {"b": [[10000, 5800, in_main], [6000, 4200]]}},
+                "200": {"ALL": {"b": [[10000, 5000, 10000], [6000, 3000]]}},
+            },
+            "metadata": {"fields": FREE_FIELDS, "games": {}},
+        }
+        _seed_card_files(cache)
+        with patch(
+            "mtg_utils.limited_stats.requests.get", return_value=_response(payload)
+        ):
+            text, as_json = (
+                CliRunner().invoke(ls.main, ["--set", "TST", *extra])
+                for extra in ([], ["--json"])
+            )
+        assert text.exit_code == 0, text.output
+        pooled = text.output.split("# TST SEALED")[0]
+        line = next(ln for ln in pooled.splitlines() if "Glimmerwing Test Angel" in ln)
+        note = (
+            "! sideboard-only share of not-drawn games: SEALED 70%, PREMIER_DRAFT 70%"
+        )
+        assert (note in line) is flagged
+        assert "sideboard-only" not in "".join(
+            ln for ln in pooled.splitlines() if "Fictional Bomb Dragon" in ln
+        )
+        card = next(
+            c
+            for c in json.loads(as_json.output)["pooled"]["cards"]
+            if c["title_id"] == "100"
+        )
+        assert card["events"]["SEALED"]["side_share"] == (70.0 if flagged else 7.5)
+
+    def test_single_format_bomb_line_says_so_too(self, cache):
+        # The bomb line prints the IWD: the mythic's 2800 sideboard-only games
+        # of 4000 not drawn are said there as well.
+        payload = {
+            "data": {"200": {"ALL": {"b": [[10000, 5800, 7200], [6000, 4200]]}}},
+            "metadata": {"fields": FREE_FIELDS, "games": {}},
+        }
+        _seed_card_files(cache)
+        with patch(
+            "mtg_utils.limited_stats.requests.get", return_value=_response(payload)
+        ):
+            result = CliRunner().invoke(ls.main, ["--set", "TST", "--event", "SEALED"])
+        assert result.exit_code == 0, result.output
+        bombs = result.output.split("## Bomb candidates")[1].split("## ")[0]
+        assert "IWD +30.0  ! sideboard-only share of not-drawn games: 70%" in bombs
 
     def test_one_format_missing_still_pools(self, cache, premium_file):
         _seed_card_files(cache)

@@ -657,7 +657,11 @@ phase-rs issue.
   `sqrt(Σ se²) / n`). What stays: `pair_tiers.error` is a binomial σ at 50% over deck
   games, but the pair rate is card-weighted (each deck counts once per card) and the
   payload holds no deck wins per archetype (only `metadata.games`), so the true σ isn't
-  computable from it and is likely wider. Premium payloads may carry the wins.
+  computable from it and is likely wider. The Premium card-stats payload doesn't
+  carry them either (read 2026-11-27, TRK Sealed and Premier Draft, signed in): its
+  `metadata` holds `games` (a count per archetype and rank, no wins) and `fields`,
+  the fields being `limited_stats.DEFAULT_FIELDS`, and the set-guide page calls no
+  other analytics query. A limit of the data, not open work.
 - **Free-tier "not drawn" includes sideboard games.** The free tier has no
   `not_available_*`, so `_sum_buckets` derives not drawn as `games - available_games`;
   `games` also counts games the card sat only in the sideboard (`games - in_main_games`:
@@ -666,7 +670,10 @@ phase-rs issue.
   Premium counts not-drawn directly. This is the real limit of the free data for a
   low-play card, larger than its ±: Brazen Bluff's draft not-drawn games are 28%
   sideboard-only, enough to move its draft lift by about ±6; Red Alert! about 1; the top
-  mythics 0.1 or less.
+  mythics 0.1 or less. Said on the card's pooled line since 2026-11-27
+  (`sideboard_share`: a format whose share is `SIDEBOARD_SHARE_FLAG` = 10% or more;
+  each format's entry carries `side_share`). The wins can't be taken out, so the label
+  rules don't read it: a limit of the free data, not open work.
 
 **From walking phase's branch shapes (2026-10-09)**
 

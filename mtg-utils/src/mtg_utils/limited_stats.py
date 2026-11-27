@@ -35,6 +35,9 @@ The free tier truncates each stats row (trailing values dropped, and the
 ``not_available_*`` / side-in / side-out fields left out entirely) and omits
 the diamond and mythic rank buckets, so every index read here defaults to 0,
 and a missing not-drawn count is derived as ``games - available_games``.
+Those derived games include the ones a card sat only in the sideboard
+(:func:`sideboard_share`); the pooled view says so on a card's line when they
+are :data:`SIDEBOARD_SHARE_FLAG` percent or more of a format's not-drawn games.
 """
 
 from __future__ import annotations
@@ -119,6 +122,12 @@ _CLASH_FLOOR = 20
 #: The confidence (percent) of a pooled card's ± range; a label needs the
 #: range's cautious end to clear the margin (``--confidence``).
 DEFAULT_CONFIDENCE = 90.0
+#: The share (percent) of a card's derived not-drawn games spent only in the
+#: sideboard at or over which the pooled view says so on the card's line
+#: (:func:`sideboard_share`). At 10% a 15-point gap between those games' win
+#: rate and the main-deck not-drawn ones moves the IWD by 1.5 points
+#: (``15 * 0.10``).
+SIDEBOARD_SHARE_FLAG = 10.0
 
 
 # --- Pure helpers --------------------------------------------------------------
@@ -175,21 +184,54 @@ _COUNT_FIELDS = (
 )
 
 
+def _side_only_games(row: list, positions: dict[str, tuple[int, int]]) -> int:
+    """The games of one stats row the card spent only in the sideboard:
+    ``games - in_main_games`` (not ``in_side_games``, which also counts a game
+    with copies in both). 0 when the row stops before ``in_main_games``: the
+    free tier drops a row's trailing zeros, and no real row with games stops
+    there (every game has the card in the main deck or the sideboard), so
+    there is nothing to count."""
+    pos = positions.get("in_main_games")
+    if pos is None:
+        return 0
+    section, idx = pos
+    try:
+        row[section][idx]
+    except (LookupError, TypeError):
+        return 0
+    return max(_value(row, positions.get("games")) - _value(row, pos), 0)
+
+
 def _sum_buckets(
     buckets: dict[str, list], positions: dict[str, tuple[int, int]]
 ) -> dict[str, int]:
     """Sum the count fields across every rank bucket of one archetype."""
     totals = dict.fromkeys(_COUNT_FIELDS, 0)
+    totals["side_only_games"] = 0
     for row in buckets.values():
         if not isinstance(row, list):
             continue
         for name in _COUNT_FIELDS:
             totals[name] += _value(row, positions.get(name))
+        totals["side_only_games"] += _side_only_games(row, positions)
     if "not_available_games" not in positions:
         # Free tier: not-drawn = in the deck but never seen.
         totals["not_available_games"] = totals["games"] - totals["available_games"]
         totals["not_available_wins"] = totals["wins"] - totals["available_wins"]
     return totals
+
+
+def sideboard_share(totals: dict[str, int], *, derived: bool) -> float | None:
+    """The percentage of a card's not-drawn games it spent only in the
+    sideboard, on the free tier (*derived*), where not drawn is ``games -
+    drawn`` and so counts them (:func:`iwd_standard_error`): ``games -
+    in_main_games`` of ``games - available_games``. ``None`` for a Premium
+    payload, which counts not-drawn games directly, and for a card with no
+    not-drawn games."""
+    undrawn = totals["not_available_games"]
+    if not derived or undrawn <= 0:
+        return None
+    return round(100.0 * min(totals["side_only_games"], undrawn) / undrawn, 1)
 
 
 def build_card_index(
@@ -300,6 +342,7 @@ def card_rows(payload: dict, index: dict[str, dict]) -> list[dict]:
 
     ``iwd_se`` is the IWD's standard error (:func:`iwd_standard_error`)."""
     positions = _field_positions(payload.get("metadata", {}).get("fields"))
+    derived = "not_available_games" not in positions
     rows = []
     for title_id, archetypes in (payload.get("data") or {}).items():
         buckets = archetypes.get("ALL") if isinstance(archetypes, dict) else None
@@ -334,6 +377,7 @@ def card_rows(payload: dict, index: dict[str, dict]) -> list[dict]:
                     else None
                 ),
                 "iwd_se": None if se is None else round(se, 2),
+                "side_share": sideboard_share(t, derived=derived),
                 "oh": t["in_opening_hands"],
                 "oh_wr": _pct(t["in_opening_hand_wins"], t["in_opening_hands"]),
             }
@@ -641,6 +685,9 @@ def pooled_cards(
                 "se": row["iwd_se"],
                 "plus_minus": round(z * row["iwd_se"], 1),
             }
+            if row.get("side_share") is not None:
+                # Free tier only (:func:`sideboard_share`).
+                card["events"][event]["side_share"] = row["side_share"]
     out = []
     for card in cards.values():
         events = card["events"].values()
@@ -1154,8 +1201,13 @@ def render_text(report: dict) -> str:
     for r in report["bomb_candidates"][:_TOP_BOMBS]:
         flag = " standout uncommon" if r["standout_uncommon"] else ""
         iwd = "--" if r["iwd"] is None else f"{r['iwd']:+.1f}"
+        side = (
+            f"  ! sideboard-only share of not-drawn games: {r['side_share']:.0f}%"
+            if (r.get("side_share") or 0.0) >= SIDEBOARD_SHARE_FLAG
+            else ""
+        )
         lines.append(
-            f"  {_gih(r):>8}  {_label(r, code)}{flag}  GIH {r['gih']}, IWD {iwd}"
+            f"  {_gih(r):>8}  {_label(r, code)}{flag}  GIH {r['gih']}, IWD {iwd}{side}"
         )
     lines += ["", "## Underperformers (rares/mythics under 50% GIH WR)"]
     if not report["underperformers"]:
@@ -1186,6 +1238,20 @@ def _review_note(card: dict) -> str:
     return f"  reviewers {card['review_mean']:.1f} ({card['review_sources']})"
 
 
+def _sideboard_note(card: dict) -> str:
+    """Says so when a format's not-drawn games are largely sideboard-only ones
+    (:data:`SIDEBOARD_SHARE_FLAG`): that format's IWD leans on games the card
+    was never in the deck for."""
+    heavy = [
+        f"{ev} {e['side_share']:.0f}%"
+        for ev, e in card["events"].items()
+        if (e.get("side_share") or 0.0) >= SIDEBOARD_SHARE_FLAG
+    ]
+    if not heavy:
+        return ""
+    return f"  ! sideboard-only share of not-drawn games: {', '.join(heavy)}"
+
+
 def _card_line(
     card: dict, code: str, *, bracket: bool = False, ranged: bool = False
 ) -> str:
@@ -1204,7 +1270,7 @@ def _card_line(
         f" {mark}{iwd:>{13 if ranged else 7}}  {lean}{_label(card, code)}"
         f"  vs avg {_signed(card['vs_average'])}{pm},"
         f" {card['gih']} drawn  ({_per_event(card['events'], 'gih', ranged=ranged)})"
-        f"{_review_note(card)}"
+        f"{_review_note(card)}{_sideboard_note(card)}"
     )
 
 
