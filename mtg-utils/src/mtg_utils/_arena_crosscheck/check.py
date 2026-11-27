@@ -1,11 +1,14 @@
-"""Check each Arena resolution and fired trigger against phase's parse (ADR-0064).
+"""Check each Arena resolution and fired trigger against phase's parse, and each
+trigger phase's parse expects on an object's own event against what Arena fired
+(ADR-0064).
 
 Arena's log is evidence, not the referee: a disagreement is a lead, checked against
 the Comprehensive Rules (``/rules-lawyer``) before it is called a phase misparse; an
 Arena mistake goes to the ignore list (``data/arena_crosscheck_ignore.toml``) with
 its reason.
 
-Rows, one per resolution or trigger, each with a ``status``:
+Rows, one per resolution, fired trigger or expected trigger, each with a
+``status``:
 
 * resolutions: ``agree`` / ``conditional`` (an effect that may not happen didn't) /
   ``phase-extra`` / ``arena-extra`` (see ``effects``), or why it wasn't scored:
@@ -25,7 +28,14 @@ Rows, one per resolution or trigger, each with a ``status``:
   phase's trigger watches), ``not-logged`` (Arena logs no event for it, e.g. a
   library search), ``unchecked`` (phase's event has no Arena counterpart),
   ``reflexive`` (a "When you do" or delayed trigger, set off by its parent's action),
-  ``rules-object``, or why it wasn't scored.
+  ``rules-object``, or why it wasn't scored;
+* expected (the reverse check, :meth:`Checker.expected`: a trigger of the card that
+  watches an event of the object itself, ``log.ObjectEvent``): ``fired`` /
+  ``unfired`` (Arena created no instance of it by the turn's end, though it lists
+  the ability on the object), or why a missing instance is no evidence
+  (:data:`EXPECTED_STATUSES`): ``face-down``, ``copy``, ``game-over``,
+  ``unfired-unsure``, ``no-abilities``, ``unfired-unpaired``,
+  ``unfired-conditional``, ``unfired-targeted``, ``ignored``.
 
 An ability on an emblem is its source card's (``log``), compared against the
 emblem's ability in phase's parse of that card, with an ``emblem`` warning; Arena's
@@ -38,9 +48,10 @@ A rebalanced (Alchemy "A-") card is compared against the paper card's parse with
 from __future__ import annotations
 
 import collections
+import re
 import tomllib
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
@@ -62,15 +73,28 @@ from mtg_utils._arena_crosscheck.effects import (
     own_effects,
     strict_checks,
 )
-from mtg_utils._arena_crosscheck.log import Resolution, TriggerFired, read_logs
+from mtg_utils._arena_crosscheck.log import (
+    Instance,
+    ObjectEvent,
+    Resolution,
+    TriggerFired,
+    read_logs,
+)
 from mtg_utils._arena_crosscheck.report import build_report
 from mtg_utils._card_ir.crosswalk import (
     PERMANENT_CARD_TYPES,
+    AbilityUnit,
     ConceptTree,
+    TriggerSuppression,
+    effect_targets,
     own_keyword_bodies,
     replacement_event_tag,
+    trigger_gates,
+    trigger_suppressions,
+    trigger_zone_changes,
+    watches_itself,
 )
-from mtg_utils.arena_card_db import TRIGGERED, ArenaAbility, CardText
+from mtg_utils.arena_card_db import ACTIVATED, TRIGGERED, ArenaAbility, CardText
 
 if TYPE_CHECKING:
     from mtg_utils.card_pool import CardPool
@@ -113,6 +137,54 @@ def shown_by(event: str | None) -> frozenset[str] | None:
     if event in _SHOWN_BY:
         return _SHOWN_BY[event]
     return frozenset({event}) if event in _LOGGED else None
+
+
+#: Phase's trigger events the reverse check expects on an object's own event
+#: (``log.ObjectEvent``): the ones the log shows every time they happen. Not
+#: ``taps`` (an attack taps only a creature without vigilance), damage, counters
+#: or a target choice.
+_OWN_EVENTS = frozenset(
+    {
+        "enters",
+        "dies",
+        "leaves",
+        "changes_zone",
+        "entersorattacks",
+        "attacks",
+        "blocks",
+        "becomes_blocked",
+        "cast_spell",
+        "sacrificed",
+    }
+)
+#: The zone-change watchers, whose zones are checked against the move's.
+_MOVES = frozenset({"enters", "dies", "leaves", "changes_zone"})
+
+
+def watches_own_event(ability: PhaseAbility, event: ObjectEvent) -> bool:
+    """Whether a phase trigger of the object's own card watches ``event`` of
+    the object itself: a trigger on the card (not one it grants another
+    object) whose subject is the card alone (``SelfRef``), of an event in
+    :data:`_OWN_EVENTS` that ``event`` is, and, for a zone change, a move from
+    and to the zones it names."""
+    if ability.origin != "trigger" or ability.unit is None:
+        return False
+    trig = ability.unit.node
+    shown = shown_by(ability.trigger_event)
+    if (
+        ability.trigger_event not in _OWN_EVENTS
+        or shown is None
+        or not shown & event.events
+        or not watches_itself(trig)
+    ):
+        return False
+    if ability.trigger_event not in _MOVES:
+        return True
+    return any(
+        (origin is None or origin == event.origin)
+        and (dest is None or dest == event.destination)
+        for origin, dest in trigger_zone_changes(trig)
+    )
 
 
 #: A rules object Arena resolves (no printed card), by the name Arena gives it:
@@ -211,6 +283,7 @@ class Checker:
         self._keywords = keywords
         #: Per card name, phase's parse; ``None`` for a card phase has no tree for.
         self._parsed: dict[str, _Parsed | None] = {}
+        self._suppression: dict[str, tuple[TriggerSuppression, ...]] = {}
 
     def _keyword(self, ability: ArenaAbility) -> str | None:
         """The keyword an Arena ability is an instance of: its ``BaseId``'s
@@ -311,13 +384,7 @@ class Checker:
             # a "When you do" or delayed trigger: phase keeps it inside its parent
             return {**row, "status": "reflexive"}
         if ability is not None:
-            pairing = pair(
-                ability.text,
-                found.abilities,
-                keyword=ability.keyword,
-                numeral=ability.numeral,
-                card_keywords=found.keywords,
-            )
+            pairing = self._pair(ability, found)
             if pairing.ability is None:
                 return _unpaired(row, pairing, found, self._keyword(ability))
             chosen = [pairing.ability]
@@ -411,14 +478,7 @@ class Checker:
         if ability.parent is not None and not emblem:
             # set off by its parent's action ("When you do"), or a delayed trigger
             return {**row, "status": "reflexive"}
-        pairing = pair(
-            ability.text,
-            found.abilities,
-            keyword=ability.keyword,
-            numeral=ability.numeral,
-            card_keywords=found.keywords,
-            keep=lambda a: a.trigger_event is not None,
-        )
+        pairing = self._pair(ability, found, _is_trigger)
         if pairing.ability is None:
             return _unpaired(row, pairing, found, self._keyword(ability))
         events = [a.trigger_event for a in pairing.abilities]
@@ -444,6 +504,309 @@ class Checker:
             row.update(status="ignored", ignored=reason)
         return row
 
+    def expected(self, events: Sequence[ObjectEvent]) -> list[dict]:
+        """One row per trigger phase's parse gives an object's card that
+        watches one of ``events`` of the object itself
+        (:func:`watches_own_event`): whether Arena created an instance of it
+        (``fired``), and when it didn't, whether that is a finding
+        (``unfired``) or why it isn't one (:data:`EXPECTED_STATUSES`). No rows
+        for an object with no card or no parse to expect anything of.
+
+        Arena names the object an instance came from, never its event, so the
+        events of one object in a turn are offered the same instances. Each
+        instance answers at most one row: of the events offered it with a row
+        whose trigger it pairs with, the last (the latest before it), and
+        none when that row is answered already. That row is ``fired``. A row
+        left unanswered though an instance offered it pairs with its trigger
+        (one that answered another event, or none) is ``unfired-unsure``:
+        the log can't tell which event the instance was for.
+
+        So with two events of one object and the instances logged after both:
+        one instance pairing with both rows (an enter and a leave, one Arena
+        ability; a haste attack after an enter) makes the later row ``fired``
+        and the earlier ``unfired-unsure``; two instances (a second Bilbo,
+        Retired Burglar put into the graveyard by the legend rule before its
+        enter trigger is on the stack; a doubled attack trigger under Isshin,
+        Two Heavens as One) make the same, never an earlier ``fired`` nor an
+        ``unfired`` either way. The later row's ``fired`` assumes the instance
+        is its event's: one logged after both events goes with the later. An
+        instance that pairs with only one of the rows answers that one: an
+        enter trigger logged after the creature died at once, its persist
+        beside it (Woodfall Primus), is the enter's."""
+        pending = [p for event in events for p in self._expecting(event)]
+        # the last event offered each instance that has a row it pairs with:
+        # the one it answers, its row credited or not
+        answers: dict[tuple, int] = {}
+        for p in pending:
+            for instance, _ability, pairing in p.instances:
+                if p.trig in pairing.abilities:
+                    key = (p.event.game, instance.id)
+                    answers[key] = max(answers.get(key, -1), p.event.ordinal)
+        for p in pending:
+            for instance, _ability, pairing in p.instances:
+                if (
+                    not p.credited
+                    and p.trig in pairing.abilities
+                    and answers[(p.event.game, instance.id)] == p.event.ordinal
+                ):
+                    p.credited = True
+        out = []
+        for p in pending:
+            row = {
+                **p.row,
+                "phase_text": p.trig.desc,
+                "phase_event": p.trig.trigger_event,
+            }
+            row.update(self._own_status(p))
+            if row["status"] != "fired":
+                # what Arena did put on the stack from the object, for triage
+                row["fired"] = [a.text for _, a, _ in p.instances]
+            out.append(row)
+        return out
+
+    def _expecting(self, event: ObjectEvent) -> list[_Expect]:
+        """The triggers phase expects on ``event``, with the instances offered
+        to it, each paired with phase's triggers of the card."""
+        row: dict = {
+            "game": list(event.game),
+            "turn": event.turn,
+            "event": event.event,
+            "event_index": event.ordinal,
+            "warnings": [],
+        }
+        if event.origin or event.destination:
+            row["zones"] = [event.origin, event.destination]
+        found = self._lookup(event.grpid, row)
+        if isinstance(found, dict):
+            return []
+        card = self.text.card(event.grpid)
+        face = card.paper_name if card else None
+        # a double-faced card's other face is not on the battlefield (CR 712.8)
+        on_face = [a for a in found.abilities if a.face == face] or found.abilities
+        expected = [a for a in on_face if watches_own_event(a, event)]
+        if not expected:
+            return []
+        instances = [
+            (instance, ability, self._pair(ability, found, _is_trigger))
+            for instance in event.fired
+            if (ability := self.text.ability(instance.grpid)).category == TRIGGERED
+            and ability.parent is None
+        ]
+        return [_Expect(event, trig, row, found, instances) for trig in expected]
+
+    @staticmethod
+    def _pair(
+        ability: ArenaAbility,
+        found: _Parsed,
+        keep: Callable[[PhaseAbility], bool] | None = None,
+    ) -> Pairing:
+        """The phase ability (among those that ``keep``) an Arena ability is."""
+        return pair(
+            ability.text,
+            found.abilities,
+            keyword=ability.keyword,
+            numeral=ability.numeral,
+            card_keywords=found.keywords,
+            keep=keep or _any_ability,
+        )
+
+    def _own_status(self, p: _Expect) -> dict:
+        """The status of a trigger phase expects on an event
+        (:data:`EXPECTED_STATUSES`, in their order), and what it rests on."""
+        event, trig, found = p.event, p.trig, p.found
+        if event.face_down:
+            return {"status": "face-down"}
+        if event.copy or event.kind != "Card":
+            return {"status": "copy"}
+        if event.rolled_back:
+            return {"status": "rolled-back"}
+        if p.credited:
+            return {"status": "fired"}
+        if not event.turn_ended:
+            return {"status": "game-over"}
+        if (by := self._suppressed_by(event, trig)) is not None:
+            return {"status": "suppressed", "suppressed_by": by}
+        if "rebalanced" in p.row["warnings"]:
+            return {"status": "rebalanced"}
+        if any(pairing.method == "unsure" for _, _, pairing in p.instances):
+            # an instance phase's text can't name could be this trigger
+            return {"status": "unfired-unsure"}
+        if any(trig in pairing.abilities for _, _, pairing in p.instances):
+            # an instance of this trigger that answered another event (or
+            # none): which event it was for, the log can't tell
+            return {"status": "unfired-unsure", "unsure": "another event's"}
+        if not event.abilities:
+            return {"status": "no-abilities"}
+        paired = (
+            (ability, self._pair(ability, found))
+            for ability in map(self.text.ability, event.abilities)
+        )
+        listed = [(a, pairing) for a, pairing in paired if trig in pairing.abilities]
+        if not listed:
+            return {"status": "unfired-unpaired"}
+        arena, pairing = listed[0]
+        out: dict = {
+            "arena_text": arena.text,
+            "arena_category": _CATEGORY.get(arena.category, str(arena.category)),
+        }
+        if arena.category != TRIGGERED:
+            return {**out, "status": "arena-not-triggered"}
+        unit = trig.unit
+        if gates := trigger_gates(unit.node if unit else None):
+            return {**out, "status": "unfired-conditional", "gates": list(gates)}
+        if _targets(arena, pairing, unit):
+            # with no legal target Arena puts no instance on the stack at all
+            # (CR 603.3d: "the ability is simply removed from the stack")
+            return {**out, "status": "unfired-targeted"}
+        if (reason := self._ignored(p.row["card"], arena.text)) is not None:
+            return {**out, "status": "ignored", "ignored": reason}
+        return {**out, "status": "unfired"}
+
+    def _suppressed_by(self, event: ObjectEvent, trig: PhaseAbility) -> str | None:
+        """The card on the battlefield whose static stops ``event`` from
+        triggering ``trig`` (``crosswalk.trigger_suppressions``: Hushbringer's
+        "Creatures entering the battlefield or dying don't cause abilities to
+        trigger"), if any: :func:`_silences`. An event name phase gives that
+        this reader doesn't know is taken to silence every trigger."""
+        for grp, controller in event.battlefield:
+            card = self.text.card(grp)
+            name = card.paper_name if card else None
+            for s in self._suppressions(name):
+                if s.trigger_side == "opponents" and controller == event.controller:
+                    continue
+                if s.trigger_side == "you" and controller != event.controller:
+                    continue
+                if s.source_types and not (
+                    "Permanent" in s.source_types
+                    or set(s.source_types) & set(event.card_types)
+                ):
+                    continue
+                if any(_silences(e, event, trig) for e in s.events or ("*",)):
+                    return name
+        return None
+
+    def _suppressions(self, name: str | None) -> tuple[TriggerSuppression, ...]:
+        if name is None:
+            return ()
+        if name not in self._suppression:
+            record = self._card_of(name)
+            self._suppression[name] = tuple(
+                s
+                for tree in (self._trees_of(record) if record else ())
+                for s in trigger_suppressions(tree)
+            )
+        return self._suppression[name]
+
+
+@dataclass
+class _Expect:
+    """A trigger phase expects on an object event, before its status: the
+    event's row so far, the card's parse, the instances offered to the event
+    with their pairings, and whether one of them answers it."""
+
+    event: ObjectEvent
+    trig: PhaseAbility
+    row: dict
+    found: _Parsed
+    instances: list[tuple[Instance, ArenaAbility, Pairing]]
+    credited: bool = False
+
+
+def _silences(name: str, event: ObjectEvent, trig: PhaseAbility) -> bool:
+    """Whether phase's ``SuppressTriggers`` event ``name`` stops ``event``
+    from triggering ``trig``. ``EntersBattlefield``: an enter (every own
+    trigger expected on one watches the entering). ``Dies``: a dies or leaves
+    trigger on a leave to a graveyard (Hushbringer's rulings: a "leaves the
+    battlefield" ability won't trigger on dying), or a zone change whose every
+    move starts on the battlefield; never a "whenever you sacrifice" trigger
+    nor a dying card's own "put into a graveyard from anywhere", which its
+    rulings say still trigger. An unknown name silences every trigger."""
+    if name == "EntersBattlefield":
+        return event.event == "enters"
+    if name == "Dies":
+        moves = trigger_zone_changes(trig.unit.node) if trig.unit else ()
+        return "dies" in event.events and (
+            trig.trigger_event in ("dies", "leaves")
+            or (
+                trig.trigger_event == "changes_zone"
+                and bool(moves)
+                and all(origin == "Battlefield" for origin, _ in moves)
+            )
+        )
+    return True
+
+
+#: The reverse check's statuses (:meth:`Checker.expected`), one per trigger
+#: phase's parse expects on an object's own event. ``fired``: Arena created an
+#: instance of it from the object. ``unfired``, the finding: it didn't, though
+#: it lists the ability on the object, and nothing below explains why. The
+#: rest say why a missing instance is no evidence, in the order they are
+#: decided:
+EXPECTED_STATUSES: dict[str, str] = {
+    "face-down": "Arena marks the object face down: it has no abilities "
+    "(CR 708.2) and its enters abilities don't trigger (CR 708.3)",
+    "copy": "a copy (Arena's isCopy, or a token of a card's printing): a copy "
+    "effect may make exceptions (CR 707.9), and a copy of a spell isn't cast "
+    "(CR 707.10)",
+    "rolled-back": "Arena undid the event (a cancelled cast): a later message "
+    "reused the id of the annotation it came from for another one",
+    "fired": "an instance Arena created from the object answers it (each "
+    "instance answers one row: Checker.expected)",
+    "game-over": "the game or the log ended before the turn did",
+    "suppressed": "a card on the battlefield stops the event from triggering "
+    "abilities (crosswalk.trigger_suppressions: Hushbringer)",
+    "rebalanced": "a rebalanced (A-) card, scored against the paper card's parse",
+    "unfired-unsure": "Arena created an instance from the object that pairs "
+    "with no phase trigger confidently, or one of this trigger that answered "
+    "another of the object's events: it could be this one",
+    "no-abilities": "Arena lists no abilities on the object (it lost them)",
+    "unfired-unpaired": "none of the abilities Arena lists on the object pairs "
+    "with it confidently (lost, or a text phase writes otherwise)",
+    "arena-not-triggered": "the ability Arena lists for it is no triggered "
+    "ability in Arena's database (a static, a replacement)",
+    "unfired-conditional": "an intervening if, a limit, a filter or a parked "
+    "clause on the trigger (crosswalk.trigger_gates)",
+    "unfired-targeted": "it targets (Arena's text says target, or it is a "
+    "keyword, whose rule may): with no legal target Arena puts no instance on "
+    "the stack at all (CR 603.3d)",
+    "ignored": "an Arena mistake on the ignore list",
+    "unfired": "the finding",
+}
+
+
+#: The word that makes an object or player a target (CR 115.10a).
+_TARGET = re.compile(r"\btargets?\b", re.IGNORECASE)
+
+
+def _targets(arena: ArenaAbility, pairing: Pairing, unit: AbilityUnit | None) -> bool:
+    """Whether Arena's ability targets, the question being whether Arena would
+    put it on the stack: its rules text says "target" (CR 115.10a), or it is
+    an instance of a keyword whose rule may (Backup's "target creature", CR
+    702.165a; Mentor's "target attacking creature", CR 702.134a: an Arena
+    ``BaseId``, or a pairing by the keyword, as a bare "Mentor" with none) and
+    phase's ability for it holds a target
+    (``crosswalk.effect_targets``, which also counts a player the effect
+    names, such as scry's controller: too broad to read alone)."""
+    if _TARGET.search(arena.text or ""):
+        return True
+    return (
+        (bool(arena.keyword) or pairing.method == "keyword")
+        and unit is not None
+        and any(effect_targets(unit.node, c.node, unit) for c in unit.effects)
+    )
+
+
+def _is_trigger(ability: PhaseAbility) -> bool:
+    return ability.trigger_event is not None
+
+
+def _any_ability(_ability: PhaseAbility) -> bool:
+    return True
+
+
+#: Arena's ability categories by number (``arena_card_db``).
+_CATEGORY = {ACTIVATED: "activated", TRIGGERED: "triggered", 3: "static"}
+
 
 def checker_for(card_text: CardText, pool: CardPool) -> Checker:
     """The production checker: cards from ``pool``, their phase trees, the
@@ -459,10 +822,11 @@ def checker_for(card_text: CardText, pool: CardPool) -> Checker:
 def crosscheck(paths: Iterable[Path], checker: Checker, phase_tag: str) -> dict:
     """Read the logs at ``paths`` and score every resolution and trigger: the
     report (``report.build_report``)."""
-    resolutions, triggers, games = read_logs(paths)
+    logs = read_logs(paths)
     return build_report(
-        [checker.resolution(r) for r in resolutions],
-        [row for t in triggers if (row := checker.trigger(t)) is not None],
-        games,
+        [checker.resolution(r) for r in logs.resolutions],
+        [row for t in logs.triggers if (row := checker.trigger(t)) is not None],
+        logs.games,
         phase_tag,
+        expected=checker.expected(logs.events),
     )

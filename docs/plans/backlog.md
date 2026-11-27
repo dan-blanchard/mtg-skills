@@ -373,11 +373,19 @@ phase-rs issue.
 
 **From comparing Arena game logs with phase (2026-11-09)**
 
-- **`arena-crosscheck` checks a trigger one way only (ADR-0064).** It checks that
-  each trigger Arena fired watches the event logged before it; a trigger phase
-  predicts that Arena never fired (a condition or limit phase misses: Nadu, Winged
-  Wisdom's "only twice each turn" is `Unimplemented`) needs every permanent's
-  triggers walked against the logged events. Also not checked yet: amounts phase
+- **What `arena-crosscheck` doesn't check yet (ADR-0064).** Since 2026-11-27 a
+  trigger is checked both ways: each fired trigger against the event before it,
+  and each trigger phase expects on an object's own event against the instances
+  Arena created (`expected` rows). Not checked: a trigger phase expects that
+  watches other objects or players, or that a card grants another object (Nadu,
+  Winged Wisdom's granted "becomes the target" trigger, whose "only twice each
+  turn" phase leaves `Unimplemented`), and every own-event trigger it counts but
+  doesn't score (a condition, limit, filter or parked clause; a target; a
+  copy, a face-down object, a token's own printing, a rebalanced card, a
+  rolled-back cast; the last turn of a game; a suppressing static on the
+  battlefield; an unsure or unpaired ability, or one Arena files as no trigger),
+  as well as damage, counter, tap and targeting events of the object itself.
+  Also not checked yet: amounts phase
   writes as a count ("equal to the number of …") evaluated against the logged
   board, continuous effects other than a pump's size (an object's abilities before
   and after its resolution; a pump beside a base-P/T set or a keyword grant:

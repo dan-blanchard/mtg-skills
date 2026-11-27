@@ -73,6 +73,8 @@ class PhaseAbility:
     #: The ability unit it is, for the reads that take one (``None`` for a granted
     #: ability that isn't a trigger).
     unit: AbilityUnit | None = field(default=None, compare=False)
+    #: The name of the face it is on (its tree's).
+    face: str = field(default="", compare=False)
 
 
 def _ability(
@@ -85,6 +87,7 @@ def _ability(
     trigger_event: str | None,
     granted_by: PhaseAbility | None = None,
     unit: AbilityUnit | None = None,
+    face: str = "",
 ) -> PhaseAbility:
     text = str(desc or "")
     return PhaseAbility(
@@ -97,6 +100,7 @@ def _ability(
         granted_by=granted_by,
         normed=norm(text),
         unit=unit,
+        face=face,
     )
 
 
@@ -113,6 +117,7 @@ def abilities_of(trees: Sequence[ConceptTree]) -> list[PhaseAbility]:
                 root=unit.node,
                 trigger_event=unit.trigger_event,
                 unit=unit,
+                face=tree.name,
             )
             if unit.origin not in ("static", "replacement"):
                 out.append(own)
@@ -130,6 +135,7 @@ def abilities_of(trees: Sequence[ConceptTree]) -> list[PhaseAbility]:
                         trigger_event=granted.trigger_event if granted else None,
                         granted_by=own,
                         unit=granted,
+                        face=tree.name,
                     )
                 )
     return out
@@ -242,6 +248,12 @@ KEYWORD_ABILITIES: dict[str, str] = {
     # CR 702.175a's enters trigger: "When this permanent enters, if its offspring
     # cost was paid, create a token that's a copy of it, except it's 1/1"
     "offspring": "offspring cost was paid",
+    # CR 702.165a's enters trigger: "When this creature enters, put N +1/+1
+    # counters on target creature", which phase writes as "Backup N — …"
+    "backup": "backup",
+    # CR 702.134a's attack trigger, which phase writes as "Mentor — …"; Arena's
+    # database can file it bare, with no BaseId
+    "mentor": "mentor",
 }
 #: Arena's ``BaseId`` text for a Saga's chapter ability; its numeral is the chapter.
 SAGA_CHAPTER = "sagachapter"
@@ -300,15 +312,16 @@ def _best(
 #: enters and whenever it deals combat damage to a player, <effect>", "When ~
 #: enters and at the beginning of your upkeep, <effect>" (two trigger
 #: conditions), and "Whenever ~ enters or attacks, <effect>" (two events of one
-#: object). Each gives its two halves; a split pairs only when each half pairs
-#: confidently with a different phase trigger.
+#: object; the second may be more than a word: "enters or transforms into ~",
+#: Brigid, Clachan's Heart). Each gives its two halves; a split pairs only when
+#: each half pairs confidently with a different phase trigger.
 _COMBINED: tuple[tuple[re.Pattern, Callable[[re.Match], tuple[str, str]]], ...] = (
     (
         re.compile(r"^(when(?:ever)? .+?) and ((?:whenever|at) .+?), (.+)$"),
         lambda m: (f"{m[1]}, {m[3]}", f"{m[2]}, {m[3]}"),
     ),
     (
-        re.compile(r"^(when(?:ever)? .+?) (\w+) or (\w+), (.+)$"),
+        re.compile(r"^(when(?:ever)? .+?) (\w+) or ([^,]+?), (.+)$"),
         lambda m: (f"{m[1]} {m[2]}, {m[4]}", f"{m[1]} {m[3]}, {m[4]}"),
     ),
 )
@@ -319,14 +332,26 @@ _MODAL = re.compile(r"^(.+?), choose (?:one|two|three|one or more|any number)\b"
 
 
 def _split(text: str, candidates: Sequence[PhaseAbility]) -> Pairing | None:
-    """The two phase triggers one combined Arena ability is (:data:`_COMBINED`)."""
-    for pattern, halves in _COMBINED:
-        if (match := pattern.match(text)) is None:
-            continue
-        one, two = (_best(half, candidates) for half in halves(match))
-        if one and two and one[1] is not two[1] and min(one[0], two[0]) >= CONFIDENT:
-            return Pairing(one[1], "split", min(one[0], two[0]), also=(two[1],))
-    return None
+    """The two phase triggers one combined Arena ability is (:data:`_COMBINED`),
+    both on one face: an ability is on one face of a double-faced card (CR
+    712.8), so Brinebound Gift's "Whenever this Aura enters or enchanted
+    creature becomes the target …" is never half Brine Comber's."""
+    best: Pairing | None = None
+    for face in dict.fromkeys(a.face for a in candidates):
+        on_face = [a for a in candidates if a.face == face]
+        for pattern, halves in _COMBINED:
+            if (match := pattern.match(text)) is None:
+                continue
+            one, two = (_best(half, on_face) for half in halves(match))
+            if (
+                one
+                and two
+                and one[1] is not two[1]
+                and (score := min(one[0], two[0])) >= CONFIDENT
+                and (best is None or score > best.score)
+            ):
+                best = Pairing(one[1], "split", score, also=(two[1],))
+    return best
 
 
 def _keep_all(_ability: PhaseAbility) -> bool:

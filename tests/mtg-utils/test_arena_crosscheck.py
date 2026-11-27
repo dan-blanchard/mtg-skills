@@ -16,14 +16,21 @@ from pathlib import Path
 import pytest
 
 from mtg_utils._arena_crosscheck.align import abilities_of, norm, pair
-from mtg_utils._arena_crosscheck.check import Checker, crosscheck
+from mtg_utils._arena_crosscheck.check import Checker, crosscheck, watches_own_event
 from mtg_utils._arena_crosscheck.effects import compare_kinds
-from mtg_utils._arena_crosscheck.log import read_logs
-from mtg_utils._arena_crosscheck.report import diff_reports
+from mtg_utils._arena_crosscheck.log import ObjectEvent, read_logs
+from mtg_utils._arena_crosscheck.report import (
+    build_report,
+    diff_reports,
+    render_markdown,
+)
 from mtg_utils._card_ir.crosswalk import (
+    TriggerSuppression,
     chosen_x_sign,
     effect_is_delayed,
     effect_targets_optional,
+    trigger_gates,
+    trigger_suppressions,
 )
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.arena_card_db import ACTIVATED, TRIGGERED, CardText
@@ -647,7 +654,7 @@ def test_an_activated_ability_is_no_trigger(card_db, tmp_path):
 def test_a_game_in_two_logs_is_read_once(tmp_path):
     first = _write(tmp_path / "a.log.gz", _bolt_game("same"))
     second = _write(tmp_path / "Player.log", _bolt_game("same"))
-    resolutions, _, games = read_logs([first, second])
+    resolutions, _, games, _ = read_logs([first, second])
     assert games == [("same", 1)]
     assert len(resolutions) == 1
 
@@ -920,7 +927,7 @@ def test_a_created_token_entered_the_battlefield(tmp_path):
         ),
     ]
     game[1]["gameObjects"].append(token)
-    _, (fired,), _ = read_logs([_write(tmp_path / "a.log", game)])
+    _, (fired,), _, _ = read_logs([_write(tmp_path / "a.log", game)])
     assert fired.events == {"enters", "zone_change"}
     # a creature on the battlefield before combat, declared an attacker
     declared = [
@@ -928,7 +935,7 @@ def test_a_created_token_entered_the_battlefield(tmp_path):
         _fired("t2", _ability_obj(311, 8888, 7777, 200), 310),
     ]
     declared[1]["gameObjects"].append(_obj(310, 9999, types=("Creature",), **attacking))
-    _, (fired,), _ = read_logs([_write(tmp_path / "b.log", declared)])
+    _, (fired,), _, _ = read_logs([_write(tmp_path / "b.log", declared)])
     assert fired.events == {"attacks"}
 
 
@@ -965,12 +972,12 @@ def test_a_spells_cast_is_remembered_while_it_is_on_the_stack(tmp_path):
         *taps,
         _fired("t2", _ability_obj(301, 8888, 7777, 200), 100),
     ]
-    _, (fired,), _ = read_logs([_write(tmp_path / "a.log", game)])
+    _, (fired,), _, _ = read_logs([_write(tmp_path / "a.log", game)])
     assert "cast_spell" in fired.events
     left = _state("t2", annotations=[])
     left["zones"] = _zones()  # the spell resolved: off the stack
     game = [*game[:-1], left, _fired("t2", _ability_obj(302, 8888, 7777, 200), 100)]
-    _, (fired,), _ = read_logs([_write(tmp_path / "b.log", game)])
+    _, (fired,), _, _ = read_logs([_write(tmp_path / "b.log", game)])
     assert "cast_spell" not in fired.events
 
 
@@ -988,7 +995,7 @@ def test_a_trigger_logged_before_its_event_reads_its_whole_message(tmp_path):
         ],
     )
     del fired["turnInfo"]
-    _, (trigger,), _ = read_logs(
+    _, (trigger,), _, _ = read_logs(
         [_write(tmp_path / "Player.log", [_state("t3", first=True), fired])]
     )
     assert "zone_change" in trigger.events
@@ -1428,3 +1435,904 @@ def test_a_case_solves_by_its_solve_effect(card_db, tmp_path):
     assert row["arena"] == ["marked"]
     report = _run(card_db, _write(tmp_path / "b.log", solved(marked=False)))
     assert report["resolutions"][0]["status"] != "agree"
+
+
+# -- the reverse check: a trigger phase expects that Arena never fired --------
+#
+# An object's own event (it entered, left, attacked, …) and the abilities Arena
+# lists on it (``uniqueAbilities``): each trigger phase's parse gives its card for
+# that event is expected as an ability instance from the object before the turn
+# ends (``Checker.expected``).
+def _turn(state: dict, turn: int) -> dict:
+    state["turnInfo"] = {"turnNumber": turn}
+    return state
+
+
+def _listing(obj: dict, *abilities: int) -> dict:
+    """``obj`` with the abilities Arena lists on it."""
+    obj["uniqueAbilities"] = [
+        {"id": 90 + n, "grpId": a} for n, a in enumerate(abilities)
+    ]
+    return obj
+
+
+def _enters_game(
+    match: str,
+    *,
+    fired: bool = True,
+    turn_ends: bool = True,
+    abilities: tuple[int, ...] = (VISIONARY_ETB,),
+    instance: int = VISIONARY_ETB,
+    **extra,
+) -> list[dict]:
+    """Elvish Visionary (200) resolving onto the battlefield, its enters ability
+    (201) going on the stack when ``fired``, and the next turn starting when
+    ``turn_ends``."""
+    card = _listing(_obj(200, VISIONARY, types=("Creature",), **extra), *abilities)
+    move = _ann(
+        10,
+        "ZoneTransfer",
+        None,
+        [200],
+        zone_src=STACK,
+        zone_dest=BATTLEFIELD,
+        category="Resolve",
+    )
+    enters = _state(match, [card], [move])
+    if fired:
+        enters["gameObjects"].append(_ability_obj(201, instance, VISIONARY, 200))
+        enters["annotations"].append(_ann(11, "AbilityInstanceCreated", 200, [201]))
+    game = [_state(match, first=True), enters]
+    if turn_ends:
+        game.append(_turn(_state(match), 4))
+    return game
+
+
+def test_an_own_trigger_that_went_on_the_stack_fired(card_db, tmp_path):
+    report = _run(card_db, _write(tmp_path / "Player.log", _enters_game("u1")))
+    (row,) = report["expected"]
+    assert (row["card"], row["event"], row["phase_event"]) == (
+        "Elvish Visionary",
+        "enters",
+        "enters",
+    )
+    assert row["zones"] == ["Stack", "Battlefield"]
+    assert row["status"] == "fired"
+    assert report["summary"]["expected"] == {"fired": 1}
+
+
+def test_an_own_trigger_arena_never_fired_is_a_finding(card_db, tmp_path):
+    """Nothing gates "When ~ enters, draw a card": Arena lists the ability on
+    the permanent but put no instance of it on the stack before the turn
+    ended. An instance in the next turn is another event's."""
+    game = _enters_game("u2", fired=False)
+    late = game[-1]
+    late["gameObjects"] = [_ability_obj(201, VISIONARY_ETB, VISIONARY, 200)]
+    late["annotations"] = [_ann(11, "AbilityInstanceCreated", 200, [201])]
+    report = _run(card_db, _write(tmp_path / "Player.log", game))
+    (row,) = report["expected"]
+    assert row["status"] == "unfired"
+    assert row["arena_category"] == "triggered"
+    assert row["arena_text"] == _arena_text("Elvish Visionary")
+    assert row["fired"] == []
+    assert "never fired" in render_markdown(report)
+
+
+@pytest.mark.parametrize(
+    ("status", "game"),
+    [
+        # the game (or the log) ended before the turn did
+        ("game-over", {"fired": False, "turn_ends": False}),
+        # an instance from the object phase's text can't name: it could be this
+        ("unfired-unsure", {"instance": ABBOT_PROWESS}),
+        # Arena lists no abilities on it: it lost them
+        ("no-abilities", {"fired": False, "abilities": ()}),
+        # what Arena lists on it pairs with no phase trigger
+        ("unfired-unpaired", {"fired": False, "abilities": (ABBOT_PROWESS,)}),
+        # face down: no abilities (CR 708.2), no enters triggers (CR 708.3)
+        ("face-down", {"fired": False, "isFacedown": True}),
+        # a copy effect may make exceptions (CR 707.9)
+        ("copy", {"fired": False, "isCopy": True}),
+    ],
+)
+def test_a_missing_instance_that_is_no_evidence(card_db, tmp_path, status, game):
+    report = _run(card_db, _write(tmp_path / "Player.log", _enters_game("u3", **game)))
+    (row,) = report["expected"]
+    assert row["status"] == status
+
+
+def test_a_token_of_a_cards_printing_is_a_copy(card_db, tmp_path):
+    game = _enters_game("u4", fired=False)
+    game[1]["gameObjects"][0]["type"] = "GameObjectType_Token"
+    report = _run(card_db, _write(tmp_path / "Player.log", game))
+    assert report["expected"][0]["status"] == "copy"
+
+
+def test_an_arena_mistake_on_the_ignore_list(card_db, tmp_path):
+    log = _write(tmp_path / "Player.log", _enters_game("u5", fired=False))
+    ignores = [{"card": "Elvish Visionary", "ability": "When", "reason": "Arena"}]
+    (row,) = _run(card_db, log, ignores=ignores)["expected"]
+    assert (row["status"], row["ignored"]) == ("ignored", "Arena")
+
+
+def _attack_game(match: str, card: int, ability: int, *, locked: bool = True):
+    """Card 300 declared an attacker, then (``locked``) attacking or (not)
+    unselected, and the next turn starting; nothing goes on the stack."""
+    declared = {"attackState": "AttackState_Declared"}
+    after = {"attackState": "AttackState_Attacking"} if locked else {}
+    return [
+        _state(match, [_obj(300, card, types=("Creature",))], first=True),
+        _state(
+            match, [_listing(_obj(300, card, types=("Creature",), **declared), ability)]
+        ),
+        _state(
+            match, [_listing(_obj(300, card, types=("Creature",), **after), ability)]
+        ),
+        _turn(_state(match), 4),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("name", "line", "status"),
+    [
+        # "Whenever ~ attacks, put a +1/+1 counter on it."
+        ("Alesha, Who Laughs at Fate", 1, "unfired"),
+        # an intervening "if" (CR 603.4): "if its power is 6 or greater"
+        ("Angelic Sell-Sword", 2, "unfired-conditional"),
+        # "exile up to one target card from a graveyard": with no legal target
+        # Arena puts no instance on the stack (CR 603.3d)
+        ("Afterthought Sentry", 1, "unfired-targeted"),
+    ],
+)
+def test_an_attack_trigger_arena_never_fired(card_db, tmp_path, name, line, status):
+    card, ability = 3201, 4201
+    _add_card(card_db, card, test_card(name)["name"])
+    _add_ability(card_db, ability, _arena_text(name).splitlines()[line])
+    game = _attack_game("a1", card, ability)
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert (row["event"], row["phase_event"], row["status"]) == (
+        "attacks",
+        "attacks",
+        status,
+    )
+    if status == "unfired-conditional":
+        assert row["gates"] == ["condition"]
+    # unselected before the attack was locked in: it never attacked
+    game = _attack_game("a2", card, ability, locked=False)
+    assert _run(card_db, _write(tmp_path / "b.log", game))["expected"] == []
+
+
+def test_a_keyword_trigger_whose_rule_targets(card_db, tmp_path):
+    """Backup's rule targets (CR 702.165a: "put N +1/+1 counters on target
+    creature") though Arena's text for it is the keyword alone."""
+    kavu, backup = 3211, 4211
+    _add_card(card_db, kavu, test_card("Chomping Kavu")["name"])
+    _add_ability(card_db, backup, "Backup 1", keyword="Backup")
+    game = _enters_game("b1", fired=False)
+    game[1]["gameObjects"] = [_listing(_obj(200, kavu, types=("Creature",)), backup)]
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert row["status"] == "unfired-targeted"
+
+
+def test_a_dies_trigger_reads_the_permanent_it_was(card_db, tmp_path):
+    """Arena logs a dies trigger's instance from the permanent's battlefield id,
+    ahead of the move that gives it a new id in the graveyard; the abilities it
+    had are the battlefield object's (CR 603.10a: it looks back in time)."""
+    traveler, dies = 3221, 4221
+    _add_card(card_db, traveler, test_card("Doomed Traveler")["name"])
+    _add_ability(card_db, dies, _arena_text("Doomed Traveler"))
+
+    def game(*, fired: bool) -> list[dict]:
+        on = _listing(_obj(300, traveler, types=("Creature",)), dies)
+        moved = [
+            _ann(20, "ObjectIdChanged", None, [300], orig_id=300, new_id=310),
+            _ann(
+                21,
+                "ZoneTransfer",
+                None,
+                [310],
+                zone_src=BATTLEFIELD,
+                zone_dest=GRAVEYARD,
+                category="SBA_Damage",
+            ),
+        ]
+        death = _state("d1", [_obj(310, traveler, types=("Creature",))], moved)
+        if fired:
+            death["gameObjects"].append(_ability_obj(301, dies, traveler, 300))
+            death["annotations"].insert(
+                0, _ann(19, "AbilityInstanceCreated", 300, [301])
+            )
+        return [_state("d1", [on], first=True), death, _turn(_state("d1"), 4)]
+
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game(fired=True)))["expected"]
+    assert (row["event"], row["phase_event"], row["status"]) == (
+        "leaves",
+        "dies",
+        "fired",
+    )
+    (row,) = _run(card_db, _write(tmp_path / "b.log", game(fired=False)))["expected"]
+    assert (row["status"], row["arena_text"]) == (
+        "unfired",
+        _arena_text("Doomed Traveler"),
+    )
+
+
+def _event(event: str, origin: str | None = None, dest: str | None = None):
+    return ObjectEvent(
+        game=("m", 1),
+        turn=1,
+        event=event,
+        origin=origin,
+        destination=dest,
+        grpid=None,
+        controller=1,
+        kind="Card",
+        abilities=(),
+        copy=False,
+        face_down=False,
+        fired=(),
+        turn_ended=True,
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "event", "expected"),
+    [
+        ("Doomed Traveler", _event("leaves", "Battlefield", "Graveyard"), True),
+        # dies is a move to a graveyard (CR 700.4), not to exile
+        ("Doomed Traveler", _event("leaves", "Battlefield", "Exile"), False),
+        # "When ~ is put into a graveyard from anywhere": the move's destination
+        ("Emrakul, the Aeons Torn", _event("leaves", "Battlefield", "Graveyard"), True),
+        ("Emrakul, the Aeons Torn", _event("leaves", "Battlefield", "Exile"), False),
+        # "When you cast this spell"
+        ("Emrakul, the Aeons Torn", _event("cast_spell", "Hand", "Stack"), True),
+        # a watcher of other objects ("Whenever a creature you control enters")
+        ("Impact Tremors", _event("enters", "Stack", "Battlefield"), False),
+        # one shared with other objects ("~ or another creature")
+        ("Blood Artist", _event("leaves", "Battlefield", "Graveyard"), False),
+    ],
+)
+def test_which_triggers_watch_the_objects_own_event(name, event, expected):
+    triggers = [a for a in abilities_of(trees_for(_card_of(name))) if a.unit]
+    assert any(watches_own_event(a, event) for a in triggers) is expected
+
+
+def test_what_gates_a_trigger():
+    """A "may" is decided as the ability resolves: it goes on the stack all the
+    same (CR 603.5). An intervening "if" (CR 603.4) and a limit gate it."""
+
+    def gates(name: str, event: str) -> tuple[str, ...]:
+        (trig,) = (
+            a
+            for a in abilities_of(trees_for(_card_of(name)))
+            if a.origin == "trigger" and a.trigger_event == event
+        )
+        return trigger_gates(trig.unit.node)
+
+    assert gates("Port Inspector", "becomes_blocked") == ()
+    assert gates("Angelic Sell-Sword", "attacks") == ("condition",)
+    assert gates("Aurelia, the Warleader", "attacks") == ("constraint",)
+
+
+def test_enters_or_transforms_is_two_phase_triggers():
+    """Brutal Cathar's "When this creature enters or transforms into ~": the
+    second event is more than one word."""
+    name = "Brutal Cathar // Moonrage Brute"
+    abilities = abilities_of(trees_for(_card_of(name)))
+    text = test_card(name)["card_faces"][0]["oracle_text"].splitlines()[0]
+    pairing = pair(text.replace("Brutal Cathar", "CARDNAME"), abilities)
+    assert pairing.method == "split"
+    assert {a.trigger_event for a in pairing.abilities} == {"enters", "transformed"}
+
+
+def test_diff_lists_an_expected_trigger_whose_verdict_changed(card_db, tmp_path):
+    before = _run(card_db, _write(tmp_path / "a.log", _enters_game("r1")))
+    after = json.loads(json.dumps(before))
+    after["expected"][0]["status"] = "unfired"
+    (change,) = diff_reports(before, after)
+    assert change["section"] == "expected"
+    assert (change["before"]["status"], change["after"]["status"]) == (
+        "fired",
+        "unfired",
+    )
+    # a report saved before the reverse check has no such rows to compare
+    del before["expected"]
+    assert diff_reports(before, after) == []
+
+
+def test_an_expected_rows_key_survives_a_parse_that_drops_another():
+    """A parse that drops one event's trigger moves no other row's key, so the
+    diff shows the one verdict that changed, not every later row shifted."""
+
+    def row(index: int, text: str, status: str) -> dict:
+        return {
+            "game": ["m", 1],
+            "event_index": index,
+            "phase_text": text,
+            "status": status,
+        }
+
+    def report(*rows: dict) -> dict:
+        return build_report([], [], [("m", 1)], "vtest", expected=rows)
+
+    before = report(row(0, "a", "fired"), row(1, "b", "fired"), row(2, "c", "unfired"))
+    # the new parse no longer has trigger a, and c now fires
+    after = report(row(1, "b", "fired"), row(2, "c", "fired"))
+    (change,) = diff_reports(before, after)
+    assert change["phase_text"] == "c"
+    assert (change["before"]["status"], change["after"]["status"]) == (
+        "unfired",
+        "fired",
+    )
+    # dropping a row alone changes no verdict
+    assert (
+        diff_reports(before, report(row(1, "b", "fired"), row(2, "c", "unfired"))) == []
+    )
+
+
+def test_a_resync_repeating_an_event_opens_it_once(card_db, tmp_path):
+    """A full resync (``GameStateType_Full``) repeats earlier annotations,
+    the same ids again: the move is one event, answered by the instance logged
+    with it the first time."""
+    game = _enters_game("s1")
+    repeat = _state("s1", game[1]["gameObjects"][:1], game[1]["annotations"][:1])
+    repeat["type"] = "GameStateType_Full"
+    game.insert(2, repeat)
+    report = _run(card_db, _write(tmp_path / "a.log", game))
+    assert [r["status"] for r in report["expected"]] == ["fired"]
+
+
+EMRAKUL, EMRAKUL_CAST = 3501, 4501
+
+
+def _cast_game(card_db: Path, match: str, *, fired: bool, undone: bool) -> list[dict]:
+    """Emrakul, the Aeons Torn cast from hand (its "When you cast this spell"
+    listed); when ``undone``, the next message reuses the cast's annotation id
+    for Lightning Bolt's cast: Arena rolled the first back."""
+    _add_card(card_db, EMRAKUL, test_card("Emrakul, the Aeons Torn")["name"])
+    _add_ability(
+        card_db, EMRAKUL_CAST, _arena_text("Emrakul, the Aeons Torn").split("\n")[1]
+    )
+    spell = _listing(_obj(301, EMRAKUL, types=("Creature",)), EMRAKUL_CAST)
+    cast = _ann(
+        10,
+        "ZoneTransfer",
+        None,
+        [301],
+        zone_src=HAND,
+        zone_dest=STACK,
+        category="CastSpell",
+    )
+    casting = _state(match, [spell], [cast])
+    if fired:
+        casting["gameObjects"].append(_ability_obj(302, EMRAKUL_CAST, EMRAKUL, 301))
+        casting["annotations"].append(_ann(11, "AbilityInstanceCreated", 301, [302]))
+    game = [
+        _state(match, [_obj(300, EMRAKUL, types=("Creature",))], first=True),
+        casting,
+    ]
+    if undone:
+        bolt = _ann(
+            10,
+            "ZoneTransfer",
+            None,
+            [303],
+            zone_src=HAND,
+            zone_dest=STACK,
+            category="CastSpell",
+        )
+        game.append(_state(match, [_obj(303, BOLT)], [bolt]))
+    return [*game, _turn(_state(match), 4)]
+
+
+@pytest.mark.parametrize(
+    ("fired", "undone", "status"),
+    [(True, False, "fired"), (False, False, "unfired"), (False, True, "rolled-back")],
+)
+def test_a_cast_trigger_and_a_cancelled_cast(card_db, tmp_path, fired, undone, status):
+    game = _cast_game(card_db, "c1", fired=fired, undone=undone)
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert (row["card"], row["event"], row["phase_event"]) == (
+        "Emrakul, the Aeons Torn",
+        "cast_spell",
+        "cast_spell",
+    )
+    assert row["status"] == status
+
+
+RIFTWATCHER, RIFT_ENTERS_OR_LEAVES = 3511, 4511
+
+
+def test_one_instance_answers_one_event(card_db, tmp_path):
+    """Aven Riftwatcher's "When this creature enters or leaves the
+    battlefield" is one Arena ability and two phase triggers. It enters and
+    leaves in one turn. An instance logged after the leave answers the leave,
+    never the enter as well, and leaves the enter unsure: it could have been
+    the enter's (Checker.expected)."""
+    _add_card(card_db, RIFTWATCHER, test_card("Aven Riftwatcher")["name"])
+    text = "When CARDNAME enters or leaves the battlefield, you gain 2 life."
+    _add_ability(card_db, RIFT_ENTERS_OR_LEAVES, text)
+
+    def game(*instances: str) -> list[dict]:
+        on = _listing(
+            _obj(300, RIFTWATCHER, types=("Creature",)), RIFT_ENTERS_OR_LEAVES
+        )
+        enters = _state(
+            "o1",
+            [on],
+            [
+                _ann(
+                    10,
+                    "ZoneTransfer",
+                    None,
+                    [300],
+                    zone_src=STACK,
+                    zone_dest=BATTLEFIELD,
+                    category="Resolve",
+                )
+            ],
+        )
+        leaves = _state(
+            "o1",
+            [_obj(310, RIFTWATCHER, types=("Creature",))],
+            [
+                _ann(20, "ObjectIdChanged", None, [300], orig_id=300, new_id=310),
+                _ann(
+                    21,
+                    "ZoneTransfer",
+                    None,
+                    [310],
+                    zone_src=BATTLEFIELD,
+                    zone_dest=GRAVEYARD,
+                    category="SBA_Damage",
+                ),
+            ],
+        )
+        logged = {
+            "enters": (enters, 301, 11),
+            "leaves": (leaves, 302, 22),
+            # a second leave instance: the trigger doubled
+            "leaves again": (leaves, 303, 23),
+        }
+        for state, iid, aid in (logged[e] for e in instances):
+            state["gameObjects"].append(
+                _ability_obj(iid, RIFT_ENTERS_OR_LEAVES, RIFTWATCHER, 300)
+            )
+            state["annotations"].append(_ann(aid, "AbilityInstanceCreated", 300, [iid]))
+        return [_state("o1", first=True), enters, leaves, _turn(_state("o1"), 4)]
+
+    def statuses(log: str, *instances: str) -> dict[str, str]:
+        rows = _run(card_db, _write(tmp_path / log, game(*instances)))["expected"]
+        return {r["event"]: r["status"] for r in rows}
+
+    # one instance after both: the leave's by order, the enter's a guess
+    one = statuses("a.log", "leaves")
+    assert one == {"enters": "unfired-unsure", "leaves": "fired"}
+    assert statuses("b.log", "enters", "leaves") == {
+        "enters": "fired",
+        "leaves": "fired",
+    }
+    # two instances after the leave: a doubled leave trigger, or Arena firing
+    # both late (a second Bilbo, Retired Burglar put into the graveyard by
+    # the legend rule before its enter trigger is on the stack); neither row
+    # reads as a finding, and the enter is never credited a second time
+    two = statuses("c.log", "leaves", "leaves again")
+    assert two == {"enters": "unfired-unsure", "leaves": "fired"}
+
+
+KORVOLD, KORVOLD_TRIGGER = 3521, 4521
+
+
+@pytest.mark.parametrize("instances", [1, 2])
+def test_an_attack_instance_is_no_enter_instance(card_db, tmp_path, instances):
+    """Korvold's "Whenever ~ enters or attacks": entering then attacking in
+    one turn (haste), with only the attack's instance logged, or two of them
+    (a doubled attack trigger: Isshin, Two Heavens as One)."""
+    _add_card(card_db, KORVOLD, test_card("Korvold, Fae-Cursed King")["name"])
+    _add_ability(
+        card_db,
+        KORVOLD_TRIGGER,
+        "Whenever CARDNAME enters or attacks, sacrifice another permanent.",
+    )
+
+    def korvold(**extra) -> dict:
+        return _listing(
+            _obj(300, KORVOLD, types=("Creature",), **extra), KORVOLD_TRIGGER
+        )
+
+    move = _ann(
+        10,
+        "ZoneTransfer",
+        None,
+        [300],
+        zone_src=STACK,
+        zone_dest=BATTLEFIELD,
+        category="Resolve",
+    )
+    attacking = _state("k1", [korvold(attackState="AttackState_Attacking")])
+    for n in range(instances):
+        attacking["gameObjects"].append(
+            _ability_obj(301 + n, KORVOLD_TRIGGER, KORVOLD, 300)
+        )
+        attacking["annotations"].append(
+            _ann(30 + n, "AbilityInstanceCreated", 300, [301 + n])
+        )
+    game = [
+        _state("k1", first=True),
+        _state("k1", [korvold()], [move]),
+        _state("k1", [korvold(attackState="AttackState_Declared")]),
+        attacking,
+        _turn(_state("k1"), 4),
+    ]
+    rows = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    # the attack instances could be the enter's: unsure, never fired
+    assert {r["event"]: r["status"] for r in rows} == {
+        "enters": "unfired-unsure",
+        "attacks": "fired",
+    }
+
+
+def test_an_instance_another_object_set_off_answers_nothing(card_db, tmp_path):
+    """Arena's ``TriggeringObject`` names what set an instance off: one an
+    object of the card's but set off by another is no instance of its own
+    event."""
+    game = _enters_game("t1")
+    game[1]["persistentAnnotations"] = [_ann(50, "TriggeringObject", 201, [999])]
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert row["status"] == "unfired"
+    game[1]["persistentAnnotations"] = [_ann(50, "TriggeringObject", 201, [200])]
+    (row,) = _run(card_db, _write(tmp_path / "b.log", game))["expected"]
+    assert row["status"] == "fired"
+
+
+def test_a_reflexive_instance_is_not_the_trigger(card_db, tmp_path):
+    """An instance of an ability Arena files under another (a "When you do",
+    ``HiddenByAbilityIds``) is not the trigger phase expects, whatever its
+    text."""
+    reflexive = 4531
+    _add_ability(
+        card_db, reflexive, _arena_text("Elvish Visionary"), hidden_by=VISIONARY_ETB
+    )
+    game = _enters_game("h1", instance=reflexive)
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert row["status"] == "unfired"
+
+
+HUSHBRINGER = 3541
+
+
+@pytest.mark.parametrize("controller", [1, 2])
+def test_a_trigger_another_permanent_silences(card_db, tmp_path, controller):
+    """Hushbringer: "Creatures entering the battlefield or dying don't cause
+    abilities to trigger", whoever controls it."""
+    _add_card(card_db, HUSHBRINGER, test_card("Hushbringer")["name"])
+    game = _enters_game("q1", fired=False)
+    game[1]["gameObjects"].append(
+        _obj(500, HUSHBRINGER, types=("Creature",), controller=controller)
+    )
+    game[1]["zones"] = _zones(battlefield=[200, 500])
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert (row["status"], row["suppressed_by"]) == ("suppressed", "Hushbringer")
+
+
+def test_what_a_trigger_suppressor_silences():
+    def read(name: str) -> tuple:
+        return tuple(
+            s for t in trees_for(_card_of(name)) for s in trigger_suppressions(t)
+        )
+
+    (hush,) = read("Hushbringer")
+    assert (hush.events, hush.source_types, hush.trigger_side) == (
+        ("EntersBattlefield", "Dies"),
+        ("Creature",),
+        None,
+    )
+    (orb,) = read("Torpor Orb")
+    assert orb.events == ("EntersBattlefield",)
+    assert read("Elvish Visionary") == ()
+
+
+def test_only_the_faces_own_triggers_are_expected(card_db, tmp_path):
+    """Brinebound Gift, Brine Comber's back face, entering: its own enter
+    trigger, not the front face's (CR 712.8: each face has its own
+    characteristics)."""
+    gift = 3551
+    _add_card(card_db, gift, "Brinebound Gift")
+    whole = "Brine Comber // Brinebound Gift"
+    checker = Checker(
+        CardText(card_db),
+        lambda name: _card_of(whole if name == "Brinebound Gift" else name),
+        trees_for,
+        [],
+    )
+    game = _enters_game("f1", fired=False)
+    game[1]["gameObjects"][0]["grpId"] = gift
+    rows = crosscheck([_write(tmp_path / "a.log", game)], checker, "vtest")["expected"]
+    assert [r["phase_text"] for r in rows] == [
+        a.desc
+        for a in abilities_of(trees_for(_card_of(whole)))
+        if a.face == "Brinebound Gift" and a.trigger_event == "enters"
+    ]
+
+
+def test_a_split_pairs_halves_of_one_face():
+    """Brinebound Gift's "Whenever this Aura enters or enchanted creature
+    becomes the target of an Aura spell" is never half Brine Comber's enter
+    trigger."""
+    name = "Brine Comber // Brinebound Gift"
+    abilities = abilities_of(trees_for(_card_of(name)))
+    aura = test_card(name)["card_faces"][1]["oracle_text"].splitlines()[1]
+    pairing = pair(aura, abilities)
+    assert {a.face for a in pairing.abilities} <= {"Brinebound Gift"}
+
+
+def test_blocks_and_becomes_blocked_once_per_attacker(card_db, tmp_path):
+    """Two creatures blocking Port Inspector: one "becomes blocked" (CR
+    509.1h), and Cinder Wall's "When ~ blocks" for its own block."""
+    wall, inspector, wall_t, inspector_t = 3561, 3562, 4561, 4562
+    _add_card(card_db, wall, test_card("Cinder Wall")["name"])
+    _add_card(card_db, inspector, test_card("Port Inspector")["name"])
+    _add_ability(card_db, wall_t, _arena_text("Cinder Wall").splitlines()[1])
+    _add_ability(card_db, inspector_t, _arena_text("Port Inspector"))
+
+    def board(state: str) -> list[dict]:
+        info = {"blockState": state, "blockInfo": {"attackerIds": [300]}}
+        return [
+            _listing(
+                _obj(
+                    300,
+                    inspector,
+                    types=("Creature",),
+                    attackState="AttackState_Attacking",
+                ),
+                inspector_t,
+            ),
+            _listing(
+                _obj(400, wall, types=("Creature",), controller=2, **info), wall_t
+            ),
+            _obj(401, 55555, types=("Creature",), controller=2, **info),
+        ]
+
+    game = [
+        _state("b2", first=True),
+        _state("b2", board("BlockState_Declared")),
+        _state("b2", board("BlockState_Blocking")),
+        _turn(_state("b2"), 4),
+    ]
+    rows = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert sorted((r["card"], r["event"], r["status"]) for r in rows) == [
+        ("Cinder Wall", "blocks", "unfired"),
+        ("Port Inspector", "becomes_blocked", "unfired"),
+    ]
+
+
+def test_a_rebalanced_card_is_no_finding(card_db, tmp_path):
+    """A rebalanced (A-) card is scored against the paper card's parse."""
+    con = sqlite3.connect(card_db)
+    con.execute("INSERT INTO Localizations_enUS VALUES (3571, 0, 'A-Elvish Visionary')")
+    con.execute("INSERT INTO Cards VALUES (3571, 3571, 1, 1, 0)")
+    con.commit()
+    con.close()
+    game = _enters_game("a9", fired=False)
+    game[1]["gameObjects"][0]["grpId"] = 3571
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert row["status"] == "rebalanced"
+
+
+def test_an_ability_arena_files_as_no_trigger_is_no_finding(card_db, tmp_path):
+    """Arena filing the ability it lists as a static (evoke's, offspring's) is
+    no evidence its trigger was missed."""
+    static = 4581
+    _add_ability(card_db, static, _arena_text("Elvish Visionary"), category=3)
+    game = _enters_game("n1", fired=False, abilities=(static,))
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert (row["status"], row["arena_category"]) == ("arena-not-triggered", "static")
+
+
+def test_a_bare_keyword_whose_rule_targets(card_db, tmp_path):
+    """Mentor with no BaseId in Arena's database, its text the bare keyword:
+    its rule targets (CR 702.134a: "target attacking creature")."""
+    warboss, mentor = 3591, 4591
+    _add_card(card_db, warboss, test_card("Legion Warboss")["name"])
+    _add_ability(card_db, mentor, "Mentor")
+    (row,) = _run(
+        card_db, _write(tmp_path / "a.log", _attack_game("w1", warboss, mentor))
+    )["expected"]
+    assert (row["phase_event"], row["status"]) == ("attacks", "unfired-targeted")
+
+
+def test_a_creature_dying_with_hushbringer_is_silenced(card_db, tmp_path):
+    """A creature dying at the same time as Hushbringer won't cause abilities
+    to trigger (Hushbringer's ruling, 2019-10-04): the leave looks back at the
+    battlefield as it was (CR 603.10a)."""
+    traveler, dies = 3601, 4601
+    _add_card(card_db, HUSHBRINGER, test_card("Hushbringer")["name"])
+    _add_card(card_db, traveler, test_card("Doomed Traveler")["name"])
+    _add_ability(card_db, dies, _arena_text("Doomed Traveler"))
+    on = [
+        _listing(_obj(300, traveler, types=("Creature",)), dies),
+        _obj(500, HUSHBRINGER, types=("Creature",)),
+    ]
+    gone = [
+        _obj(310, traveler, types=("Creature",)),
+        _obj(510, HUSHBRINGER, types=("Creature",)),
+    ]
+    wipe = _state(
+        "w2",
+        gone,
+        [
+            _ann(20, "ObjectIdChanged", None, [300], orig_id=300, new_id=310),
+            _ann(21, "ObjectIdChanged", None, [500], orig_id=500, new_id=510),
+            _ann(
+                22,
+                "ZoneTransfer",
+                None,
+                [310, 510],
+                zone_src=BATTLEFIELD,
+                zone_dest=GRAVEYARD,
+                category="Destroy",
+            ),
+        ],
+    )
+    wipe["zones"] = _zones()
+    first = _state("w2", on, first=True)
+    first["zones"] = _zones(battlefield=[300, 500])
+    game = [first, wipe, _turn(_state("w2"), 4)]
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert (row["card"], row["status"]) == ("Doomed Traveler", "suppressed")
+
+
+def _leaves_under_hushbringer(
+    card_db: Path, tmp_path: Path, name: str, line: int, category: str, types
+) -> dict:
+    """``name`` (300, with ``types``) leaving the battlefield for a graveyard
+    (``category``) beside Hushbringer, its ``line`` listed, nothing fired."""
+    card, ability = 3611, 4611
+    _add_card(card_db, HUSHBRINGER, test_card("Hushbringer")["name"])
+    _add_card(card_db, card, test_card(name)["name"])
+    _add_ability(card_db, ability, _arena_text(name).splitlines()[line])
+    first = _state(
+        "l1",
+        [
+            _listing(_obj(300, card, types=types), ability),
+            _obj(500, HUSHBRINGER, types=("Creature",)),
+        ],
+        first=True,
+    )
+    first["zones"] = _zones(battlefield=[300, 500])
+    leave = _state(
+        "l1",
+        [_obj(310, card, types=types)],
+        [
+            _ann(20, "ObjectIdChanged", None, [300], orig_id=300, new_id=310),
+            _ann(
+                21,
+                "ZoneTransfer",
+                None,
+                [310],
+                zone_src=BATTLEFIELD,
+                zone_dest=GRAVEYARD,
+                category=category,
+            ),
+        ],
+    )
+    leave["zones"] = _zones(battlefield=[500])
+    game = [first, leave, _turn(_state("l1"), 4)]
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    return row
+
+
+@pytest.mark.parametrize(
+    ("name", "line", "category", "types", "status"),
+    [
+        # "When this creature dies": silenced
+        ("Doomed Traveler", 0, "SBA_Damage", ("Creature",), "suppressed"),
+        # Hushbringer's rulings: a dying creature's own "put into a graveyard
+        # from anywhere" may still trigger ...
+        ("Emrakul, the Aeons Torn", 3, "Destroy", ("Creature",), "unfired"),
+        # ... and so does "whenever you sacrifice" (an Aura made a creature)
+        ("Ordeal of Nylea", 2, "Sacrifice", ("Enchantment", "Creature"), "unfired"),
+    ],
+)
+def test_what_hushbringer_silences_on_a_death(
+    card_db, tmp_path, name, line, category, types, status
+):
+    row = _leaves_under_hushbringer(card_db, tmp_path, name, line, category, types)
+    assert row["status"] == status
+
+
+def _enters_beside(
+    card_db: Path, tmp_path: Path, name: str, controller: int, suppression=None
+) -> dict:
+    """Elvish Visionary entering (seat 1) beside ``name``, controlled by
+    ``controller``; nothing fired. ``suppression`` stands in for the card's
+    read when given."""
+    grp = 3621
+    _add_card(card_db, grp, test_card(name)["name"])
+    checker = Checker(CardText(card_db), _card_of, trees_for, [])
+    if suppression is not None:
+        checker._suppression[name] = (suppression,)
+    game = _enters_game("e5", fired=False)
+    game[1]["gameObjects"].append(
+        _obj(500, grp, types=("Creature",), controller=controller)
+    )
+    game[1]["zones"] = _zones(battlefield=[200, 500])
+    (row,) = crosscheck([_write(tmp_path / "a.log", game)], checker, "vtest")[
+        "expected"
+    ]
+    return row
+
+
+@pytest.mark.parametrize(("controller", "status"), [(2, "suppressed"), (1, "unfired")])
+def test_a_suppressor_of_opponents_triggers(card_db, tmp_path, controller, status):
+    """Elesh Norn, Mother of Machines: "Permanents entering don't cause
+    abilities of permanents your opponents control to trigger"."""
+    row = _enters_beside(
+        card_db, tmp_path, "Elesh Norn, Mother of Machines", controller
+    )
+    assert row["status"] == status
+
+
+@pytest.mark.parametrize(("controller", "status"), [(1, "suppressed"), (2, "unfired")])
+def test_a_suppressor_of_its_controllers_triggers(
+    card_db, tmp_path, controller, status
+):
+    """A static silencing only its controller's permanents' triggers: no
+    snapshot card has that shape, so the read is set by hand here."""
+    mine = TriggerSuppression(("EntersBattlefield",), ("Creature",), "you")
+    row = _enters_beside(card_db, tmp_path, "Torpor Orb", controller, mine)
+    assert row["status"] == status
+
+
+def test_a_noncreature_entering_beside_hushbringer(card_db, tmp_path):
+    """Hushbringer silences creatures entering: Ichor Wellspring, an
+    artifact, still triggers."""
+    wellspring, trigger = 3631, 4631
+    _add_card(card_db, HUSHBRINGER, test_card("Hushbringer")["name"])
+    _add_card(card_db, wellspring, test_card("Ichor Wellspring")["name"])
+    _add_ability(card_db, trigger, _arena_text("Ichor Wellspring"))
+    game = _enters_game("e6", fired=False)
+    game[1]["gameObjects"] = [
+        _listing(_obj(200, wellspring, types=("Artifact",)), trigger),
+        _obj(500, HUSHBRINGER, types=("Creature",)),
+    ]
+    game[1]["zones"] = _zones(battlefield=[200, 500])
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert row["status"] == "unfired"
+
+
+def test_an_enter_instance_logged_after_the_creature_died(card_db, tmp_path):
+    """Entering and dying at once (Woodfall Primus put onto the battlefield and
+    destroyed): its enter instance is logged after the leave, which has no
+    trigger it pairs with, and still answers the enter."""
+    game = _enters_game("p1", fired=False, turn_ends=False)
+    death = _state(
+        "p1",
+        [
+            _obj(210, VISIONARY, types=("Creature",)),
+            _ability_obj(201, VISIONARY_ETB, VISIONARY, 200),
+        ],
+        [
+            _ann(20, "ObjectIdChanged", None, [200], orig_id=200, new_id=210),
+            _ann(
+                21,
+                "ZoneTransfer",
+                None,
+                [210],
+                zone_src=BATTLEFIELD,
+                zone_dest=GRAVEYARD,
+                category="SBA_Damage",
+            ),
+            _ann(22, "AbilityInstanceCreated", 200, [201]),
+        ],
+    )
+    game += [death, _turn(_state("p1"), 4)]
+    (row,) = _run(card_db, _write(tmp_path / "a.log", game))["expected"]
+    assert (row["event"], row["status"]) == ("enters", "fired")
+
+
+def test_a_resync_repeating_a_resolution_reads_it_once(card_db, tmp_path):
+    game = _bolt_game("s2")
+    repeat = {**game[1], "type": "GameStateType_Full"}
+    report = _run(card_db, _write(tmp_path / "a.log", [*game, repeat]))
+    assert [r["card"] for r in report["resolutions"]] == ["Lightning Bolt"]

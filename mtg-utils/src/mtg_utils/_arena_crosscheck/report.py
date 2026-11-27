@@ -3,7 +3,11 @@
 A report is saved per phase pin as ``<archive>/reports/<PHASE_TAG>.json``, so a run
 under a new pin can list what its parse changed against the same logged games
 (:func:`diff_reports`, :func:`render_changes`; ``bump-phase-pin``'s step 10).
-Rows are keyed by game and their order in it, which the same logs reproduce exactly.
+Rows are keyed by game and their order in it within their section
+(:data:`SECTIONS`), which the same logs reproduce exactly; an expected row, of
+which a parse can give an event any number, by its event's place in the game and
+its trigger's text instead. A report saved before a section existed has none of
+its rows to compare.
 """
 
 from __future__ import annotations
@@ -30,6 +34,9 @@ ARCHIVE = Path("/Users/Shared/mtg-arena-logs")
 #: Statuses that are findings to look at.
 RESOLUTION_FINDINGS = ("arena-extra", "phase-extra")
 TRIGGER_FINDINGS = ("mismatch",)
+EXPECTED_FINDINGS = ("unfired",)
+#: The report's row sections, each keyed on its own.
+SECTIONS = ("resolutions", "triggers", "expected")
 
 
 def _keyed(rows: Sequence[dict]) -> list[dict]:
@@ -42,13 +49,32 @@ def _keyed(rows: Sequence[dict]) -> list[dict]:
     return out
 
 
+def _keyed_expected(rows: Sequence[dict]) -> list[dict]:
+    """An expected row's key is its event's place in the game (the reader's,
+    the same whatever parses the logs) and its trigger's text, so a parse that
+    adds or drops one trigger moves no other row's key."""
+    seen: collections.Counter = collections.Counter()
+    out = []
+    for row in rows:
+        game = tuple(row["game"])
+        base = f"{game[0]}#{game[1]}#e{row['event_index']}#{row['phase_text']}"
+        out.append({**row, "key": base + (f"#{seen[base]}" if seen[base] else "")})
+        seen[base] += 1
+    return out
+
+
 def build_report(
     resolutions: Sequence[dict],
     triggers: Sequence[dict],
     games: Sequence[tuple[str, int]],
     phase_tag: str,
+    *,
+    expected: Sequence[dict] = (),
 ) -> dict:
+    """``expected`` holds the reverse check's rows: a trigger phase expects on
+    an object's own event, fired or not (``check.Checker.expected``)."""
     resolutions, triggers = _keyed(resolutions), _keyed(triggers)
+    expected = _keyed_expected(expected)
     checks: dict[str, list[int]] = collections.defaultdict(lambda: [0, 0])
     for row in resolutions:
         if row["status"] == "ignored":
@@ -62,12 +88,14 @@ def build_report(
         "summary": {
             "resolutions": dict(collections.Counter(r["status"] for r in resolutions)),
             "triggers": dict(collections.Counter(t["status"] for t in triggers)),
+            "expected": dict(collections.Counter(e["status"] for e in expected)),
             "checks": {
                 k: {"pass": v[0], "fail": v[1]} for k, v in sorted(checks.items())
             },
         },
         "resolutions": resolutions,
         "triggers": triggers,
+        "expected": expected,
     }
 
 
@@ -99,6 +127,13 @@ def _findings(report: dict) -> list[str]:
                 f"- **{t['card']}** trigger: {t['arena_text']} — phase watches "
                 f"`{t['phase_event']}`, Arena logged {t['events']}"
             )
+    for e in report.get("expected", ()):
+        if e["status"] in EXPECTED_FINDINGS:
+            lines.append(
+                f"- **{e['card']}** never fired: phase's `{e['phase_text']}` "
+                f"watches its `{e['event']}` (turn {e['turn']}); Arena lists it as "
+                f"{e.get('arena_category')} `{e.get('arena_text')}`"
+            )
     return lines
 
 
@@ -119,6 +154,9 @@ def render_markdown(report: dict) -> str:
         "",
         "## Triggers",
         *_counts(s["triggers"]),
+        "",
+        "## Own-event triggers phase expects",
+        *_counts(s.get("expected", {})),
         "",
         "## Findings (check each with /rules-lawyer before calling it a misparse)",
         *(_findings(report) or ["- none"]),
@@ -168,7 +206,7 @@ def diff_reports(old: dict, new: dict) -> list[dict]:
     """The rows whose verdict changed between two reports over the same games: a
     status that flipped, or checks that newly pass or fail."""
     changes = []
-    for section in ("resolutions", "triggers"):
+    for section in SECTIONS:
         before = {r["key"]: _verdict(r) for r in old.get(section, ())}
         for row in new.get(section, ()):
             prior, now = before.get(row["key"]), _verdict(row)
@@ -180,6 +218,8 @@ def diff_reports(old: dict, new: dict) -> list[dict]:
                     "key": row["key"],
                     "card": row.get("card"),
                     "arena_text": row.get("arena_text"),
+                    # an expected trigger's own text (it may have no Arena one)
+                    "phase_text": row.get("phase_text"),
                     "before": prior,
                     "after": now,
                 }
@@ -195,7 +235,8 @@ def _verdict_text(verdict: dict) -> str:
 def render_changes(changes: Sequence[dict]) -> list[str]:
     """One markdown line per :func:`diff_reports` change, old verdict then new."""
     return [
-        f"- **{c['card']}** ({c['section']}): {c.get('arena_text') or '(spell)'} — "
+        f"- **{c['card']}** ({c['section']}): "
+        f"{c.get('arena_text') or c.get('phase_text') or '(spell)'} — "
         f"{_verdict_text(c['before'])} → {_verdict_text(c['after'])}"
         for c in changes
     ]

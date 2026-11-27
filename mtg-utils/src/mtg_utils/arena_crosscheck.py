@@ -3,7 +3,9 @@
 Arena's rules engine logs what every spell and ability did. This reads those logs
 (the archive under ``/Users/Shared/mtg-arena-logs`` plus your live ``Player.log`` /
 ``Player-prev.log``, or the files given), pairs each resolution and fired trigger with
-phase's parse of the same ability, and reports where they disagree. A developer audit:
+phase's parse of the same ability, checks that each trigger phase's parse gives a card
+for an event of the object itself (it entered, left, was cast, attacked, blocked,
+became blocked) went on the stack, and reports where they disagree. A developer audit:
 it needs logs and Arena's card database, so it never runs in CI. Every finding is a
 lead to check with ``/rules-lawyer`` before it is called a misparse.
 

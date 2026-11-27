@@ -14,7 +14,9 @@ row and upstream issue 25.
 
 **Decision.** `arena-crosscheck` (mtg-utils, a developer audit like
 `deck-forge-phase-crosscheck`, never run in CI) reads the logs and scores each
-resolution and fired trigger against phase's parse of the same ability.
+resolution and fired trigger against phase's parse of the same ability, and each
+trigger phase's parse expects on an object's own event against the ability instances
+Arena created.
 
 - **Arena is evidence, not the referee.** It has rules bugs and Arena-only rulings. A
   disagreement is a lead, checked with `/rules-lawyer` before it is called a misparse.
@@ -74,14 +76,111 @@ resolution and fired trigger against phase's parse of the same ability.
   508.4), so its attack state isn't an attack. Two known limits: a cause-less trigger
   reads events logged after it in its message, so any such event satisfies it; and a
   combined "enters or dies" ability with a long effect can still pair by its whole
-  text with a parse of one half. A trigger phase predicts that Arena never fired is
-  not checked yet. A
+  text with a parse of one half. A
   reflexive "When you do" or delayed trigger, which Arena's card database links to its
   parent (`HiddenByAbilityIds`), is not scored; an emblem's ability, which the database
   links to the ability that made the emblem, is its source card's (CR 114.1), compared
   with phase's emblem. A game rule's own ability with no card behind it (speed's
   trigger, CR 702.179d; earthbend's return, CR 701.66a) is a `rules-object`, scored
   where `check.RULES_OBJECTS` / `HOLDER_ABILITIES` give its kinds.
+- **The reverse check: a trigger phase expects that Arena never fired**
+  (`check.Checker.expected`, the report's `expected` rows; added 2026-11-27). The
+  log reader records each event of one object itself (`log.ObjectEvent`): it entered
+  the battlefield (a move there, or a created token, CR 111.2), left it (a leave to a
+  graveyard is a death, CR 700.4), was cast, attacked (its attack state went from
+  declared to attacking: a creature unselected before the attack is locked in goes
+  back from declared to none, and an attack trigger won't trigger for one put onto
+  the battlefield attacking, CR 508.3a, which never "attacked", CR 508.4), blocked
+  (likewise), or became blocked (a declared blocker names it; two blockers are one
+  event, CR 509.1h). With it go the abilities Arena lists on the object
+  (`uniqueAbilities`, which Arena keeps current: a granted haste appears and goes; a
+  leave reads the battlefield object's, CR 603.10a), the cards on the battlefield
+  (for a leave, with those that left it in the same message), and every instance
+  Arena created from it (its source or parent, under any id it had) from the event's
+  message until the turn ended (a dies trigger's instance is logged ahead of its
+  move, and ordering and target choices can put an instance several messages
+  later). An instance whose `TriggeringObject` names another object is not offered.
+  An annotation a full resync (`GameStateType_Full`) repeats, the same id with the
+  same content, opens no second event (16 events were opened twice over both log
+  sets); an id a later message reuses for another annotation is a rollback, and an
+  event from an annotation numbered from it on is `rolled-back` (10 events, all
+  cancelled casts: Phlage, Titan of Fire's Fury's escape undone, the same object id
+  then cast as another card). The forward check reads each repeat once too: that
+  removed 6 resolution rows over both sets, each a resync's second copy (Blessed
+  Ghoul, Teferi, Time Raveler, Urza's Saga; Mistmeadow Council, Kaito, Bane of
+  Nightmares, Wilt in the Heat), and no other row; the 3 repeated trigger records
+  were mana abilities, which make no trigger row. Those games' later resolution
+  rows shift one key against a baseline saved before, so the baseline is saved
+  again once this lands.
+
+  Each trigger of the card's face (a double-faced card's other face is not on the
+  battlefield, CR 712.8) that watches that event of the card alone
+  (`crosswalk.watches_itself`, not "~ or another"; enters, dies, leaves, a zone
+  change, cast, attacks, blocks, becomes blocked; a zone change's zones against the
+  move's; not `taps`, which an attack shows only without vigilance, nor damage,
+  counters or targeting) is one row, keyed by its event's place in the game and its
+  trigger's text, so a parse that adds or drops a trigger moves no other row's key.
+  A pin that only rewords a trigger's phase text gives its rows new keys, so the
+  step-10 diff drops them (no change listed for them, never a wrong one). An
+  instance answers at most one row: of the events offered it with a row whose
+  trigger it pairs with (the same `align.pair` as the forward check), the last,
+  and none when that row is answered already. Arena's `TriggeringObject` names the
+  object, never which of its events (an enter and an attack name the same id, a
+  leave the id the enter had), so the order decides, and a row left unanswered
+  though an instance offered it pairs with its trigger is `unfired-unsure`: the
+  log can't tell which event that instance was for. With two events of one object
+  and the instances logged after both, the later row is `fired` and the earlier
+  `unfired-unsure`, whether one instance came or two: a haste creature's attack
+  instance, a doubled attack trigger (Isshin, Two Heavens as One), a doubled leave,
+  or both triggers of an "enters or leaves the battlefield" ability put on the
+  stack after the leave (a second Bilbo, Retired Burglar put into the graveyard by
+  the legend rule). The later row's `fired` assumes an instance logged after both
+  events is the later one's. An instance that pairs with one row only answers it:
+  an enter instance logged after the creature died at once (Woodfall Primus,
+  beside its persist) is the enter's. `fired`: an instance answers it. `unfired`, the finding:
+  none did, though Arena lists a triggered ability on the object that pairs with
+  it, and none of these explains it. Each of the rest is counted, never a finding,
+  in the order decided: `face-down` (Arena's `isFacedown`: no abilities, CR 708.2,
+  no enters triggers, CR 708.3); `copy` (Arena's `isCopy`, or a token of a card's
+  printing: a copy effect may make exceptions, CR 707.9, and a spell's copy, which
+  Arena logs with a cast move, isn't cast, CR 707.10); `rolled-back`; `game-over`
+  (the game or the log ended before the turn did); `suppressed` (a card on the
+  battlefield whose static stops the event from triggering abilities, phase's
+  `SuppressTriggers` mode, `crosswalk.trigger_suppressions`: Hushbringer's
+  "Creatures entering the battlefield or dying don't cause abilities to trigger",
+  which its ruling says holds for a creature dying at the same time. Entering
+  silences the triggers expected on an enter; dying silences dies and leaves
+  triggers and a zone change whose every move starts on the battlefield, never a
+  "whenever you sacrifice" trigger nor a dying card's own "put into a graveyard
+  from anywhere", which Hushbringer's rulings say still trigger. A suppressor of
+  opponents' triggers, Elesh Norn, Mother of Machines, spares its controller's;
+  one of creatures, a noncreature's. An event name this reader doesn't map
+  silences every trigger); `rebalanced` (an A- card, scored against the paper card's parse);
+  `unfired-unsure` (an instance from the object pairs with no phase trigger
+  confidently: it could be this one); `no-abilities` (Arena lists none: it lost
+  them); `unfired-unpaired` (no ability Arena lists pairs with it);
+  `arena-not-triggered` (Arena files the ability that pairs as no triggered
+  ability: evoke's and offspring's are not); `unfired-conditional`
+  (`crosswalk.trigger_gates`: an intervening "if", CR 603.4, a limit, any trigger
+  field beyond the event it watches, a condition at the head of its effect, or a
+  clause phase parked anywhere in it; a "may" or an "unless" is no gate, since such
+  a trigger goes on the stack regardless, CR 603.5: 31 of 32 "may" triggers fired,
+  the 32nd had no legal target); `unfired-targeted` (Arena's ability says "target",
+  CR 115.10a, or is a keyword, by its `BaseId` or a pairing by the keyword, whose
+  rule targets: Backup's, CR 702.165a, Mentor's, CR 702.134a, which Arena may file
+  bare; with no legal target Arena creates no instance at all, CR 603.3d, as
+  Affectionate Indrik showed entering onto a board with no opposing creature;
+  `crosswalk.effect_targets` alone also counts scry's controller); `ignored`. An
+  object the log shows no card for, a token's own printing, and a card phase
+  doesn't parse get no rows. Measured on 2026-11-27 (phase v0.133.0): the owner's
+  40 archived games 194 `fired`, 4 `unfired-conditional` (Emeritus of Abundance's
+  eight lands not met), 5 `arena-not-triggered` (evoke); the corpus's 95 games 342
+  `fired`, 11 `unfired-conditional`, 5 `arena-not-triggered` (evoke, offspring), 1
+  `unfired-targeted`; 0 `unfired` on either. Its tool faults were pairings: Brigid,
+  Clachan's Heart's "enters or transforms into ~" paired with the transform trigger
+  alone until a split's second event could be more than a word, and Brinebound
+  Gift's split then paired half with Brine Comber's trigger until a split's halves
+  had to be on one face. No resolution or trigger row of either set changed.
 - **Confident pairings only** (`_arena_crosscheck.align`). An Arena ability pairs with
   phase's at near-identical text (0.9, after reading Arena's mana symbols, `CARDNAME`,
   "this permanent" and a leading ability word, which has no rules meaning, CR 207.2c,
@@ -112,12 +211,16 @@ resolution and fired trigger against phase's parse of the same ability.
   on the Mac runs a LaunchAgent (machine setup, not in the repo) that gzips it into
   `/Users/Shared/mtg-arena-logs/<user>/` and keeps Detailed Logs on.
 - **Per-pin reports.** Each run keeps `<archive>/reports/<PHASE_TAG>.json` (unless
-  `--no-save-report`); rows are keyed by game and order, so `report.diff_reports` lists
+  `--no-save-report`); rows are keyed by game and order within their section
+  (`resolutions`, `triggers`, `expected`), so `report.diff_reports` lists
   what a new pin's parse changed against the same games. `bump-phase-pin`'s step 10 (step 9 until the tree-coverage step was added) reruns
   the crosscheck under the new pin over the archive alone (`--no-live`) and puts that
-  diff in its triage report, advisory only: it never fails the bump.
+  diff in its triage report, advisory only: it never fails the bump. A report saved
+  before the reverse check has no `expected` rows, so they diff only once the
+  baseline is saved again.
 
 **Consequences.** A phase misparse that changes what a card does in play can now be found
 from games already played, at the cost of a fuzzy text pairing, kept honest by scoring
 only confident pairs. The check sees only cards that were played, only effects Arena
-logs (no permissions, no library searches), and only the triggers that fired.
+logs (no permissions, no library searches), and of the triggers Arena never fired only
+those phase expects on an object's own event, unconditional and untargeted.

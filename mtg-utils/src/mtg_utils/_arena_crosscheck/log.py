@@ -11,7 +11,16 @@ event streams, one game at a time:
   resolved to a player seat or to the object's types, controller and owner as that
   message left them, and the battlefield at that moment;
 * a :class:`TriggerFired` for each triggered ability Arena put on the stack, with the
-  events of the object that set it off (:func:`events_of`).
+  events of the object that set it off (:func:`events_of`);
+* an :class:`ObjectEvent` for each event of one object itself that a "When ~ …"
+  trigger can watch (it entered or left the battlefield, was cast, attacked,
+  blocked, became blocked), with the abilities Arena listed on it and every
+  ability instance Arena created from it until the turn ended: what the reverse
+  check reads for a trigger that never fired.
+
+An annotation a full resync repeats (the same id, the same content) is read once
+by all three, and an event a rollback undoes (an id reused for another
+annotation) is marked so (:attr:`ObjectEvent.rolled_back`).
 
 An ability that sits on an emblem is the emblem's source card's (CR 114.1: an effect
 of that card made the emblem), and one that sits on a rules **trigger holder** is the
@@ -29,8 +38,8 @@ from __future__ import annotations
 import collections
 import gzip
 import json
-from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import NamedTuple
 
@@ -38,6 +47,9 @@ __all__ = [
     "NO_X",
     "ChosenX",
     "Effect",
+    "Instance",
+    "Logs",
+    "ObjectEvent",
     "Resolution",
     "TriggerFired",
     "events_of",
@@ -148,6 +160,93 @@ class TriggerFired:
     holder: str | None = None
 
 
+class Instance(NamedTuple):
+    """An ability instance Arena created: its own id and its ability's."""
+
+    id: int
+    grpid: int
+
+
+@dataclass(frozen=True)
+class ObjectEvent:
+    """One event of an object itself, as a "When ~ …" trigger of its own watches
+    it, and what Arena did after it.
+
+    ``event`` is ``enters`` (a move onto the battlefield, or a token created:
+    CR 111.2), ``leaves`` (a move off it; ``origin`` / ``destination`` say where
+    to), ``cast_spell`` (a ``CastSpell`` move), ``attacks`` (declared: its
+    attack state went from declared to attacking, so never one put onto the
+    battlefield attacking, CR 508.3a and 508.4), ``blocks`` (likewise) or
+    ``becomes_blocked`` (a declared blocker names it)."""
+
+    game: tuple[str, int]
+    turn: int | None
+    event: str
+    #: A zone move's zones (Arena's ``ZoneType`` names), else ``None``.
+    origin: str | None
+    destination: str | None
+    #: The object as the event saw it: as it entered, or as it last was on the
+    #: battlefield for a leave (CR 603.10a: leaves-the-battlefield abilities
+    #: look back in time).
+    grpid: int | None
+    controller: int | None
+    #: ``"Card"`` / ``"Token"`` (Arena's object type).
+    kind: str
+    #: The ability ids Arena listed on it (``uniqueAbilities``).
+    abilities: tuple[int, ...]
+    #: Whether Arena marks it a copy (``isCopy``).
+    copy: bool
+    #: Whether Arena marks it face down (``isFacedown``).
+    face_down: bool
+    #: Each ability instance Arena created from it (the instance's source or
+    #: parent is the object, under any id it had, and the object Arena says set
+    #: it off, ``TriggeringObject``, is the object or unnamed), from the event's
+    #: message until the turn ended. Another event of the object in that window
+    #: is offered the same instances: which event one answers is the checker's
+    #: to decide (``check.Checker.expected``), since Arena's link names the
+    #: object, never its event.
+    fired: tuple[Instance, ...]
+    #: Whether the turn ended before the log moved on: ``False`` when the game
+    #: (or the log) ended first, so a trigger may never have been put on the
+    #: stack.
+    turn_ended: bool
+    #: Arena's ``category`` for a zone move (``Resolve``, ``SBA_Damage``, …).
+    category: str = ""
+    #: Its place among the game's object events, in the order the log shows
+    #: them: the same logs number them the same whatever parses them.
+    ordinal: int = 0
+    #: The object's card types (Arena's ``cardTypes``), as it was.
+    card_types: tuple[str, ...] = ()
+    #: ``(grpId, controller)`` of each card on the battlefield at the event (for
+    #: a leave, with every card that left it in the same message: CR 603.10a).
+    battlefield: tuple[tuple[int, int | None], ...] = ()
+    #: Whether Arena undid it: a later message reused the id of the annotation
+    #: it came from for another one (a cancelled cast is rolled back that way).
+    rolled_back: bool = False
+
+    @property
+    def events(self) -> frozenset[str]:
+        """The event in :func:`events_of`'s spelling: a move is a
+        ``zone_change`` too, a leave to a graveyard ``dies``, and a leave
+        Arena files as a sacrifice ``sacrificed``."""
+        out = {self.event}
+        if self.event in ("enters", "leaves", "cast_spell"):
+            out.add("zone_change")
+        if self.event == "leaves" and self.destination == "Graveyard":
+            out.add("dies")
+        out.update(_MOVE_EVENTS.get(self.category, ()))
+        return frozenset(out)
+
+
+class Logs(NamedTuple):
+    """Everything :func:`read_logs` reads, each game once."""
+
+    resolutions: list[Resolution]
+    triggers: list[TriggerFired]
+    games: list[tuple[str, int]]
+    events: list[ObjectEvent]
+
+
 def num(details: dict, key: str, default: int | None = 0) -> int | None:
     """An annotation detail's (single) number."""
     value = (details.get(key) or [default])[0]
@@ -219,6 +318,26 @@ def events_of(anns: Iterable[dict], zones: dict) -> set[str]:
     return out
 
 
+def _declarations(
+    o: dict, before: tuple[str, str], now: tuple[str, str]
+) -> list[tuple[int, str]]:
+    """The declarations an object's new combat state locks in: an attacker
+    (declared, then attacking: one put onto the battlefield attacking was never
+    declared, CR 508.3a and 508.4, and a creature unselected before the attack
+    is locked in goes back from declared to none), a blocker likewise, and the
+    attackers a declared blocker names (``becomes_blocked``)."""
+    out: list[tuple[int, str]] = []
+    if before[0] == "AttackState_Declared" and now[0] == "AttackState_Attacking":
+        out.append((o["instanceId"], "attacks"))
+    if before[1] == "BlockState_Declared" and now[1] == "BlockState_Blocking":
+        out.append((o["instanceId"], "blocks"))
+        out += [
+            (attacker, "becomes_blocked")
+            for attacker in (o.get("blockInfo") or {}).get("attackerIds", ())
+        ]
+    return out
+
+
 def _lines(path: Path) -> Iterator[str]:
     opener = gzip.open if path.suffix == ".gz" else open
     with opener(path, "rt", encoding="utf-8", errors="replace") as handle:
@@ -240,16 +359,14 @@ def _messages(lines: Iterable[str]) -> Iterator[dict]:
                 yield state
 
 
-def read_logs(
-    paths: Iterable[Path],
-) -> tuple[list[Resolution], list[TriggerFired], list[tuple[str, int]]]:
-    """Every resolution and fired trigger in ``paths`` (``.log`` or ``.log.gz``),
-    each game read once, and the games read."""
+def read_logs(paths: Iterable[Path]) -> Logs:
+    """Every resolution, fired trigger and object event in ``paths`` (``.log`` or
+    ``.log.gz``), each game read once, and the games read."""
     seen: dict[tuple[str, int], Path] = {}
     reader = _Reader()
     for path in dict.fromkeys(p.resolve() for p in paths):  # each file once
         reader.read(path, seen)
-    return reader.resolutions, reader.triggers, list(seen)
+    return Logs(reader.resolutions, reader.triggers, list(seen), reader.events)
 
 
 def _who(i: int, seats: set[int], objs: dict[int, dict]) -> dict:
@@ -260,6 +377,19 @@ def _who(i: int, seats: set[int], objs: dict[int, dict]) -> dict:
         return {"object": i}
     keep = ("grpId", "card_types", "subtypes", "controller", "owner")
     return {"object": i, **{k: o[k] for k in keep}}
+
+
+@dataclass
+class _OpenEvent:
+    """An object event whose turn hasn't ended: the object's ids and the
+    ability instances created from it so far."""
+
+    event: ObjectEvent
+    ids: set[int]
+    fired: list[Instance] = field(default_factory=list)
+    #: The id of the annotation it came from (``None`` for a combat
+    #: declaration, read off the objects).
+    ann_id: int | None = None
 
 
 def _touches(ann: dict, ids: set[int]) -> bool:
@@ -275,6 +405,9 @@ class _Reader:
         #: The ``grpId`` of each kind of holder seen (:data:`_HOLDERS`): an
         #: ability whose source it is sits on one, its own parent or not.
         self.holder_grps: dict[int, str] = {}
+        self.events: list[ObjectEvent] = []
+        #: The object events whose turn hasn't ended.
+        self.open_events: list[_OpenEvent] = []
 
     def read(self, path: Path, seen: dict[tuple[str, int], Path]) -> None:
         self.game: tuple[str, int] | None = None
@@ -286,11 +419,13 @@ class _Reader:
             if info.get("matchID"):
                 key = (info["matchID"], info.get("gameNumber", 1))
                 if key != self.game:
+                    self._close_events(turn_ended=False)
                     self.game = key
                     skip = seen.setdefault(key, path) != path
                     self._reset()
             if self.game is not None and not skip:
                 self._message(state, self.game)
+        self._close_events(turn_ended=False)
 
     def _reset(self) -> None:
         self.zones: dict[int, tuple[str, int | None]] = {}
@@ -309,6 +444,16 @@ class _Reader:
         self.targets_of: dict[int, set[int]] = collections.defaultdict(set)
         #: the creatures put onto the battlefield attacking, this combat
         self.entered_attacking: set[int] = set()
+        #: object id → the id it had just before (``ObjectIdChanged``)
+        self.prev_id: dict[int, int] = {}
+        #: the attackers a declared blocker named, by turn
+        self.blocked: set[tuple[int, int | None]] = set()
+        #: annotation id → the annotation as first logged (JSON): a full
+        #: resync (``GameStateType_Full``) repeats annotations, and a rollback
+        #: reuses ids for new ones
+        self.ann_seen: dict[int, str] = {}
+        #: the object events opened so far this game
+        self.event_count = 0
         self.recent: collections.deque[list[dict]] = collections.deque(maxlen=_LOOKBACK)
         self.turn: int | None = None
 
@@ -338,7 +483,10 @@ class _Reader:
             self.zones[z["zoneId"]] = (zone_type, z.get("ownerSeatId"))
             self.zone_ids[z["zoneId"]] = z.get("objectInstanceIds", [])
         self.message_combat: dict[int, tuple[str, str]] = {}
+        #: (object id, event) for each declaration this message locked in
+        declared: list[tuple[int, str]] = []
         for o in state.get("gameObjects", []):
+            before = self.combat.get(o["instanceId"], ("", ""))
             self.objs[o["instanceId"]] = {
                 "grpId": o.get("grpId"),
                 "src": o.get("objectSourceGrpId"),
@@ -348,6 +496,11 @@ class _Reader:
                 "controller": o.get("controllerSeatId"),
                 "owner": o.get("ownerSeatId"),
                 "parent": o.get("parentId"),
+                "abilities": tuple(
+                    a.get("grpId") for a in o.get("uniqueAbilities", ())
+                ),
+                "copy": bool(o.get("isCopy")),
+                "face_down": bool(o.get("isFacedown")),
             }
             if self.objs[o["instanceId"]]["type"] in _HOLDERS:
                 self.holder_grps[o.get("grpId")] = self.objs[o["instanceId"]]["type"]
@@ -358,6 +511,7 @@ class _Reader:
             self.message_combat[o["instanceId"]] = self.combat[o["instanceId"]]
             if self.combat[o["instanceId"]][0] not in _ATTACKING:
                 self.entered_attacking.discard(o["instanceId"])
+            declared += _declarations(o, before, self.combat[o["instanceId"]])
         for ann in state.get("persistentAnnotations", []):
             if "TriggeringObject" in _types(ann) and ann.get("affectedIds"):
                 self.triggered_by[ann.get("affectorId")] = ann["affectedIds"][0]
@@ -381,6 +535,7 @@ class _Reader:
                 new, orig = num(d, "new_id", None), num(d, "orig_id", None)
                 if new is not None and orig is not None:
                     self.earlier[new] |= {orig, *self.earlier.get(orig, ())}
+                    self.prev_id[new] = orig
             elif "ZoneTransfer" in types and word(_details(ann), "category") == (
                 "CastSpell"
             ):
@@ -391,7 +546,7 @@ class _Reader:
                 "ZoneTransfer" in types and dest == "Battlefield"
             ):
                 # put onto the battlefield attacking: never declared, so it never
-                # "attacked" for a trigger (CR 508.4)
+                # "attacked" for a trigger (CR 508.3a, 508.4)
                 self.entered_attacking |= {
                     i
                     for i in ann.get("affectedIds", ())
@@ -399,8 +554,11 @@ class _Reader:
                 }
         turn = (state.get("turnInfo") or {}).get("turnNumber") or self.turn
         self.turn = turn
+        # a resync's repeats are read once (the move and resolution records)
+        fresh = self._fresh(anns)
+        self._object_events(fresh, declared, turn, game)
         open_: dict | None = None
-        for ann in anns:
+        for ann in fresh:
             types = _types(ann)
             if "ResolutionStart" in types:
                 open_ = self._open(ann)
@@ -423,6 +581,184 @@ class _Reader:
             if "AbilityInstanceCreated" in types:
                 self._trigger(ann, anns, turn, game)
         self.recent.append(anns)
+
+    def _fresh(self, anns: list[dict]) -> list[dict]:
+        """The annotations not logged before: a repeat (a full resync's, the
+        same annotation again) is dropped, and an id reused for a new one is a
+        rollback, which undoes every open event that came from an annotation
+        numbered from it on."""
+        out = []
+        for ann in anns:
+            aid, text = ann.get("id"), json.dumps(ann, sort_keys=True)
+            if aid is None:
+                out.append(ann)
+                continue
+            before = self.ann_seen.get(aid)
+            if before == text:
+                continue
+            if before is not None:
+                self._close_events(
+                    turn_ended=False,
+                    rolled_back=True,
+                    unless=lambda e, aid=aid: e.ann_id is None or e.ann_id < aid,
+                )
+            self.ann_seen[aid] = text
+            out.append(ann)
+        return out
+
+    def _battlefield(self) -> list[tuple[int, int | None]]:
+        return [
+            (o["grpId"], o["controller"])
+            for z, ids in self.zone_ids.items()
+            if self.zones.get(z, ("",))[0] == "Battlefield"
+            for i in ids
+            if (o := self.objs.get(i)) and o["type"] == "Card"
+        ]
+
+    def _object_events(
+        self,
+        anns: list[dict],
+        declared: list[tuple[int, str]],
+        turn: int | None,
+        game: tuple[str, int],
+    ) -> None:
+        """Close the object events of an earlier turn, open this message's, and
+        give each open one the ability instances Arena created from its object
+        in this message (the whole message: Arena logs a dies trigger's instance
+        ahead of the move that set it off)."""
+        self._close_events(turn_ended=True, unless=lambda e: e.event.turn == turn)
+        board = self._battlefield()
+        for i, event in declared:
+            if event == "becomes_blocked":
+                if (i, turn) in self.blocked:
+                    continue  # a second blocker: one event
+                self.blocked.add((i, turn))
+            self._open_event(game, turn, event, i, self.objs.get(i, {}), board=board)
+        moves = [
+            (ann, _details(ann))
+            for ann in anns
+            if "ZoneTransfer" in _types(ann) or "TokenCreated" in _types(ann)
+        ]
+        # what left the battlefield in this message: it was there for a leave
+        # trigger looking back (CR 603.10a)
+        left = [
+            (was["grpId"], was["controller"])
+            for ann, d in moves
+            if self.zones.get(num(d, "zone_src", None), ("",))[0] == "Battlefield"
+            for i in ann.get("affectedIds", ())
+            if (was := self.objs.get(self.prev_id.get(i, i))) and was["type"] == "Card"
+        ]
+        for ann, d in moves:
+            aid = ann.get("id")
+            if "TokenCreated" in _types(ann):
+                for i in ann.get("affectedIds", ()):
+                    obj = self.objs.get(i, {})
+                    self._open_event(
+                        game,
+                        turn,
+                        "enters",
+                        i,
+                        obj,
+                        dest="Battlefield",
+                        board=board,
+                        ann_id=aid,
+                    )
+                continue
+            src = self.zones.get(num(d, "zone_src", None), ("",))[0]
+            dest = self.zones.get(num(d, "zone_dest", None), ("",))[0]
+            category = word(d, "category")
+            for i in ann.get("affectedIds", ()):
+                # a leave sees the object as it last was (its id before)
+                was = self.objs.get(self.prev_id.get(i, i), {})
+                now = self.objs.get(i, {})
+                moved = {"src": src, "dest": dest, "category": category, "ann_id": aid}
+                if dest == "Battlefield":
+                    self._open_event(game, turn, "enters", i, now, board=board, **moved)
+                if src == "Battlefield":
+                    self._open_event(
+                        game, turn, "leaves", i, was, board=board + left, **moved
+                    )
+                if category == "CastSpell":
+                    self._open_event(
+                        game, turn, "cast_spell", i, now, board=board, **moved
+                    )
+        for ann in anns:
+            if "AbilityInstanceCreated" not in _types(ann):
+                continue
+            inst = (ann.get("affectedIds") or [None])[0]
+            ability = self.objs.get(inst) or {}
+            if inst is None or ability.get("type") != "Ability":
+                continue
+            if ability.get("grpId") is None:
+                continue
+            sources = {ann.get("affectorId"), ability.get("parent")} - {None}
+            # the object Arena says set it off, when it names one
+            cause = self.triggered_by.get(inst)
+            for e in self.open_events:
+                if e.ids & sources and (cause is None or cause in e.ids):
+                    e.fired.append(Instance(inst, ability["grpId"]))
+
+    def _open_event(
+        self,
+        game: tuple[str, int],
+        turn: int | None,
+        event: str,
+        i: int,
+        obj: dict,
+        *,
+        src: str | None = None,
+        dest: str | None = None,
+        category: str = "",
+        board: Sequence[tuple[int, int | None]] = (),
+        ann_id: int | None = None,
+    ) -> None:
+        record = ObjectEvent(
+            game=game,
+            turn=turn,
+            event=event,
+            origin=src,
+            destination=dest,
+            grpid=obj.get("grpId"),
+            controller=obj.get("controller"),
+            kind=obj.get("type", ""),
+            abilities=obj.get("abilities", ()),
+            copy=obj.get("copy", False),
+            face_down=obj.get("face_down", False),
+            fired=(),
+            turn_ended=False,
+            category=category,
+            ordinal=self.event_count,
+            card_types=tuple(obj.get("card_types", ())),
+            battlefield=tuple(board),
+        )
+        self.event_count += 1
+        self.open_events.append(
+            _OpenEvent(record, {i, *self.earlier.get(i, ())}, ann_id=ann_id)
+        )
+
+    def _close_events(
+        self,
+        *,
+        turn_ended: bool,
+        rolled_back: bool = False,
+        unless: Callable[[_OpenEvent], bool] = lambda _: False,
+    ) -> None:
+        """Turn the open events into :class:`ObjectEvent` records, all but
+        those ``unless`` keeps open."""
+        still: list[_OpenEvent] = []
+        for e in self.open_events:
+            if unless(e):
+                still.append(e)
+                continue
+            self.events.append(
+                replace(
+                    e.event,
+                    fired=tuple(e.fired),
+                    turn_ended=turn_ended,
+                    rolled_back=rolled_back,
+                )
+            )
+        self.open_events = still
 
     def _open(self, ann: dict) -> dict:
         inst = ann.get("affectorId")

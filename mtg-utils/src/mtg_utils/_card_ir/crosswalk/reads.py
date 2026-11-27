@@ -1604,6 +1604,59 @@ def watches_itself(trig: object, *, among_others: bool = False) -> bool:
     return _names_itself(getattr(trig, "valid_card", None), among_others=among_others)
 
 
+#: The fields of a trigger definition that say which event it watches
+#: (:func:`trigger_def_event`, :func:`trigger_zone_changes`,
+#: :func:`watches_itself`) or what it does, never whether it goes on the stack:
+#: a "may" (``optional``) or an "unless" (``unless_pay``) is decided as the
+#: ability resolves (CR 603.5).
+_TRIGGER_UNGATED_FIELDS = frozenset(
+    {
+        "mode",
+        "valid_card",
+        "origin",
+        "destination",
+        "zone_change_clauses",
+        "trigger_zones",
+        "description",
+        "execute",
+        "batched",
+        "damage_kind",
+        "phase",
+        "optional",
+        "unless_pay",
+    }
+)
+#: The values a trigger field holds when it sets nothing.
+_TRIGGER_FIELD_UNSET = (None, False, "Any", [], ())
+
+
+def trigger_gates(trig: object) -> tuple[str, ...]:
+    """What can keep a trigger from triggering each time its event happens, by
+    field name: an intervening "if" (``condition``, CR 603.4), a ``constraint``
+    ("This ability triggers only once each turn"), and any other field phase
+    sets beyond the event it watches (an attack's target, a counter's kind, …:
+    every field but :data:`_TRIGGER_UNGATED_FIELDS`); then ``"effect
+    condition"`` for a condition at the head of its effect and ``"residue"``
+    for a clause phase parked (``Unimplemented``) anywhere in it, either of
+    which may be a trigger condition phase didn't type. ``()`` for a trigger
+    that triggers every time its event happens."""
+    if not isinstance(trig, TypedMirrorNode):
+        return ()
+    out = [
+        name
+        for name in _field_names(type(trig))
+        if name not in _TRIGGER_UNGATED_FIELDS
+        and not name.startswith("_")
+        and _present(value := getattr(trig, name))
+        and value not in _TRIGGER_FIELD_UNSET
+    ]
+    if _present(getattr(getattr(trig, "execute", None), "condition", None)):
+        out.append("effect condition")
+    if any(tag_of(n) == "Unimplemented" for n in _typed_nodes(trig)):
+        out.append("residue")
+    return tuple(out)
+
+
 def trigger_subject(trig: TypedMirrorNode) -> tuple[str, ...]:
     """Type-words of the OBJECT a trigger watches (its ``valid_card`` filter).
 
@@ -11680,33 +11733,58 @@ def puts_commander_into_hand(tree: ConceptTree) -> bool:
     return False
 
 
-def silences_own_enter_triggers(tree: ConceptTree) -> bool:
-    """Whether a static stops creatures entering the battlefield from triggering
-    YOUR permanents' abilities: a ``SuppressTriggers`` mode over the
-    ``EntersBattlefield`` event whose source filter admits creatures (Torpor
-    Orb, Hushwing Gryff, Hushbringer; Karn, Argent Defender's "artifacts and
-    creatures") and whose trigger-source filter does not limit it to an
-    opponent's permanents (Elesh Norn, Mother of Machines silences only theirs).
-    """
+class TriggerSuppression(NamedTuple):
+    """One "[events] don't cause abilities to trigger" static (phase's
+    ``SuppressTriggers`` mode): phase's names of the events it silences
+    (``EntersBattlefield``, ``Dies``), the core types of the objects whose
+    events they are (``()`` for any; its ``source_filter``), and the side of
+    the permanents whose abilities it silences (its
+    ``trigger_source_filter``: ``"opponents"`` for Elesh Norn, Mother of
+    Machines; ``None`` for every permanent's, Hushbringer's)."""
+
+    events: tuple[str, ...]
+    source_types: tuple[str, ...]
+    trigger_side: str | None
+
+
+def trigger_suppressions(tree: ConceptTree) -> tuple[TriggerSuppression, ...]:
+    """Each static of the card's own units that stops events from triggering
+    abilities (:class:`TriggerSuppression`): Torpor Orb, Hushwing Gryff and
+    Hushbringer (entering and dying), Elesh Norn, Mother of Machines."""
+    out: list[TriggerSuppression] = []
     for unit in tree.units:
         for sdef in unit.static_defs():
             if static_mode_tag(sdef) != "SuppressTriggers":
                 continue
             events = static_mode_field(sdef, "events")
-            if (
-                not isinstance(events, (list, tuple))
-                or "EntersBattlefield" not in events
-            ):
-                continue
-            source = static_mode_field(sdef, "source_filter")
-            types = set(filter_core_types(source))
-            if types and not types & {"Creature", "Permanent"}:
-                continue
-            owner = static_mode_field(sdef, "trigger_source_filter")
-            if filter_controller_side(owner) == "opponents":
-                continue
-            return True
-    return False
+            out.append(
+                TriggerSuppression(
+                    tuple(e for e in events if isinstance(e, str))
+                    if isinstance(events, (list, tuple))
+                    else (),
+                    tuple(filter_core_types(static_mode_field(sdef, "source_filter"))),
+                    filter_controller_side(
+                        static_mode_field(sdef, "trigger_source_filter")
+                    ),
+                )
+            )
+    return tuple(out)
+
+
+def silences_own_enter_triggers(tree: ConceptTree) -> bool:
+    """Whether a static stops creatures entering the battlefield from triggering
+    YOUR permanents' abilities (:func:`trigger_suppressions`): one over the
+    ``EntersBattlefield`` event whose source filter admits creatures (Torpor
+    Orb, Hushwing Gryff, Hushbringer; Karn, Argent Defender's "artifacts and
+    creatures") and whose trigger-source filter does not limit it to an
+    opponent's permanents (Elesh Norn, Mother of Machines silences only theirs).
+    """
+    return any(
+        "EntersBattlefield" in s.events
+        and (not s.source_types or set(s.source_types) & {"Creature", "Permanent"})
+        and s.trigger_side != "opponents"
+        for s in trigger_suppressions(tree)
+    )
 
 
 def _fixed_count(qty: object) -> int | None:

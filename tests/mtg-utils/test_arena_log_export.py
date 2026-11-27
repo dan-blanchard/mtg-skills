@@ -178,7 +178,7 @@ def fake_scrub(text: str, *, drop: str | None = None) -> str:
 
 def report_of(path: Path) -> dict:
     """A stand-in signal report: the games ``arena-crosscheck``'s reader sees."""
-    _res, _trig, games = read_logs([path])
+    games = read_logs([path]).games
     return {"games": len(games), "ids": games, "resolutions": [], "triggers": []}
 
 
