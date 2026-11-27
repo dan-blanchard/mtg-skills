@@ -571,6 +571,95 @@ class TestLimitedClosers:
         assert is_wincon_card(test_card(name), game=DRAFT) is at_20
         assert is_wincon_card(test_card(name)) is at_40
 
+    def test_a_leveler_is_read_at_its_first_level(self):
+        """Level up (CR 711.2a): Hexdrinker's first level, 4/4 with protection
+        from instants, makes it a resilient body; its later level is not
+        credited."""
+        from mtg_utils._card_ir.trees import trees_for
+        from mtg_utils._tuner.metrics import _grown_base
+
+        card = test_card("Hexdrinker")
+        assert _grown_base(card, trees_for(card)) == (4, frozenset({"protection"}))
+        assert limited_closer_reason(card, game=DRAFT) == "resilient"
+
+    def test_a_power_counting_your_creatures_is_read_at_a_board_of_three(self):
+        """Adeline, Resplendent Cathar's power counts the creatures you control
+        (a characteristic-defining ability, CR 604.3), credited at
+        ``LIMITED_BOARD_CREATURES``. Her power is three, but vigilance makes her
+        neither hard to block nor hard to answer, so she is no closer."""
+        from mtg_utils._card_ir.trees import trees_for
+        from mtg_utils._tuner.metrics import LIMITED_BOARD_CREATURES, _grown_base
+
+        card = test_card("Adeline, Resplendent Cathar")
+        assert _grown_base(card, trees_for(card)) == (
+            LIMITED_BOARD_CREATURES,
+            frozenset(),
+        )
+        assert limited_closer_reason(card, game=DRAFT) is None
+
+    def test_one_attacks_growth_counts_and_a_conditional_one_does_not(self):
+        """Charging Griffin (2/2 flying) gets +1/+1 whenever it attacks: three
+        power in the air, an evasive body. Gryff Rider's training counter needs
+        a stronger creature attacking beside it, and that help is not
+        credited."""
+        assert limited_closer_reason(test_card("Charging Griffin"), game=DRAFT) == (
+            "evasive"
+        )
+        assert limited_closer_reason(test_card("Gryff Rider"), game=DRAFT) is None
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Brawl-Bash Ogre",  # "you may sacrifice another creature"
+            "Aetherstream Leopard",  # "you may pay {E}"
+            "Phelia, Exuberant Shepherd",  # a delayed end-step counter
+            "Thrashing Frontliner",  # only when it attacks a battle
+            "Gryff Rider",  # training: a stronger creature attacking with it
+        ],
+    )
+    def test_attack_growth_that_needs_help_is_not_credited(self, name):
+        from mtg_utils._card_ir.trees import trees_for
+        from mtg_utils._tuner.metrics import _attack_growth
+
+        assert _attack_growth(trees_for(test_card(name))) == 0
+
+    @pytest.mark.parametrize(
+        ("name", "board"),
+        [
+            # Creatures you control, no other property: a board of three.
+            ("Sharpshooter Elf", True),
+            # An opponent's permanents, any player's shadow creatures, a token's
+            # ability, and a count of cards in a graveyard are not your board.
+            ("Wilderness Elemental", False),
+            ("Dauthi Warlord", False),
+            ("Voice of Resurgence", False),
+            ("Boneyard Mycodrax", False),
+        ],
+    )
+    def test_a_counted_power_is_read_only_off_your_own_board(self, name, board):
+        from mtg_utils._card_ir.trees import trees_for
+        from mtg_utils._tuner.metrics import (
+            LIMITED_BOARD_CREATURES,
+            _grown_base,
+            _printed_power,
+        )
+
+        card = test_card(name)
+        base, _kw = _grown_base(card, trees_for(card))
+        assert base == (LIMITED_BOARD_CREATURES if board else _printed_power(card))
+
+    def test_a_leveler_gets_only_its_first_levels_keywords(self):
+        """Kargan Dragonlord's first level is a 4/4 flier, an evasive body; its
+        level-8 trample is not credited. Transcendent Master's first level is a
+        6/6 lifelinker; its level-12 indestructible is not credited, so it is no
+        closer."""
+        assert limited_closer_reason(test_card("Kargan Dragonlord"), game=DRAFT) == (
+            "evasive"
+        )
+        assert (
+            limited_closer_reason(test_card("Transcendent Master"), game=DRAFT) is None
+        )
+
     def test_a_one_time_enters_cost_holds_no_limited_body_back(self):
         inverter = test_card("Inverter of Truth")
         assert limited_closer_reason(inverter, game=DRAFT) == "evasive"

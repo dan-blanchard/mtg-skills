@@ -39,7 +39,14 @@ from mtg_utils._card_ir.crosswalk import (
     team_boost_or_grant_sites,
     unbound_x_reach,
 )
-from mtg_utils._card_ir.crosswalk.reads import is_self_enters_trigger, unit_repeats
+from mtg_utils._card_ir.crosswalk.reads import (
+    _present,
+    dynamic_pt_mod_sites,
+    filter_controller,
+    filter_core_types,
+    is_self_enters_trigger,
+    unit_repeats,
+)
 from mtg_utils._card_ir.trees import object_facts, trees_for
 from mtg_utils._tuner.calibration import COMMANDER, Calibration
 from mtg_utils._tuner.classify import CardClass, is_premium, is_upgrade_target
@@ -54,7 +61,7 @@ from mtg_utils.theme_presets import get_preset, signal_keys_for
 
 if TYPE_CHECKING:
     from mtg_utils._analysis.signals import Signal
-    from mtg_utils._card_ir.crosswalk import ConceptTree
+    from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
 
 # Signal keys that mirror a hard-counted Spine role (ramp / draw / interaction). Not
 # themes, so focus excludes their avenues: a "Ramp / big mana" avenue full of mana rocks
@@ -1556,6 +1563,174 @@ def _enters_growth(trees: Sequence[ConceptTree]) -> int:
     return grown
 
 
+#: The creatures you control a power that counts them is credited with ("~'s
+#: power is equal to the number of creatures you control": Adeline, Resplendent
+#: Cathar): three, the card itself and two more, the board a 40-card deck of
+#: fifteen-odd creatures holds by turn four or five. The lane's own call, on the
+#: low side of a normal limited game: nothing that helps is counted.
+LIMITED_BOARD_CREATURES = 3
+
+
+def _grown_base(card: dict, trees: Sequence[ConceptTree]) -> tuple[int, frozenset[str]]:
+    """The power the card's body reaches by its own text in a normal limited
+    game, and the keywords it gains on the way, read off its front face:
+
+    - a characteristic-defining power of its own (CR 604.3;
+      ``reads.dynamic_pt_mod_sites``) that counts the creatures or permanents
+      you control on the battlefield with no other property
+      (:func:`_counts_your_board`), at :data:`LIMITED_BOARD_CREATURES`; any
+      other count is not read;
+    - a leveler's first level (CR 711.2a: "as long as this creature has at
+      least N1 level counters on it … it has base power and toughness [P/T] and
+      has [abilities]"), its power and keywords; a later level's are not
+      credited (:func:`_later_level_keywords`).
+
+    Otherwise its printed power and no keywords."""
+    base = _printed_power(card)
+    keywords: frozenset[str] = frozenset()
+    if not trees:
+        return base, keywords
+    # The card's own statics only: a token's ability (Voice of Resurgence's
+    # Elemental) is not the card's power.
+    sites = [
+        (sdef, mod)
+        for unit in trees[0].units
+        if unit.origin == "static"
+        for sdef, mod in dynamic_pt_mod_sites(unit.node, setting_only=True)
+        if sdef is unit.node
+    ]
+    for sdef, mod in sites:
+        if "Toughness" in (tag_of(mod) or ""):
+            continue
+        if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+            continue
+        if _counts_your_board(getattr(getattr(mod, "value", None), "qty", None)):
+            base = max(base, LIMITED_BOARD_CREATURES)
+    levels = _level_bands(trees)
+    if levels:
+        first = levels[0]
+        for mod in getattr(first, "modifications", ()) or ():
+            if tag_of(mod) == "SetPower" and isinstance(
+                getattr(mod, "value", None), int
+            ):
+                base = max(base, mod.value)
+            elif tag_of(mod) == "AddKeyword":
+                keywords |= {normalised_keyword(mod)}
+    return base, frozenset(k for k in keywords if k)
+
+
+def _counts_your_board(qty: object) -> bool:
+    """Whether a quantity is the number of creatures (or permanents) you
+    control on the battlefield, with no other property: an ``ObjectCount``
+    whose filter is controller You, of the one core type, no subtype and no
+    property (Boneyard Mycodrax's graveyard count, Super-Adaptoid's legendary
+    creatures, Vile Aggregate's colorless ones and an opponent's creatures are
+    not)."""
+    if tag_of(qty) != "ObjectCount":
+        return False
+    filt = getattr(qty, "filter", None)
+    return (
+        tag_of(filt) == "Typed"
+        and filter_controller(filt) == "You"
+        and filter_core_types(filt) in (("Creature",), ("Permanent",))
+        and not (getattr(filt, "properties", None) or [])
+        and list(getattr(filt, "type_filters", None) or [])
+        in (["Creature"], ["Permanent"])
+    )
+
+
+def _level_bands(trees: Sequence[ConceptTree]) -> list[object]:
+    """A leveler's level statics (CR 711.2a), lowest level first."""
+    if not trees:
+        return []
+    bands = [
+        unit.node
+        for unit in trees[0].units
+        if unit.origin == "static"
+        and tag_of(getattr(unit.node, "condition", None)) == "HasCounters"
+        and getattr(
+            getattr(getattr(unit.node, "condition", None), "counters", None),
+            "data",
+            None,
+        )
+        == "level"
+        and tag_of(getattr(unit.node, "affected", None)) == "SelfRef"
+    ]
+    return sorted(
+        bands,
+        key=lambda n: getattr(getattr(n, "condition", None), "minimum", 0) or 0,
+    )
+
+
+def _later_level_keywords(trees: Sequence[ConceptTree]) -> frozenset[str]:
+    """The keywords a leveler gains only past its first level (Kargan
+    Dragonlord's trample, Transcendent Master's indestructible): never
+    credited."""
+    out = {
+        normalised_keyword(mod)
+        for band in _level_bands(trees)[1:]
+        for mod in getattr(band, "modifications", ()) or ()
+        if tag_of(mod) == "AddKeyword"
+    }
+    return frozenset(k for k in out if k)
+
+
+def _attack_growth(trees: Sequence[ConceptTree]) -> int:
+    """What one attack of the card's own grows it by: a trigger on its attack
+    that needs no help (:func:`_helped_growth`) and puts +1/+1 counters on
+    it or pumps it by a fixed number, the
+    combat-trigger boost the boost lanes read (``combat_trigger_boost``) when
+    its recipient is the card itself (``crosswalk.boost_recipient``). Rage
+    (Gau, Feral Youth: "Whenever Gau attacks, put a +1/+1 counter on it") is
+    one counter; a later attack's is not credited."""
+    from mtg_utils._card_ir.crosswalk.boosts import boost_recipient
+
+    grown = 0
+    for tree in trees[:1]:
+        for unit in tree.units:
+            if unit.origin != "trigger" or unit.trigger_event != "attacks":
+                continue
+            if tag_of(getattr(unit.node, "valid_card", None)) != "SelfRef":
+                continue
+            if _helped_growth(unit):
+                continue
+            for c in unit.effects:
+                if boost_recipient(unit, c) != "self":
+                    continue
+                node = c.node
+                if tag_of(node) == "PutCounter" and (
+                    getattr(node, "counter_type", None) == "P1P1"
+                ):
+                    grown += _fixed_value(getattr(node, "count", None))
+                elif tag_of(node) == "Pump":
+                    grown += _fixed_value(getattr(node, "power", None))
+    return grown
+
+
+#: Effects that make an attack's growth something paid for or later: a cost
+#: paid on resolution (Aetherstream Leopard's energy), a sacrifice
+#: (Brawl-Bash Ogre's other creature), a delayed trigger (Phelia's end-step
+#: counter).
+_PAID_OR_LATER = frozenset({"PayCost", "Sacrifice", "CreateDelayedTrigger"})
+
+
+def _helped_growth(unit: AbilityUnit) -> bool:
+    """Whether an attack trigger's growth needs help, so it is not credited: a
+    condition (training's stronger partner, dethrone's life totals), an
+    optional trigger or effect ("you may"), a cost or sacrifice paid for it, a
+    delayed trigger, or a restriction on what it attacks (Thrashing
+    Frontliner's battle)."""
+    node = getattr(unit, "node", None)
+    execute = getattr(node, "execute", None)
+    if getattr(node, "condition", None) is not None:
+        return True
+    if getattr(node, "optional", False) or getattr(execute, "optional", False):
+        return True
+    if _present(getattr(node, "attack_target_filter", None)):
+        return True
+    return any(tag_of(n) in _PAID_OR_LATER for n in unit.iter_typed())
+
+
 def _fixed_value(amount: object) -> int:
     """A ``Fixed`` amount's value, else 0."""
     if tag_of(amount) != "Fixed":
@@ -1629,8 +1804,11 @@ def limited_closer_reason(
       (Young Pyromancer, a mobilize attacker) is judged by its body: creature
       removal answers it (Dan's ruling).
     - ``evasive``: a creature of at least ``LIMITED_CLOSER_POWER`` power — printed,
-      plus the counters it enters with (:func:`_enters_growth`) — that's hard to
-      block (:func:`_closing_body`; trample from ``LIMITED_TRAMPLE_POWER``).
+      or what it grows to by itself (:func:`_grown_base`: a power that counts
+      your creatures, a leveler's first level), plus the counters it enters with
+      (:func:`_enters_growth`) and one attack's growth (:func:`_attack_growth`)
+      — that's hard to block (:func:`_closing_body`; trample from
+      ``LIMITED_TRAMPLE_POWER``).
     - ``resilient``: such a creature that's hard to answer: protection (CR
       702.16b, f: from a colour, a player or everything — True-Name Nemesis),
       hexproof, shroud, ward or indestructible (``crosswalk.PROTECTIVE_KEYWORDS``),
@@ -1647,10 +1825,15 @@ def limited_closer_reason(
         return "finisher"
     if not is_creature(card):
         return _engine_reason(trees, game=game)
-    power = _printed_power(card) + _enters_growth(trees)
+    base, level_keywords = _grown_base(card, trees)
+    power = base + _enters_growth(trees) + _attack_growth(trees)
     if power < LIMITED_CLOSER_POWER:
         return None
-    keywords = _own_keywords(card, trees)
+    # A leveler gets only its first level's keywords: a later level's leave
+    # (Scryfall's keyword list names them too, so they are not "printed").
+    keywords = (
+        _own_keywords(card, trees) - _later_level_keywords(trees)
+    ) | level_keywords
     if _cannot_close(keywords, trees):
         return None
     if _closing_body(

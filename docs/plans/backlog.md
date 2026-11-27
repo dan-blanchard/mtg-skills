@@ -437,14 +437,6 @@ phase-rs issue.
   named …" and Ace Flockbringer's "The duplicate perpetually gains flying". Nothing
   new to file.
 
-**From a powered-cube draft tune (2026-11-02; fixed 2026-11-25, ADR-0055's two amendments)**
-
-- **The limited closer read's misses** (ADR-0055's 2026-11-25 amendment): a power
-  that counts other cards (Adeline, Resplendent Cathar), level up (Hexdrinker) and
-  growth on attack (Gau, Feral Youth's rage) are read at the printed number. The
-  closer distribution is in
-  `~/.cache/mtg-skills/phase-bump/v0.131.0/block-2026-11-25/closers-distribution.md`.
-
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 
 - **Pass D's phase gaps** (2026-10-23;

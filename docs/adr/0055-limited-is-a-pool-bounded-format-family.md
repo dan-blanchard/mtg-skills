@@ -165,8 +165,30 @@ as filler ("feeds only avenues nobody built toward"), the first cut.
   - Power is the printed number (a double-faced card's front face — the one read
     the finisher read now takes too) plus the +1/+1 counters the card enters with
     by its own text, a fixed number (Spike Feeder, riot — CR 702.136a, endure —
-    CR 701.63a: Sandskitter Outrider is a 4/3 menace). A power that counts other
-    cards (Adeline), level up (Hexdrinker) or growth on attack is not read.
+    CR 701.63a: Sandskitter Outrider is a 4/3 menace). Since 2026-11-27 it also
+    counts what the body grows to by itself in a normal limited game
+    (`metrics._grown_base`, `_attack_growth`). The lane's own calls, on the
+    conservative side:
+    - a characteristic-defining power of the card's own counting the creatures
+      (or permanents) you control on the battlefield with no other property (CR
+      604.3) is credited at three (`LIMITED_BOARD_CREATURES`). So Adeline is a
+      3/4 but still no closer, since vigilance is no evasion. Any other count
+      stays printed: a graveyard count (Boneyard Mycodrax), legendary or
+      colorless creatures (Super-Adaptoid, Vile Aggregate), an opponent's
+      permanents (Wilderness Elemental), or a token's ability (Voice of
+      Resurgence);
+    - a leveler gets only its first level's P/T and keywords (CR 711.2a). So
+      Hexdrinker is a 4/4 with protection from instants, a resilient body, and
+      Kargan Dragonlord is a 4/4 flier without its level-8 trample;
+    - one attack's growth counts, from a trigger on its own attack that needs no
+      help: no condition, nothing optional, no cost or sacrifice, no delayed
+      trigger, no restriction on what it attacks. It must give a fixed +1/+1
+      counter or pump on itself (Charging Griffin is a 3/3 flier; Gau's rage is
+      one counter). Brawl-Bash Ogre's sacrifice, Aetherstream Leopard's energy,
+      Phelia's end-step counter, Thrashing Frontliner's battle, training and
+      dethrone get no credit.
+    Over the 733 simulated decks, only Hexdrinker moves (11 cube decks, mean 3.24
+    → 3.29). Dan's deck keeps its 4 closers and gets no swap.
   - None for a body that can't close: defender (CR 702.3b), decayed (CR 702.147a:
     it can't block and is sacrificed the turn it attacks), a "can't attack" of its
     own, or a standing restriction (`SelfDrawbacks.standing`: Sea Serpent's
