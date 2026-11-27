@@ -732,7 +732,9 @@ def _sig_of(key):
     )
 
 
-def _near_miss_run(missing: list[str], adds: dict[str, dict], max_swaps: int = 10):
+def _near_miss_run(
+    missing: list[str], adds: dict[str, dict], max_swaps: int = 10, **ctx_extra
+):
     """Near-miss issues, one per card in ``missing``, each completing Exquisite
     Blood, over a deck of filler whose top end is a four-drop; ``adds`` holds
     the record each name resolves to. The adds taken, in order."""
@@ -769,6 +771,7 @@ def _near_miss_run(missing: list[str], adds: dict[str, dict], max_swaps: int = 1
             budget=50.0,
             max_swaps=max_swaps,
             top_heavy=False,
+            **ctx_extra,
         ),
     )
     return [s["add"]["name"] for s in out["swaps"]]
@@ -813,6 +816,34 @@ def test_a_combo_piece_above_the_decks_top_end_is_no_slot():
         "Sanguine Bond": {**test_card("Sanguine Bond"), "prices": {"usd": "1.00"}},
     }
     assert _near_miss_run(["Twelve Drop", "Sanguine Bond"], adds) == ["Sanguine Bond"]
+
+
+def _drop(name, cmc):
+    return {
+        "name": name,
+        "type_line": "Artifact Creature — Golem",
+        "oracle_text": "",
+        "cmc": cmc,
+        "mana_cost": "{" + str(int(cmc)) + "}",
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+    }
+
+
+def test_a_named_combo_piece_stays_within_the_decks_printed_top_under_the_cap():
+    """The named-combo-piece guard stays stricter than the curve cap (ADR-0066,
+    2026-11-27): a combo's missing piece costs no more than the deck's printed
+    top (Exquisite Blood's five), whatever room the cap gives every other add.
+    The census over the 55 precons: the cap's room would admit ten named
+    pieces, no guide's add, six of them Tidespout Tyrant on a value line."""
+    adds = {n: _drop(n, c) for n, c in (("Five Drop", 5.0), ("Seven Drop", 7.0))}
+    capped = {"curve_room": 2.0}
+    assert _near_miss_run(["Seven Drop"], adds, **capped) == []
+    assert _near_miss_run(["Five Drop"], adds, **capped) == ["Five Drop"]
+    # A plan cheating creatures into play waives the cap, not the named guard.
+    twelve = {"Twelve Drop": _drop("Twelve Drop", 12.0)}
+    cheats = {("cheat_into_play", "you", "Creature"): frozenset({"A", "B"})}
+    assert _near_miss_run(["Twelve Drop"], twelve, emitters=cheats, **capped) == []
 
 
 def test_top_issues_flags_dead_weight_only_with_a_redeploy_target():

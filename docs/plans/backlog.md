@@ -36,13 +36,11 @@ phase-rs issue.
   0.339, near Sylvan Library's 0.389) instead of Tribute to the World Tree (0.58,
   Guardian Project's). Counting only gate-passing candidates, or anchoring the tie
   on more than one head card, would steady both; neither is measured.
-- **The named-combo-piece guard reads printed cost** (ADR-0066's known
-  inconsistency). `swaps.deck_top_mv` (2026-11-01, every family) holds a named
-  combo piece to the deck's top at printed mana value, with no room and no cheat
-  waiver. The curve cap reads cast costs with two mana of room in the Commander
-  family. Folding the named guard into the cap would loosen it there, so measure it
-  before shipping. Also unread by the cap: a reanimation bound phase drops whole
-  (Reunion of the House's "total power 10 or less" reads as none).
+- **A reanimation bound phase drops whole is read as none** (ADR-0066).
+  Reunion of the House's "total power 10 or less" is absent from its typed target,
+  so the curve cap counts it as returning any creature card (UPSTREAM-KNOWN). The
+  named-combo-piece guard half of this entry was measured and stays stricter
+  (ADR-0066, 2026-11-27).
 - **An untyped cheat lifts the curve cap for every permanent card** (ADR-0066).
   Genesis Hydra, Emergent Woodwurm and Broodcaller Scourge cheat only up to a
   bound, but `cheat_into_play|you|` carries none: its subject is the card type.

@@ -187,12 +187,19 @@ Organic Extinction beside thirty one-drops would raise the top from 1 to 10.
   Reunion of the House's "total power 10 or less" is absent from its typed target,
   so it counts as returning any creature card.
 - **What is untouched.** The tuner's curve, shape and efficiency reads keep
-  `effective_mana_value`. A known inconsistency: the older named-combo-piece guard
-  from 2026-11-01 (`swaps.deck_top_mv`, every family) still reads printed mana
-  value (`CardClass.cmc`, `effective_mana_value`), with no room and no cheat
-  waiver. Routing it through the cap would loosen it in the Commander family
-  (two mana of room) and change the scoreboard where the cap refuses nothing.
-  Recorded in the backlog.
+  `effective_mana_value`.
+- **The named-combo-piece guard stays stricter than the cap** (measured
+  2026-11-27). The older guard from 2026-11-01 (`swaps.deck_top_mv`, every
+  family) holds a combo's missing piece to the deck's top at printed mana value,
+  with no room and no cheat waiver. Over the 55 precons' near-miss pieces, the
+  cap would admit ten pieces the guard holds out. None of them is a guide's add,
+  and six are Tidespout Tyrant on a value line, the add the 2026-10-18 audit
+  found no upgrade article agreeing with. Sliver Swarm's other three are
+  Approach of the Second Sun, Morophon and Star of Extinction, plus Secret
+  Arcade in Virtue and Valor. The cap's own reading at no room would move eleven
+  pieces the other way. No named piece is reached only by a cheat plan, so a
+  cheat waiver would change nothing.
+  (`test_a_named_combo_piece_stays_within_the_decks_printed_top_under_the_cap`)
 - **An empty top is no cap.** A deck whose every nonland card is left out of the
   top (or that has none) has no ceiling, not a cap of two.
 - **The thin top-end search is exempt.** A search that asks for the top end itself
