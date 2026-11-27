@@ -2992,6 +2992,37 @@ def test_theme_fit_breaks_a_near_tie_on_the_job_read(monkeypatch):
     assert upgrade([signet, talisman], set()) == ["Arcane Signet"]
 
 
+def test_a_theme_tie_at_the_head_anchors_on_the_best_read(monkeypatch):
+    """Commander's Sphere's ramp upgrade: Manalith (read 0.33) and Arcane Signet
+    (0.7), both off the deck's avenue, tie exactly at the head of the order
+    (play-rate), and the price breaks the tie. Talisman of Dominance (0.7, on
+    the avenue) is read against the best read among the tied cards, so it goes
+    first whichever of the two leads. Anchored on the head alone, Manalith
+    ahead promoted nothing and took the slot (Call for Backup's Guardian
+    Project and Sylvan Library, 2026-11-26)."""
+    low = "Manalith"
+    cut = _real_cc("Commander's Sphere", "spine", roles=["ramp"], edhrec_rank=9000)
+    _serving(monkeypatch, {"Talisman of Dominance"})
+
+    def upgrade(low_usd, signet_usd):
+        pool = [
+            {**_played(low, 20), "prices": {"usd": low_usd}},
+            {**_played("Arcane Signet", 20), "prices": {"usd": signet_usd}},
+            _played("Talisman of Dominance", 400),
+        ]
+        return [
+            s["add"]["name"]
+            for s in _swaps_for_issue_dicts(
+                [cut],
+                [{"kind": "upgrade", "severity": 1, "count": 1}],
+                _upgrade_ctx([cut], pool, focus_extra=_ARTIFACTS),
+            )["swaps"]
+        ]
+
+    assert upgrade("0.50", "1.00") == ["Talisman of Dominance"]
+    assert upgrade("1.00", "0.50") == ["Talisman of Dominance"]
+
+
 def _spine_fill(issue, budgets, pool, *, focus_extra=None):
     filler = _cc("Filler Card", "filler", cmc=3.0)
     return [

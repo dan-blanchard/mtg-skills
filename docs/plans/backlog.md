@@ -20,17 +20,18 @@ phase-rs issue.
 
 **From the closing precon scoreboard (2026-11-26, N18 at e25fb0d3 against N17 at 2720444a; `~/mtg/tuner-work/w-2026-11-25/`)**
 
-- **The theme tie anchors on the page's single head card** (traced 2026-11-26,
-  `~/mtg/tuner-work/w-2026-11-26/rift/`). `_theme_ties` anchors on the page's head:
-  CallForBackup_MOC's card-draw blend had Guardian Project and Sylvan Library tied
-  exactly (2.7676), Guardian Project first; 0493e4e2's evasion read
-  (`CantBeBlockedBy`) raised three creatures' quality reads by 0.55, two of them
-  (Old Fat Spider, Ox Drover's "can't be blocked by Oxen") past Guardian Project's
-  but not Sylvan Library's, so Sylvan Library led and the on-theme card within
+- **A near tie at a theme page's head still flips the promoted card** (traced
+  2026-11-26, `~/mtg/tuner-work/w-2026-11-26/rift/`). `_theme_ties` now anchors
+  an exact tie at the head on the best read among the tied cards (2026-11-27).
+  The traced case was not exact, though. Call for Backup's card-draw blend had
+  Guardian Project and Sylvan Library tied at 2.7676 at N17. 0493e4e2's evasion
+  read then moved Sylvan Library ahead by a hair, so the on-theme card within
   `_THEME_TIE` of the head became Mask of Memory (read 0.339, near Sylvan
   Library's 0.389) instead of Tribute to the World Tree (0.58, Guardian
-  Project's). The cheaper window's half of this entry was fixed 2026-11-27: it
-  counts only candidates that pass the pick's gates.
+  Project's). A small input change can still flip the head of a near tie.
+  Anchoring the tie on every off-theme card within some distance of the head's
+  lead (not only an equal one) would steady it, at the cost of a new tolerance
+  to choose and measure. Nothing is built.
 - **A reanimation bound phase drops whole is read as none** (ADR-0066).
   Reunion of the House's "total power 10 or less" is absent from its typed target,
   so the curve cap counts it as returning any creature card (UPSTREAM-KNOWN). The

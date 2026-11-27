@@ -1346,7 +1346,7 @@ def propose_swaps(
             ),
         )
         if read is not None and read.theme_ties:
-            out = _theme_ties(out, read)
+            out = _theme_ties(out, read, lead)
         if needs_here:
             out = _need_ties(out)
         return out
@@ -1376,13 +1376,21 @@ def propose_swaps(
             head.remove(pick)
         return out + ranked[_THEME_TIE_WINDOW:]
 
-    def _theme_ties(ranked: list[dict], read: JobRead) -> list[dict]:
+    def _theme_ties(
+        ranked: list[dict], read: JobRead, lead: Callable[[dict], float]
+    ) -> list[dict]:
         """``ranked`` with an on-theme card taking the place of an off-theme one
         that does the job about as well: walking the order, where the next card
         serves none of the deck's viable avenues, the first later card that does,
         scoring within ``_THEME_TIE`` of it on the job read, goes first. Theme
         fit breaks a near tie above play-rate; it never holds an upgrade to the
-        theme. Only the first ``_THEME_TIE_WINDOW`` cards are reordered."""
+        theme. Only the first ``_THEME_TIE_WINDOW`` cards are reordered.
+
+        The anchor is stable under a tie at the head: where off-theme cards tie
+        the next card exactly on the order's lead (``lead``, the blend), the
+        anchor's read is the best of theirs, so which of them the tie-break put
+        first never decides the on-theme card promoted (Call for Backup's
+        Guardian Project and Sylvan Library tied at 2.7676, 2026-11-26)."""
         head = ranked[:_THEME_TIE_WINDOW]
         on = _viable_served_names(head)
         scores = {c.get("name", ""): read.score(c, deck_records) for c in head}
@@ -1390,7 +1398,14 @@ def propose_swaps(
         out: list[dict] = []
         while rest:
             pick = rest[0]
-            top = scores.get(pick.get("name", ""))
+            tied = [
+                sc
+                for c in rest
+                if lead(c) == lead(pick)
+                and c.get("name", "") not in on
+                and (sc := scores.get(c.get("name", ""))) is not None
+            ]
+            top = max(tied) if tied else None
             if top is not None and pick.get("name", "") not in on:
                 for later in rest[1:]:
                     sc = scores.get(later.get("name", ""))
