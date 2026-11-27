@@ -24,6 +24,7 @@ process-wide :class:`RequestGap`.
 from __future__ import annotations
 
 import email.utils
+import functools
 import os
 import subprocess
 import threading
@@ -58,12 +59,36 @@ def default_cache_root() -> Path:
 
 # --- User agent --------------------------------------------------------------
 
-# Shared default identity for HTTP clients that don't need a distinct one
-# (EDHREC, Commander Spellbook, CubeCobra's API, MTGJSON). Was duplicated verbatim
-# as "commander-utils/0.1.0" in scryfall_lookup.py, edhrec_lookup.py, and
-# combo_search.py, and as a near-duplicate ("mtg-skills/0.1.0") in
-# download_mtgjson.py. Scryfall gets ``_scryfall.user_agent()`` instead (ADR-0068).
-USER_AGENT = "commander-utils/0.1.0"
+
+@functools.cache
+def package_version() -> str:
+    """The installed version of the distribution that ships ``mtg_utils``: each
+    skill installs the package under its own name (``mtg-utils``, ``deck-wizard``,
+    …), so this is that skill's version; ``unknown`` when the package runs
+    uninstalled. Looked up once per process (the scan takes ~30 ms)."""
+    from importlib import metadata
+
+    names = [*metadata.packages_distributions().get("mtg_utils", ()), "mtg-utils"]
+    for name in names:
+        try:
+            return metadata.version(name)
+        except metadata.PackageNotFoundError:
+            continue
+    return "unknown"
+
+
+def user_agent() -> str:
+    """The package's one identity, ``mtg-utils/<package version>`` (ADR-0068): sent
+    to Scryfall, EDHREC, Commander Spellbook, MTGJSON and CubeCobra's API. It
+    replaced the stale ``commander-utils/0.1.0``. Not used by the sites that need a
+    browser's headers (``BROWSER_HEADERS``), the ASCII-art crawler
+    (``art_fetcher.USER_AGENT``) or the phase subsystem (``_phase``), which name
+    themselves."""
+    return f"mtg-utils/{package_version()}"
+
+
+# For HttpFetcher, whose ``user_agent`` parameter shadows the function.
+_package_identity = user_agent
 
 
 # --- Browser headers + curl fallback ------------------------------------------
@@ -283,7 +308,7 @@ class HttpFetcher:
         self,
         cache_dir: Path,
         *,
-        user_agent: str = USER_AGENT,
+        user_agent: str | None = None,
         cookies: dict[str, dict[str, str]] | None = None,
         max_age_seconds: float = DEFAULT_FRESHNESS_SECONDS,
         headers: Mapping[str, str] | None = None,
@@ -294,6 +319,7 @@ class HttpFetcher:
         sleep: Callable[[float], None] | None = None,
     ) -> None:
         """``cache_dir`` is the on-disk cache root (created on the first write).
+        ``user_agent`` defaults to the package's identity (:func:`user_agent`).
         ``cookies`` maps domain → {name: value} for cookies that must
         be pre-set (e.g. asciiart.website's sort-order cookie).
         ``max_age_seconds`` is how long a cached ``fetch`` response is
@@ -313,7 +339,7 @@ class HttpFetcher:
         self._backoff = backoff
         self._backoff_sleep = sleep
         self._session = session if session is not None else requests.Session()
-        self._session.headers["User-Agent"] = user_agent
+        self._session.headers["User-Agent"] = user_agent or _package_identity()
         if headers:
             self._session.headers.update(headers)
         if cookies:

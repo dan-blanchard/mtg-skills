@@ -23,9 +23,9 @@ from pathlib import Path
 
 from mtg_utils._http import cache_root, urllib_get
 
-# Deliberately its own identity (not mtg_utils._http.USER_AGENT): this
+# Deliberately its own identity (not mtg_utils._http.user_agent()): this
 # fetches from GitHub releases/raw, so it names the phase subsystem
-# specifically rather than the generic Scryfall/EDHREC/Spellbook UA.
+# specifically rather than the package's general identity.
 _USER_AGENT = "mtg-skills/_phase"
 
 PHASE_TAG: str = "v0.133.0"  # rewritten by `bump-phase-pin` (ADR-0049)

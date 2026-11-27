@@ -5,7 +5,7 @@ import json
 import click
 import requests
 
-from mtg_utils._http import USER_AGENT
+from mtg_utils._http import user_agent
 from mtg_utils.names import slugify
 
 # Re-exported for existing importers/tests (mtg_utils.names is now the single
@@ -47,7 +47,7 @@ def edhrec_lookup(commanders: list[str]) -> dict:
     url = EDHREC_JSON_URL.format(slug=slug)
 
     session = requests.Session()
-    session.headers["User-Agent"] = USER_AGENT
+    session.headers["User-Agent"] = user_agent()
     try:
         resp = session.get(url)
 

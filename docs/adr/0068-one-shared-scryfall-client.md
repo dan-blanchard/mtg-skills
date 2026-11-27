@@ -31,6 +31,16 @@ lifetime.
    `commander-utils/0.1.0` for Scryfall. `mtg-utils/art-fetcher` stays for the
    ASCII-art sites it was meant for; Scryfall no longer receives it.
 
+**The same identity everywhere else (the coordinator's call, 2026-11-27, in the
+spirit of Dan's decision 2).** `_http.user_agent()` is the package's one identity
+and the default `HttpFetcher` identity. It replaces the `commander-utils/0.1.0`
+that `_http.USER_AGENT` sent to EDHREC (`edhrec_lookup`), Commander Spellbook
+(`combo_search`), MTGJSON (`download_mtgjson`) and CubeCobra's API
+(`cubecobra_fetch`, whose first header set it is; CubeCobra accepted a plain
+`mtg-utils/1.0` when probed on 2026-11-26). `USER_AGENT` is gone. The sites that
+name themselves keep their own identity: the `BROWSER_HEADERS` sites, the
+ASCII-art crawler, `_phase`, `bump-phase-pin` and `download-rules`.
+
 **Scryfall's limits** (scryfall.com/docs/api/rate-limits, "Rate Limits"):
 
 - `/cards/search`, `/cards/named`, `/cards/random` and `/cards/collection`: 2

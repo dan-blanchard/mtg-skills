@@ -21,7 +21,7 @@ from pathlib import Path
 import click
 import requests
 
-from mtg_utils._http import BROWSER_HEADERS, USER_AGENT, _fetch_with_curl
+from mtg_utils._http import BROWSER_HEADERS, _fetch_with_curl, user_agent
 
 CUBECOBRA_JSON_URL = "https://cubecobra.com/cube/api/cubeJSON/{cube_id}"
 CUBECOBRA_LIST_URL = "https://cubecobra.com/cube/api/cubelist/{cube_id}"
@@ -57,7 +57,7 @@ def extract_cube_id(raw: str) -> str:
 # Tried in order. CubeCobra answered 403 to a browser User-Agent and 200 to a
 # plain client on 2026-11-25; the reverse held when this tool was written.
 _HEADER_SETS: tuple[dict[str, str], ...] = (
-    {"User-Agent": USER_AGENT, "Accept": "application/json, text/plain, */*"},
+    {"User-Agent": user_agent(), "Accept": "application/json, text/plain, */*"},
     BROWSER_HEADERS,
 )
 

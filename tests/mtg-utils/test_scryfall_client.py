@@ -70,7 +70,7 @@ def test_identity_and_accept_on_the_wire(scryfall_wire):
     assert "{W}" in SymbolSet.load(["{W}"])
 
     api, svg = scryfall_wire.sent
-    identity = f"mtg-utils/{_scryfall.package_version()}"
+    identity = f"mtg-utils/{_http.package_version()}"
     assert api.headers["User-Agent"] == svg.headers["User-Agent"] == identity
     assert api.headers["Accept"] == "application/json;q=0.9,*/*;q=0.8"
     assert svg.headers["Accept"] == "*/*"
@@ -82,8 +82,8 @@ def test_identity_and_accept_on_the_wire(scryfall_wire):
 def test_the_identity_names_the_installed_version():
     from importlib import metadata
 
-    assert _scryfall.package_version() == metadata.version("mtg-utils")
-    assert _scryfall.user_agent() == f"mtg-utils/{metadata.version('mtg-utils')}"
+    assert _http.package_version() == metadata.version("mtg-utils")
+    assert _http.user_agent() == f"mtg-utils/{metadata.version('mtg-utils')}"
 
 
 def test_the_identity_survives_an_uninstalled_package(monkeypatch):
@@ -94,11 +94,11 @@ def test_the_identity_survives_an_uninstalled_package(monkeypatch):
 
     monkeypatch.setattr(metadata, "version", missing)
     monkeypatch.setattr(metadata, "packages_distributions", dict)
-    _scryfall.package_version.cache_clear()
+    _http.package_version.cache_clear()
     try:
-        assert _scryfall.user_agent() == "mtg-utils/unknown"
+        assert _http.user_agent() == "mtg-utils/unknown"
     finally:
-        _scryfall.package_version.cache_clear()
+        _http.package_version.cache_clear()
 
 
 def test_the_timeout_is_passed(scryfall_wire):
@@ -113,9 +113,7 @@ def test_the_art_fetcher_catalogs_carry_the_scryfall_identity(scryfall_wire):
     scryfall_wire.route("/catalog/", {"data": ["Vampire"]})
     assert art_fetcher.fetch_subtypes() == ["vampire"]
     assert len(scryfall_wire.sent) == len(art_fetcher.SCRYFALL_CATALOGS)
-    assert {r.headers["User-Agent"] for r in scryfall_wire.sent} == {
-        _scryfall.user_agent()
-    }
+    assert {r.headers["User-Agent"] for r in scryfall_wire.sent} == {_http.user_agent()}
     assert art_fetcher.USER_AGENT not in {
         r.headers["User-Agent"] for r in scryfall_wire.sent
     }

@@ -4,7 +4,8 @@ API (``api.scryfall.com``) or its file hosts (``svgs.scryfall.io``,
 
 It is an :class:`~mtg_utils._http.HttpFetcher` configured once for Scryfall:
 
-- **identity** — ``User-Agent: mtg-utils/<package version>`` (:func:`user_agent`);
+- **identity** — ``User-Agent: mtg-utils/<package version>`` (``_http.user_agent``,
+  the package's one identity);
 - **Accept** — ``application/json;q=0.9,*/*;q=0.8`` for the API, ``*/*`` for the file
   hosts (:func:`accept_for`);
 - **pace** — one process-wide pacer (:data:`GAP`) with a gap per endpoint class
@@ -34,7 +35,6 @@ only when asked (``not_found_none``).
 
 from __future__ import annotations
 
-import functools
 import json
 import time
 from dataclasses import dataclass
@@ -49,6 +49,7 @@ from mtg_utils._http import (
     RequestGap,
     cache_root,
     retry_after_seconds,
+    user_agent,
 )
 
 if TYPE_CHECKING:
@@ -145,27 +146,6 @@ def _decode(body: bytes) -> object:
         text = body.decode("utf-8", errors="replace")
         msg = f"Scryfall sent a body that is not JSON ({exc})"
         raise requests.JSONDecodeError(msg, text[:200], 0) from exc
-
-
-@functools.cache
-def package_version() -> str:
-    """The installed version of the distribution that ships ``mtg_utils`` (each skill
-    installs it under its own name: ``mtg-utils``, ``deck-wizard``, …), else
-    ``unknown`` when the package runs uninstalled."""
-    from importlib import metadata
-
-    names = [*metadata.packages_distributions().get("mtg_utils", ()), "mtg-utils"]
-    for name in names:
-        try:
-            return metadata.version(name)
-        except metadata.PackageNotFoundError:
-            continue
-    return "unknown"
-
-
-def user_agent() -> str:
-    """The identity every Scryfall request carries."""
-    return f"mtg-utils/{package_version()}"
 
 
 def accept_for(url: str) -> str:

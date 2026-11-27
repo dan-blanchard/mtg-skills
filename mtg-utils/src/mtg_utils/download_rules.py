@@ -38,7 +38,7 @@ _TXT_LINK_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Deliberately its own identity (not mtg_utils._http.USER_AGENT): this scrapes
+# Deliberately its own identity (not mtg_utils._http.user_agent()): this scrapes
 # a Wizards-operated web page rather than an API, so it names + links the
 # project directly, the way a polite crawler's UA should.
 USER_AGENT = (

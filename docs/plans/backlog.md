@@ -855,7 +855,9 @@ headroom and parked items.
   2026-11-27; ADR-0068). Every Scryfall site goes through
   `_scryfall.ScryfallClient`, its caches unified under `<cache_root>/scryfall/`.
   The identity is the package's metadata version, not `commander-utils/0.1.0`, and
-  not the art fetcher's identity, which stays for the ASCII-art sites.
+  not the art fetcher's identity, which stays for the ASCII-art sites. The
+  coordinator extended the same identity (`_http.user_agent()`) to EDHREC,
+  Commander Spellbook, MTGJSON and CubeCobra's API.
 - **No plan-fit rule for job-page upgrades** (Dan, 2026-11-26). Asked whether the
   settle-up should refuse a popular job card with no tie to the deck's plan, Dan
   ruled it lands as built: the tuner's own need reads call Phyrexian Altar and Esper

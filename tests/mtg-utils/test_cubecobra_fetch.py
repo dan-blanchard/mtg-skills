@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from mtg_utils._http import BROWSER_HEADERS, USER_AGENT
+from mtg_utils._http import BROWSER_HEADERS, user_agent
 from mtg_utils.cubecobra_fetch import extract_cube_id, main
 
 
@@ -147,7 +147,7 @@ class TestCLIInterface:
             call.kwargs["headers"]["User-Agent"]
             for call in mock_session.get.call_args_list
         ]
-        assert agents == [USER_AGENT, BROWSER_HEADERS["User-Agent"]]
+        assert agents == [user_agent(), BROWSER_HEADERS["User-Agent"]]
         curl.assert_not_called()
 
     def test_a_refusal_is_not_called_a_missing_cube(self, tmp_path: Path):

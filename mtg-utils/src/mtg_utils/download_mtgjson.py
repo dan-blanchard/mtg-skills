@@ -18,7 +18,7 @@ from pathlib import Path
 import click
 import requests
 
-from mtg_utils._http import USER_AGENT, cache_root, is_fresh
+from mtg_utils._http import cache_root, is_fresh, user_agent
 from mtg_utils._mtgjson.load import ALLPRINTINGS_NAME, MTGJSON_FILES
 from mtg_utils.bulk_loader import build_sidecar
 
@@ -55,7 +55,7 @@ def download_mtgjson(output_dir: Path | None = None) -> Path:
         return printings
 
     session = requests.Session()
-    session.headers["User-Agent"] = USER_AGENT
+    session.headers["User-Agent"] = user_agent()
     for fname in MTGJSON_FILES:
         _download_gz(session, f"{MTGJSON_BASE}/{fname}.gz", output_dir / fname)
 

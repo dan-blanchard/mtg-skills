@@ -10,7 +10,7 @@ from pathlib import Path
 import click
 import requests
 
-from mtg_utils._http import USER_AGENT
+from mtg_utils._http import user_agent
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import build_card_lookup, get_oracle_text
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
@@ -204,7 +204,7 @@ def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
 
     try:
         session = requests.Session()
-        session.headers["User-Agent"] = USER_AGENT
+        session.headers["User-Agent"] = user_agent()
         resp = session.post(SPELLBOOK_URL, json=body, timeout=SPELLBOOK_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
@@ -346,7 +346,7 @@ def search_combos(
 
     try:
         session = requests.Session()
-        session.headers["User-Agent"] = USER_AGENT
+        session.headers["User-Agent"] = user_agent()
         resp = session.get(
             SPELLBOOK_VARIANTS_URL,
             params={"q": q, "ordering": ordering, "limit": limit},
