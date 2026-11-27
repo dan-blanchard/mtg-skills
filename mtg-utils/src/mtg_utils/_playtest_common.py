@@ -1,9 +1,14 @@
-"""Shared helpers: JSON envelope, markdown rendering."""
+"""Shared helpers: JSON envelope, its output tail, markdown rendering."""
 
 from __future__ import annotations
 
+import json
 import time
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any
+
+import click
 
 SCHEMA_VERSION = 1
 
@@ -34,6 +39,15 @@ def envelope(
         "duration_s": round(duration_s, 2),
         "generated_at": int(time.time()),
     }
+
+
+def emit(env: dict, output_path: str | None, render: Callable[[dict], str]) -> None:
+    """Every playtest command's tail: write ``env`` as JSON to ``output_path`` (when
+    given) and print its markdown report."""
+    serialized = json.dumps(env, indent=2)
+    if output_path:
+        Path(output_path).write_text(serialized)
+    click.echo(render(env))
 
 
 def render_envelope_header(

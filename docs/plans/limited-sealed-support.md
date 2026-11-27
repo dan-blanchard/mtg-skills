@@ -44,8 +44,8 @@ excluded with a reason.
 
 **Status: fixed** in d0d7ea02: fetch lands and land-fetching creatures resolve through `card_classify.land_fetch_profile`, entering tapped where their text says so. Fix point 4 (a warning) became unnecessary once the model sees fetches.
 
-**Where:** `playtest.py:130` (`_land_produces`), `playtest.py:302`
-(`_sources_available`), `playtest.py:234` (`_is_color_screwed`).
+**Where:** `_goldfish.py` (moved out of `playtest.py` by ADR-0069): `_land_produces`,
+`_simulate_game`'s `_sources_available`, `_is_color_screwed`.
 
 `_land_produces` derives a land's colors solely from `produced_mana`. Fetch-style
 lands (Elven Passage, Hobbit Hole — *"{T}, Sacrifice: search your library for a
@@ -179,7 +179,8 @@ most.
 
 **Status: fixed**: `run_duel` runs the batch in seeded chunks (the same games one batch would play), so a timeout keeps every finished chunk and reports `games_completed` / `games_requested` / `timed_out`; `--timeout-s` defaults to 10 s per game with a 600 s floor.
 
-**Where:** `playtest.py`, phase batch runner; `--timeout-s` default 600.
+**Where:** the phase batch runner (`_phase.run_duel`, called by `playtest.py`'s match
+and gauntlet); `--timeout-s` default 600.
 
 At ~5 s/game, a 200-game batch needs ~17 minutes. The run hit the 600 s default and
 returned **`Results (0 games)`** — every completed game discarded. The report does

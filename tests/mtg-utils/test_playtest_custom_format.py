@@ -252,3 +252,71 @@ class TestFromCubeWithGroups:
         # Both the leaf preset AND the group appear in the report.
         assert "removal" in per_archetype
         assert "graveyard" in per_archetype
+
+
+#: The full ``results`` of a seeded shared-library run over ``small_cube``, captured at
+#: b56f0295 (before the playtest refactor) and unchanged since. (The draft path has no
+#: such pin: with this kind of pool its colour-count ties break by set order, which
+#: ``PYTHONHASHSEED`` varies between processes; see docs/plans/backlog.md.)
+_GOLDEN_CUSTOM = {
+    0: {
+        "per_archetype": {},
+        "marketplace_dynamics": {
+            "utilization_rate": 0.3616666666666667,
+            "library_effects_per_turn": 0.0,
+            "exiled_per_game": 0.0,
+            "discarded_per_game": 0.0,
+            "milled_per_game": 0.0,
+        },
+        "per_player_mana": {
+            "reaches_4_mana_by_t4": 1.0,
+            "color_screw_rate": 0.34,
+            "mean_turns_to_first_enabler": None,
+        },
+        "n_games": 30,
+    },
+    2: {
+        "per_archetype": {},
+        "marketplace_dynamics": {
+            "utilization_rate": 0.36,
+            "library_effects_per_turn": 0.0,
+            "exiled_per_game": 0.0,
+            "discarded_per_game": 0.0,
+            "milled_per_game": 0.0,
+        },
+        "per_player_mana": {
+            "reaches_4_mana_by_t4": 1.0,
+            "color_screw_rate": 0.33166666666666667,
+            "mean_turns_to_first_enabler": None,
+        },
+        "n_games": 30,
+    },
+}
+
+
+@pytest.mark.parametrize("seed", sorted(_GOLDEN_CUSTOM))
+def test_seeded_run_is_pinned(small_cube, tmp_path, seed):
+    cube_path, hydrated_path = small_cube
+    out = tmp_path / "report.json"
+    result = CliRunner().invoke(
+        custom_format_main,
+        [
+            str(cube_path),
+            "--hydrated",
+            str(hydrated_path),
+            "--format-module",
+            "shared_library",
+            "--players",
+            "4",
+            "--turns",
+            "5",
+            "--games",
+            "30",
+            "--seed",
+            str(seed),
+            "--output",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(out.read_text())["results"] == _GOLDEN_CUSTOM[seed]

@@ -619,15 +619,20 @@ def coverage_report(
     }
 
 
+def is_phase_native(deck: dict) -> bool:
+    """Is ``deck`` already in phase's shape (``main`` present, no ``cards`` key)?"""
+    return "main" in deck and "cards" not in deck
+
+
 def to_phase_deck(deck: dict, *, label: str) -> dict:
     """Convert our deck JSON into phase's ``{name, format, main, commander}``
     shape.
 
-    If ``deck`` is already in phase shape (``main`` present, no ``cards``
-    key), return a shallow copy with the requested ``label``. This lets
-    callers pass the phase repo's bundled duel decks directly.
+    If ``deck`` is already in phase shape (:func:`is_phase_native`), return a
+    shallow copy with the requested ``label``. This lets callers pass the phase
+    repo's bundled duel decks directly.
     """
-    if "main" in deck and "cards" not in deck:
+    if is_phase_native(deck):
         # Already phase-native; just relabel and pass through.
         out: dict = {
             "name": label,

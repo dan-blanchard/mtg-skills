@@ -1782,41 +1782,15 @@ def goldfish_report(
     state: ForgeState, *, games: int = 100, turns: int = 14, seed: int = 0
 ) -> dict:
     """Run-here handoff (#6, ADR-0016): goldfish the current deck IN-PROCESS — pure
-    local compute, no API key, no subprocess — reusing the ``playtest-goldfish`` core
-    the hub already ships in ``mtg_utils``. Returns the rendered markdown plus the raw
-    schema-v1 envelope. Imports are local so the snapshot path never pays for the
-    playtest module."""
-    import time as _time
+    local compute, no API key, no subprocess — through the same
+    ``_goldfish.goldfish_envelope`` the ``playtest-goldfish`` command calls (ADR-0069),
+    so the panel reports what the command does: its results, coverage and warnings.
+    Returns the rendered markdown plus the raw schema-v1 envelope. Imports are local
+    so the snapshot path never pays for the goldfish module."""
+    from mtg_utils._goldfish import goldfish_envelope
+    from mtg_utils._playtest_common import render_goldfish_markdown
 
-    from mtg_utils._playtest_common import envelope, render_goldfish_markdown
-    from mtg_utils.playtest import GOLDFISH_VERSION, _run_goldfish
-
-    hd = hydrate_session(state)
-    deck = state.session.to_deck_dict()
-    entries = (deck.get("commanders") or []) + (deck.get("cards") or [])
-    records = hd.expanded(zones=("commanders", "cards"))
-    requested = sum(int(e.get("quantity", 1)) for e in entries)
-    missing = sorted({e["name"] for e in entries if e["name"] not in hd.by_name})
-
-    start = _time.perf_counter()
-    results = _run_goldfish(records, games=games, max_turns=turns, base_seed=seed)
-    elapsed = _time.perf_counter() - start
-
-    out = envelope(
-        mode="goldfish",
-        engine="goldfish",
-        engine_version=GOLDFISH_VERSION,
-        seed=seed,
-        format_=deck.get("format"),
-        card_coverage={
-            "requested": requested,
-            "supported": len(records),
-            "missing": missing,
-        },
-        results=results,
-        warnings=[f"{len(missing)} cards not in hydrated cache"] if missing else [],
-        duration_s=elapsed,
-    )
+    out = goldfish_envelope(hydrate_session(state), games=games, turns=turns, seed=seed)
     return {"markdown": render_goldfish_markdown(out), "report": out}
 
 

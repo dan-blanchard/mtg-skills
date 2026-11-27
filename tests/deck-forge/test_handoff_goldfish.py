@@ -57,3 +57,35 @@ def test_goldfish_needs_a_full_hand():
     r = _client(empty=True).post("/api/handoff/goldfish")
     assert r.status_code == 400
     assert "goldfish" in r.json()["error"].lower()
+
+
+def test_goldfish_reports_what_the_command_reports():
+    """ADR-0069: the panel calls the command's own result-builder, so a deck whose
+    generic land fetches the mana model can't resolve (no basics) carries the
+    command's warning, and a name the index can't join is reported the same way."""
+    from mtg_utils._deck_forge import engine
+    from mtg_utils._goldfish import goldfish_envelope
+
+    wilds, tower = test_card("Evolving Wilds"), test_card("Command Tower")
+    session = DeckSession("commander")
+    session.add("Verdant Lord", zone="commanders")
+    session.add("Evolving Wilds", 4)
+    session.add("Command Tower", 12)
+    session.add("Unjoined Typo")
+    for n in CREATURES:
+        session.add(n, 5)
+    state = ForgeState(
+        by_name={**IDX, "Evolving Wilds": wilds, "Command Tower": tower},
+        search_fn=lambda **_: [],
+        session=session,
+        bulk_available=True,
+    )
+    got = engine.goldfish_report(state, games=20, turns=4, seed=3)["report"]
+    want = goldfish_envelope(engine.hydrate_session(state), games=20, turns=4, seed=3)
+    for env in (got, want):
+        env.pop("generated_at")
+        env.pop("duration_s")
+    assert got == want
+    assert got["card_coverage"]["missing"] == ["Unjoined Typo"]
+    assert got["warnings"][0] == "1 cards not in hydrated cache"
+    assert "Evolving Wilds" in got["warnings"][1]

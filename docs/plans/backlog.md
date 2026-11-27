@@ -837,14 +837,21 @@ phase-rs issue.
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 
-- Speculative: `playtest.py`'s mode functions.
-
 - **`scryfall-lookup "<name>"` asks Scryfall even when the local bulk exists**
   (left on purpose by ADR-0068, 2026-11-27). Single-name mode never calls
   `default_bulk_path()` (`rulings-lookup` does), so without `--bulk-data` every
   name goes to `/cards/named`. The skills always pass `--bulk-data`. Making it
   local-first changes the price source (the bulk's cheapest printing instead of
   Scryfall's fuzzy match), so it is its own piece of work.
+
+**`playtest-draft` is not reproducible across processes for a fixed `--seed`**
+(found 2026-11-27, ADR-0069). Each drafted pile's top two colours are
+`sorted(ctr.items(), key=-count)[:2]` over a dict built from a set of colours, so a
+tie in colour counts breaks by set order, which `PYTHONHASHSEED` changes per process.
+On the tests' synthetic cube the seeded results change with the hash seed. The
+commander cube showed no ties at five hash seeds. A fix would break the tie by
+colour (WUBRG order) and re-pin the outputs. That is a behaviour change, so it was
+left out of the refactor, and the draft has no golden test until it lands.
 
 **Discovery ranking:** see ADR-0043's terminal-state amendment for the unclaimed
 headroom and parked items.
@@ -858,6 +865,12 @@ headroom and parked items.
   not the art fetcher's identity, which stays for the ASCII-art sites. The
   coordinator extended the same identity (`_http.user_agent()`) to EDHREC,
   Commander Spellbook, MTGJSON and CubeCobra's API.
+- **`playtest.py` keeps its commands; the goldfish model is its own module** (Dan,
+  2026-11-27; ADR-0069). The 2026-09-17 review's "mode functions" item: the model
+  moved to `_goldfish.py`, the duplicated blocks became shared helpers, and the six
+  commands stayed in `playtest.py`. Not one module per mode. deck-forge's goldfish
+  handoff calls `_goldfish.goldfish_envelope`, the command's own result-builder,
+  rather than a copy of it.
 - **No plan-fit rule for job-page upgrades** (Dan, 2026-11-26). Asked whether the
   settle-up should refuse a popular job card with no tie to the deck's plan, Dan
   ruled it lands as built: the tuner's own need reads call Phyrexian Altar and Esper

@@ -1,21 +1,25 @@
-"""Playtest entry points: goldfish, match, gauntlet, draft, install-phase.
+"""Playtest entry points: goldfish, match, gauntlet, draft, install, custom format.
 
-Each command is a self-contained Click entry point. They share helpers from
-``_playtest_common`` (output rendering) and ``_phase`` (Rust-engine wrapper).
+Each command is a Click entry point. The goldfish model lives in ``_goldfish``; the
+commands share helpers from ``_playtest_common`` (the envelope, its output tail and
+the renderers) and ``_phase`` (the Rust-engine wrapper), plus the small ones below:
+the shared options, the cube loader, the stated-archetype read and the phase-run
+path match and gauntlet both take (ADR-0069).
 """
 
 from __future__ import annotations
 
 import json
 import random
-import re
 import time
-from collections import defaultdict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
+from mtg_utils._goldfish import GOLDFISH_VERSION, _run_goldfish, goldfish_envelope
 from mtg_utils._playtest_common import (
+    emit,
     envelope,
     render_custom_format_markdown,
     render_draft_markdown,
@@ -23,25 +27,99 @@ from mtg_utils._playtest_common import (
     render_goldfish_markdown,
     render_match_markdown,
 )
-from mtg_utils.card_classify import (
-    build_card_lookup,
-    color_sources,
-    count_color_pips,
-    is_land,
-    land_fetch_profile,
-)
+from mtg_utils.card_classify import build_card_lookup
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 
-GOLDFISH_VERSION = "goldfish v1"
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
-# Colors a source can pay a pip with. Defined here (above its first use) so the
-# fetch fallback and the produced_mana filter cannot drift apart.
-_MANA_COLORS = frozenset("WUBRG")
+    from mtg_utils._archetype_resolver import ResolvedArchetypes
+    from mtg_utils._name_index import NameIndex
+
+# --------------------------------------------------------------- shared options
 
 
-def _build_indexed_deck(hydrated: list[dict]) -> list[int]:
-    """Return a list of integer indices (0..N-1), one per card slot."""
-    return list(range(len(hydrated)))
+def _seed_option(help_text: str | None = None) -> Callable:
+    return click.option(
+        "--seed", default=0, show_default=True, type=int, help=help_text
+    )
+
+
+def _output_option(help_text: str | None = None) -> Callable:
+    return click.option(
+        "--output",
+        "output_path",
+        type=click.Path(dir_okay=False),
+        default=None,
+        help=help_text,
+    )
+
+
+def _hydrated_option() -> Callable:
+    return click.option(
+        "--hydrated",
+        "hydrated_path",
+        type=click.Path(exists=True, dir_okay=False),
+        required=True,
+    )
+
+
+def _difficulty_option() -> Callable:
+    return click.option(
+        "--difficulty",
+        default="Medium",
+        show_default=True,
+        type=click.Choice(["Easy", "Medium", "Hard"]),
+    )
+
+
+def _timeout_option(budget: str) -> Callable:
+    """``--timeout-s``; ``budget`` says what the budget covers ("for the run")."""
+    return click.option(
+        "--timeout-s",
+        type=int,
+        default=None,
+        help=(
+            f"Time budget {budget}, in seconds (default: 10 s per game, at least "
+            "600). Games that finish inside it are kept if it runs out."
+        ),
+    )
+
+
+# ------------------------------------------------------------------ cube reads
+
+
+def _load_cube(cube_path: str, hydrated_path: str) -> tuple[dict, NameIndex, list]:
+    """The cube JSON, a name index over its hydrated records, and the cube's cards
+    that index resolves (in cube order; unresolved names dropped)."""
+    cube = json.loads(Path(cube_path).read_text())
+    hydrated_raw = json.loads(Path(hydrated_path).read_text())
+    lookup = build_card_lookup(hydrated_raw)
+    cards = [lookup[e["name"]] for e in cube.get("cards", []) if e["name"] in lookup]
+    return cube, lookup, cards
+
+
+def _stated_archetypes(cube: dict) -> tuple[ResolvedArchetypes, list[str]]:
+    """The cube's resolved ``stated_archetypes`` and their names: presets (a group's
+    members flattened in), then groups, then custom regexes."""
+    from mtg_utils._archetype_resolver import resolve_stated_archetypes
+
+    resolved = resolve_stated_archetypes(cube)
+    names: list[str] = []
+    names.extend(resolved.preset_names)
+    names.extend(g.name for g in resolved.groups)
+    names.extend(c.name for c in resolved.custom)
+    return resolved, names
+
+
+def _stated_overrides(cube: dict) -> dict[str, dict | None]:
+    """Each named ``stated_archetypes`` entry's optional ``gauntlet`` override."""
+    stated_entries = (cube.get("designer_intent") or {}).get("stated_archetypes") or []
+    return {
+        e["name"]: e.get("gauntlet")
+        for e in stated_entries
+        if isinstance(e, dict) and e.get("name")
+    }
 
 
 def _resolve_manifest_from_stated(
@@ -64,29 +142,20 @@ def _resolve_manifest_from_stated(
     dict ``{format, deck_size, lands, archetypes}`` matching the file
     schema otherwise.
     """
-    from mtg_utils._archetype_resolver import matcher_for, resolve_stated_archetypes
+    from mtg_utils._archetype_resolver import matcher_for
     from mtg_utils._gauntlet_build import (
         infer_archetype_colors,
         infer_curve_target,
     )
 
-    resolved = resolve_stated_archetypes(cube)
-    archetype_names: list[str] = []
-    archetype_names.extend(resolved.preset_names)
-    archetype_names.extend(g.name for g in resolved.groups)
-    archetype_names.extend(c.name for c in resolved.custom)
+    resolved, archetype_names = _stated_archetypes(cube)
     if not archetype_names:
         return None
 
     deck_size = cube.get("gauntlet_deck_size", 40)
     lands = cube.get("gauntlet_lands", 17)
     nonland_target = deck_size - lands
-    stated_entries = (cube.get("designer_intent") or {}).get("stated_archetypes") or []
-    overrides = {
-        e["name"]: e.get("gauntlet")
-        for e in stated_entries
-        if isinstance(e, dict) and e.get("name")
-    }
+    overrides = _stated_overrides(cube)
 
     archetypes: list[dict] = []
     for name in archetype_names:
@@ -124,552 +193,7 @@ def _resolve_manifest_from_stated(
     }
 
 
-def _card_pips(card: dict) -> dict[str, int]:
-    """Count colored pips per color for a card.
-
-    Transform / modal-DFC layouts carry no top-level ``mana_cost`` (Scryfall puts
-    it on ``card_faces`` while top-level ``cmc`` reflects the front face), so fall
-    back to the front face's cost — otherwise those cards register zero pips and
-    color-screw under-reports for MDFC-heavy pools.
-    """
-    mana = card.get("mana_cost") or ""
-    if not mana and card.get("card_faces"):
-        mana = card["card_faces"][0].get("mana_cost") or ""
-    return count_color_pips(mana)
-
-
-def _deck_basic_colors(hydrated: list[dict]) -> frozenset[str]:
-    """Colors of the basic lands actually in this deck.
-
-    A generic "search for a basic land" can only find what the deck contains, so
-    this bounds what such a fetch may produce. Deck-scoped, hence here rather than
-    in card_classify — ``color_sources`` answers the card-only question and
-    collapses a generic search to ``{"any"}``.
-    """
-    colors: set[str] = set()
-    for card in hydrated:
-        type_line = (card.get("type_line") or "").lower()
-        if "basic" not in type_line or "land" not in type_line:
-            continue
-        colors.update(c for c in color_sources(card) if c in _MANA_COLORS)
-    return frozenset(colors)
-
-
-def _unresolved_fetch_warnings(hydrated: list[dict]) -> list[str]:
-    """Warn when the deck's fixing is invisible to the mana model.
-
-    A generic "search for a basic land" resolves against the deck's OWN basics, so
-    a deck with none (an all-nonbasic manabase running Fabled Passage / Prismatic
-    Vista) silently falls back to producing nothing — restoring the inverted
-    "more fixing → more reported screw" ranking with no signal. Say so out loud
-    rather than reporting a confident wrong number.
-    """
-    if _deck_basic_colors(hydrated):
-        return []
-    blind = sorted(
-        {
-            card.get("name", "?")
-            for card in hydrated
-            if not [c for c in (card.get("produced_mana") or []) if c in _MANA_COLORS]
-            and (fetch := land_fetch_profile(card, deck_basic_colors=frozenset()))
-            is not None
-            and not fetch.colors
-        }
-    )
-    if not blind:
-        return []
-    return [
-        (
-            "color-screw may be overstated: the deck runs no basic lands, so "
-            f"generic land-fetch effects resolve to no colors ({', '.join(blind)})"
-        )
-    ]
-
-
-def _land_produces(card: dict, deck_basic_colors: frozenset[str]) -> list[str]:
-    """Color identity a land can tap for, this turn, on its own.
-
-    Prefers ``produced_mana``; falls back to a self-sacrificing fetch, which
-    ``produced_mana`` never reports. A fetch that only puts the land into *hand*
-    yields nothing now, so it is excluded — matching the nonland path.
-
-    ``deck_basic_colors`` is required, not defaulted: it carries the whole
-    correctness of the fetch fallback, and a caller that omitted it would silently
-    restore the inverted color-screw ranking this exists to fix.
-    """
-    direct = [c for c in (card.get("produced_mana") or []) if c in _MANA_COLORS]
-    if direct:
-        return direct
-    fetch = land_fetch_profile(card, deck_basic_colors=deck_basic_colors)
-    if fetch is None or not fetch.to_battlefield:
-        return []
-    return sorted(fetch.colors)
-
-
-_ADD_PATTERN = re.compile(r"\bAdd\b((?:\s*\{[^}]+\})+)")
-
-
-def _mana_ability_profile(card: dict) -> tuple[int, frozenset[str]] | None:
-    """Rough mana profile for a nonland permanent: ``(amount, color_options)``.
-
-    Keyed off Scryfall's ``produced_mana``, so it intentionally captures both
-    true tap-for-mana rocks/dorks (Sol Ring, Birds, Signet) AND mana-token
-    makers (Treasure/Gold/Eldrazi-Spawn generators like Pitiless Plunderer or
-    Awakening Zone — Scryfall populates their ``produced_mana`` from the token's
-    ability). Token makers are approximated as a steady ~1-mana/turn source
-    rather than simulating their creation triggers and one-shot sacrifice — a
-    deliberate rough proxy that avoids modeling deaths/attacks/upkeep/sacrifice.
-
-    ``color_options`` = colors it can make (empty = colorless / generic only).
-    ``amount`` = mana per turn. Returns ``None`` if ``produced_mana`` is empty.
-    Lands are handled separately via :func:`_land_produces`.
-    """
-    produced = card.get("produced_mana") or []
-    if not produced:
-        return None
-    colors = frozenset(c for c in produced if c in _MANA_COLORS)
-    # Amount = mana symbols in an explicit "Add {..}" oracle clause; default 1.
-    # So a five-color produced_mana (e.g. [W,U,B,R,G]) is ONE mana/turn of any
-    # color, NOT five — only literal symbols like Sol Ring's "{C}{C}" exceed 1.
-    amount = 1
-    for clause in _ADD_PATTERN.finditer(card.get("oracle_text") or ""):
-        amount = max(amount, clause.group(1).count("{"))
-    return amount, colors
-
-
-def _is_permanent(card: dict) -> bool:
-    """Does this card stay on the battlefield (so a mana ability is repeatable)?"""
-    type_line = (card.get("type_line") or "").lower()
-    return any(
-        kind in type_line
-        for kind in ("artifact", "creature", "enchantment", "planeswalker", "battle")
-    )
-
-
-def _match_pips(pips: dict[str, int], sources: list[set[str]]) -> dict[int, int] | None:
-    """Match each colored pip to a distinct mana source that can produce it.
-
-    Bipartite matching (Kuhn's algorithm) between pip-slots and mana sources;
-    each source's set lists the colors it can tap for (empty = generic only). A
-    multicolor source can fill a pip of any color it makes, but only one pip.
-    Returns ``{slot_index: source_index}`` for a full matching, else ``None``.
-    """
-    slots = [color for color, count in pips.items() for _ in range(count)]
-    if len(slots) > len(sources):
-        return None
-    source_to_slot: dict[int, int] = {}
-
-    def _augment(slot_idx: int, visited: set[int]) -> bool:
-        for si, options in enumerate(sources):
-            if slots[slot_idx] in options and si not in visited:
-                visited.add(si)
-                if si not in source_to_slot or _augment(source_to_slot[si], visited):
-                    source_to_slot[si] = slot_idx
-                    return True
-        return False
-
-    for slot_idx in range(len(slots)):
-        if not _augment(slot_idx, set()):
-            return None
-    return {slot: src for src, slot in source_to_slot.items()}
-
-
-def _pips_coverable(pips: dict[str, int], sources: list[set[str]]) -> bool:
-    """Can the colored pips be produced by the given mana sources?"""
-    return _match_pips(pips, sources) is not None
-
-
-def _pay(card: dict, sources: list[set[str]]) -> bool:
-    """If the card is castable from ``sources``, spend the mana and return True.
-
-    Mutates ``sources`` in place, removing the spent ones. Each source is one
-    mana whose set lists the colors it can tap for (empty = generic only).
-    """
-    cmc = int(card.get("cmc") or 0)  # Scryfall stores cmc as a float (4.0)
-    if len(sources) < cmc:
-        return False
-    pips = _card_pips(card)
-    match = _match_pips(pips, sources)
-    if match is None:
-        return False
-    used = set(match.values())  # sources spent on colored pips
-    generic_needed = cmc - sum(pips.values())
-    spare = [si for si in range(len(sources)) if si not in used]
-    if len(spare) < generic_needed:
-        return False
-    used.update(spare[:generic_needed])
-    for si in sorted(used, reverse=True):
-        sources.pop(si)
-    return True
-
-
-def _is_color_screwed(card: dict, sources: list[set[str]]) -> bool:
-    """True color screw: enough total mana for the card but not the right colors.
-
-    Returns ``False`` when the card simply costs more than the available mana —
-    that's a curve / mana-count issue, not color screw.
-    """
-    cmc = int(card.get("cmc") or 0)  # Scryfall stores cmc as a float (4.0)
-    if len(sources) < cmc:
-        return False
-    return not _pips_coverable(_card_pips(card), sources)
-
-
-def _keep_hand(hand: list[dict]) -> bool:
-    """London mulligan keep heuristic.
-
-    Keep iff: 2 <= lands <= 5 AND hand has at least one nonland with cmc <= 3.
-    Returns ``True`` to keep, ``False`` to mulligan.
-    """
-    lands = sum(1 for c in hand if is_land(c))
-    if lands < 2 or lands > 5:
-        return False
-    return any(not is_land(c) and c.get("cmc", 0) <= 3 for c in hand)
-
-
-def _simulate_game(
-    hydrated: list[dict],
-    *,
-    max_turns: int,
-    rng: random.Random,
-    starting_hand: list[int] | None = None,
-    deck_basic_colors: frozenset[str] | None = None,
-) -> dict:
-    """Simulate one game: returns per-turn lands/casts/mana metrics + flags.
-
-    If ``starting_hand`` is provided, those indices are the opening hand and
-    the remaining deck order is determined by ``rng``. Otherwise a fresh
-    7-card hand is drawn from the top of an ``rng``-shuffled library
-    (used by tests that don't go through the mulligan path).
-
-    Mana model: counts lands + every cast nonland permanent with a non-empty
-    Scryfall ``produced_mana`` (rocks tap the turn they enter, dorks the turn
-    after). Because it keys off ``produced_mana``, it also counts mana-token
-    makers (Treasure/Gold/Eldrazi-Spawn generators), approximating them as a
-    rough ~1-mana/turn source rather than simulating their creation triggers
-    (deaths/attacks/upkeep) and one-shot sacrifice — see _mana_ability_profile.
-    Token ramp is thus captured roughly, not precisely.
-
-    Land search is modeled separately, since ``produced_mana`` is empty for every
-    such effect: a fetch land produces the deck's own basic colors (see
-    ``_land_produces``) and an enters-triggered fetcher moves a land from library
-    to battlefield (see ``_resolve_land_fetch``), both delayed a turn by an
-    "enters tapped" clause. Activation-gated fetches are not credited.
-
-    Play/draw: the goldfish is always modeled on the draw — it draws a card on
-    every turn including turn 1. (Changing that would shift curve/screw output and
-    is a deliberate decision, not made here.)
-    """
-    indices = _build_indexed_deck(hydrated)
-    rng.shuffle(indices)
-    if starting_hand is None:
-        library = list(indices)
-        hand: list[int] = [library.pop() for _ in range(7)]
-    else:
-        kept = set(starting_hand)
-        library = [i for i in indices if i not in kept]
-        hand = list(starting_hand)
-
-    # A deck constant. _run_goldfish hoists it so 1000 games don't each rescan
-    # the decklist; the fallback keeps direct callers (tests) ergonomic.
-    # Bind a non-optional local: the closures below capture this, and a
-    # captured name keeps its declared `| None` type inside the closure body
-    # no matter what the enclosing scope narrowed it to.
-    basic_colors: frozenset[str] = (
-        _deck_basic_colors(hydrated) if deck_basic_colors is None else deck_basic_colors
-    )
-
-    lands_in_play: list[int] = []  # indices of lands in play
-    lands_in_play_by_turn: dict[int, int] = {}
-    casts_by_turn: dict[int, int] = defaultdict(int)
-    # Mana rocks/dorks on the battlefield; each remembers the turn it was cast
-    # so dorks (creatures) respect summoning sickness.
-    mana_permanents: list[dict] = []
-    # First turn each land can actually tap for mana. A land that sacrifices
-    # itself for a *tapped* basic, or one fetched onto the battlefield tapped, is
-    # only a source from the following turn.
-    land_ready_turn: dict[int, int] = {}
-    color_screwed = False
-
-    def _land_ready_on_entry(index: int, turn: int) -> int:
-        """The turn a land played/fetched on ``turn`` first produces mana."""
-        card = hydrated[index]
-        if [c for c in (card.get("produced_mana") or []) if c in _MANA_COLORS]:
-            return turn
-        fetch = land_fetch_profile(card, deck_basic_colors=basic_colors)
-        return turn + 1 if fetch and fetch.enters_tapped else turn
-
-    def _resolve_land_fetch(card: dict, turn: int, sources: list[set[str]]) -> None:
-        """Move a searched-up land from library to battlefield, if the card does that.
-
-        Only ETB fetches (Wood Elves, Sakura-Tribe Elder) are credited. A fetch
-        behind an activation cost — Knight of the Reliquary's ``{T}, Sacrifice a
-        Forest``, Burnished Hart's ``{3}, {T}, Sacrifice`` — is skipped because the
-        cost is real and unmodeled, so crediting free mana is the worse error.
-
-        Note the cost is the whole reason, NOT summoning sickness: CR 302.6 scopes
-        that rule to *creatures*, so Burnished Hart (an artifact) could legally tap
-        the turn it enters. Only the creature cases are also summoning-sick.
-
-        The land is *moved*, not conjured: it leaves ``library`` and joins
-        ``lands_in_play``, so mean-lands-by-turn agrees with the mana actually
-        spent and the deck cannot both fetch and later draw the same land.
-        """
-        fetch = land_fetch_profile(card, deck_basic_colors=basic_colors)
-        if fetch is None or not fetch.to_battlefield or not fetch.on_etb:
-            return
-        ready = turn + 1 if fetch.enters_tapped else turn
-        for _ in range(fetch.count):  # Explosive Vegetation / Krosan Verge find two
-            target = next(
-                (
-                    li
-                    for li in library
-                    if is_land(hydrated[li])
-                    and set(_land_produces(hydrated[li], basic_colors)) & fetch.colors
-                ),
-                None,
-            )
-            if target is None:  # no matching land left to find
-                return
-            library.remove(target)
-            lands_in_play.append(target)
-            land_ready_turn[target] = ready
-            if ready <= turn:
-                sources.append(set(_land_produces(hydrated[target], basic_colors)))
-
-    def _sources_available(current_turn: int) -> list[set[str]]:
-        """One entry per mana point available this turn (lands + rocks + dorks)."""
-        sources = [
-            set(_land_produces(hydrated[li], basic_colors))
-            for li in lands_in_play
-            if land_ready_turn.get(li, 0) <= current_turn
-        ]
-        for perm in mana_permanents:
-            # Rocks (non-creature) tap the turn they enter; dorks (creatures)
-            # are summoning-sick and tap from the following turn.
-            if not perm["is_creature"] or perm["cast_turn"] < current_turn:
-                sources.extend(set(perm["colors"]) for _ in range(perm["amount"]))
-        return sources
-
-    for turn in range(1, max_turns + 1):
-        if library:
-            hand.append(library.pop())
-
-        # Play one land if possible.
-        land_in_hand = next((i for i in hand if is_land(hydrated[i])), None)
-        if land_in_hand is not None:
-            hand.remove(land_in_hand)
-            lands_in_play.append(land_in_hand)
-            land_ready_turn[land_in_hand] = _land_ready_on_entry(land_in_hand, turn)
-        lands_in_play_by_turn[turn] = len(lands_in_play)
-
-        # Greedy-cast in ascending CMC, re-evaluating after each cast since a
-        # mana rock can produce mana the same turn it resolves.
-        sources = _sources_available(turn)
-        while True:
-            nonland_hand = sorted(
-                (i for i in hand if not is_land(hydrated[i])),
-                key=lambda i: hydrated[i].get("cmc") or 0,
-            )
-            for ci in nonland_hand:
-                if not _pay(hydrated[ci], sources):
-                    continue
-                hand.remove(ci)
-                casts_by_turn[turn] += 1
-                profile = _mana_ability_profile(hydrated[ci])
-                if profile is not None and _is_permanent(hydrated[ci]):
-                    amount, colors = profile
-                    is_creature = (
-                        "creature" in (hydrated[ci].get("type_line") or "").lower()
-                    )
-                    mana_permanents.append(
-                        {
-                            "cast_turn": turn,
-                            "amount": amount,
-                            "colors": colors,
-                            "is_creature": is_creature,
-                        }
-                    )
-                    if not is_creature:  # a rock taps immediately
-                        sources.extend(set(colors) for _ in range(amount))
-                else:
-                    _resolve_land_fetch(hydrated[ci], turn, sources)
-                break  # re-sort and re-evaluate with the updated mana
-            else:
-                break  # nothing castable remained this pass
-
-        # Color-screw check: with >=2 lands, do we hold a nonland we have enough
-        # TOTAL mana for (lands + tappable rocks/dorks) but can't produce the
-        # COLORS of? That isolates true color screw from merely-too-expensive
-        # cards, which are a curve / mana-count issue.
-        if len(lands_in_play) >= 2 and not color_screwed:
-            full_sources = _sources_available(turn)
-            if any(
-                not is_land(hydrated[i])
-                and _is_color_screwed(hydrated[i], full_sources)
-                for i in hand
-            ):
-                color_screwed = True
-
-    return {
-        "turns_played": max_turns,
-        "lands_in_play_by_turn": lands_in_play_by_turn,
-        "casts_by_turn": dict(casts_by_turn),
-        "color_screwed": color_screwed,
-    }
-
-
-def _aggregate_goldfish(games: list[dict], *, mulligans: dict[str, int]) -> dict:
-    """Aggregate per-game results into mean / rate metrics."""
-    n = len(games)
-    if n == 0:
-        return {"games": 0}
-
-    mean_lands: dict[str, float] = {}
-    if games:
-        max_turn = max(g["turns_played"] for g in games)
-        for t in range(1, max_turn + 1):
-            mean_lands[str(t)] = (
-                sum(g["lands_in_play_by_turn"].get(t, 0) for g in games) / n
-            )
-
-    casts_by_turn_total: dict[str, float] = {}
-    if games:
-        all_turns: set[int] = set()
-        for g in games:
-            all_turns.update(g["casts_by_turn"].keys())
-        for t in all_turns:
-            casts_by_turn_total[str(t)] = (
-                sum(g["casts_by_turn"].get(t, 0) for g in games) / n
-            )
-
-    color_screw = sum(1 for g in games if g["color_screwed"]) / n
-
-    total_hands = sum(mulligans.values())
-    mull_rate = {
-        k: (v / total_hands if total_hands else 0.0) for k, v in mulligans.items()
-    }
-
-    return {
-        "games": n,
-        "mean_lands_by_turn": mean_lands,
-        "mean_casts_by_turn": casts_by_turn_total,
-        "color_screw_rate": color_screw,
-        "mulligan_rate": mull_rate,
-    }
-
-
-def _run_goldfish(
-    hydrated: list[dict], *, games: int, max_turns: int, base_seed: int
-) -> dict:
-    """Run N goldfish games and return aggregate metrics."""
-    rng = random.Random(base_seed)
-    results: list[dict] = []
-    mulligans: dict[str, int] = {"7": 0, "6": 0, "5": 0, "4": 0}
-    # Deck constant — computed once rather than rescanning the decklist per game.
-    deck_basic_colors = _deck_basic_colors(hydrated)
-
-    for _ in range(games):
-        # London mulligan: try 7, 6, 5, 4. Stop on first keep.
-        kept_at = 7
-        kept_indices: list[int] = []
-        for hand_size in (7, 6, 5, 4):
-            sub_rng = random.Random(rng.random())
-            indices = list(range(len(hydrated)))
-            sub_rng.shuffle(indices)
-            hand_idx = indices[:hand_size]
-            hand = [hydrated[i] for i in hand_idx]
-            if _keep_hand(hand) or hand_size == 4:
-                kept_at = hand_size
-                kept_indices = hand_idx
-                break
-        mulligans[str(kept_at)] = mulligans.get(str(kept_at), 0) + 1
-
-        game_rng = random.Random(rng.random())
-        results.append(
-            _simulate_game(
-                hydrated,
-                max_turns=max_turns,
-                rng=game_rng,
-                starting_hand=kept_indices,
-                deck_basic_colors=deck_basic_colors,
-            )
-        )
-
-    return _aggregate_goldfish(results, mulligans=mulligans)
-
-
-@click.command()
-@click.argument(
-    "deck_path", type=click.Path(exists=True, dir_okay=False, path_type=Path)
-)
-@bulk_data_option
-@click.option(
-    "--games", default=1000, show_default=True, help="Number of games to simulate"
-)
-@click.option("--turns", default=8, show_default=True, help="Turns per game")
-@click.option(
-    "--seed", default=0, show_default=True, type=int, help="PRNG seed for determinism"
-)
-@click.option(
-    "--output",
-    "output_path",
-    type=click.Path(dir_okay=False),
-    default=None,
-    help="Write full JSON envelope to this path (markdown report printed to stdout)",
-)
-def goldfish_main(
-    deck_path: Path,
-    bulk_data: Path | None,
-    games: int,
-    turns: int,
-    seed: int,
-    output_path: str | None,
-) -> None:
-    """Solo deck simulator (mulligan, curve, color-screw, combo timing)."""
-    hd = acquire_for_cli(deck_path, bulk_data)
-    deck = hd.deck
-    deck_hydrated = hd.expanded(zones=("commanders", "cards"))
-    missing = sorted(
-        n for n in hd.missing if any(e["name"] == n for e in hd.commanders + hd.cards)
-    )
-
-    start = time.perf_counter()
-    results = _run_goldfish(
-        deck_hydrated,
-        games=games,
-        max_turns=turns,
-        base_seed=seed,
-    )
-    elapsed = time.perf_counter() - start
-
-    out = envelope(
-        mode="goldfish",
-        engine="goldfish",
-        engine_version=GOLDFISH_VERSION,
-        seed=seed,
-        format_=deck.get("format"),
-        card_coverage={
-            "requested": sum(
-                int(e.get("quantity", 1))
-                for e in (deck.get("cards") or []) + (deck.get("commanders") or [])
-            ),
-            "supported": len(deck_hydrated),
-            "missing": missing,
-        },
-        results=results,
-        warnings=(
-            ([f"{len(missing)} cards not in hydrated cache"] if missing else [])
-            + _unresolved_fetch_warnings(deck_hydrated)
-        ),
-        duration_s=elapsed,
-    )
-
-    serialized = json.dumps(out, indent=2)
-    if output_path:
-        Path(output_path).write_text(serialized)
-    click.echo(render_goldfish_markdown(out))
-
+# ------------------------------------------------------------------ phase runs
 
 #: A phase batch's default time budget: about 5 s per game was observed, so 10 s per
 #: game leaves headroom, with a floor for short runs.
@@ -684,35 +208,129 @@ def phase_timeout(timeout_s: int | None, games: int) -> int:
     return max(PHASE_MIN_TIMEOUT_S, PHASE_SECONDS_PER_GAME * games)
 
 
+def _refuse_if_blocked(cov: dict, message: str) -> None:
+    """Print ``message`` to stderr and exit 2 when phase's coverage gate is blocked."""
+    if cov["status"] == "blocked":
+        click.echo(message, err=True)
+        raise SystemExit(2)
+
+
+def _run_duel(
+    a_path: Path,
+    b_path: Path,
+    *,
+    games: int,
+    seed: int,
+    format_: str,
+    difficulty: str,
+    timeout_s: int,
+) -> dict:
+    """``_phase.run_duel``, an engine failure reported as a ``ClickException``.
+
+    ``_phase`` is read at call time (never ``from _phase import run_duel``), so a
+    test's patch of ``mtg_utils._phase.run_duel`` applies.
+    """
+    from mtg_utils import _phase
+
+    try:
+        return _phase.run_duel(
+            a_path,
+            b_path,
+            games=games,
+            seed=seed,
+            format_=format_,
+            difficulty=difficulty,
+            timeout_s=timeout_s,
+        )
+    except _phase.PhaseRuntimeError as exc:
+        raise click.ClickException(
+            f"{exc}\nEngine stderr:\n{exc.stderr}",
+        ) from exc
+
+
+def _gauntlet_phase_format(manifest: dict) -> str:
+    """The phase format a gauntlet manifest's decks play: its cube format, less
+    ``_cube`` ("modern_cube" plays as "modern")."""
+    return manifest.get("format", "modern").replace("_cube", "")
+
+
+def _first_five(items: list[str]) -> str:
+    """The first five of ``items``, comma-joined, with "…" when there are more."""
+    return ", ".join(items[:5]) + ("…" if len(items) > 5 else "")
+
+
+def _phase_envelope(
+    *,
+    mode: str,
+    seed: int,
+    format_: str | None,
+    cov: dict,
+    results: dict,
+    warnings: list[str],
+    elapsed: float,
+) -> dict:
+    """The envelope of a phase-run command (match, gauntlet)."""
+    from mtg_utils import _phase
+
+    return envelope(
+        mode=mode,
+        engine="phase",
+        engine_version=f"phase {_phase.PHASE_TAG}",
+        seed=seed,
+        format_=format_,
+        card_coverage=cov,
+        results=results,
+        warnings=warnings,
+        duration_s=elapsed,
+    )
+
+
+# -------------------------------------------------------------------- commands
+
+
+@click.command()
+@click.argument(
+    "deck_path", type=click.Path(exists=True, dir_okay=False, path_type=Path)
+)
+@bulk_data_option
+@click.option(
+    "--games", default=1000, show_default=True, help="Number of games to simulate"
+)
+@click.option("--turns", default=8, show_default=True, help="Turns per game")
+@_seed_option("PRNG seed for determinism")
+@_output_option(
+    "Write full JSON envelope to this path (markdown report printed to stdout)"
+)
+def goldfish_main(
+    deck_path: Path,
+    bulk_data: Path | None,
+    games: int,
+    turns: int,
+    seed: int,
+    output_path: str | None,
+) -> None:
+    """Solo deck simulator (mulligan, curve, color-screw, combo timing)."""
+    hd = acquire_for_cli(deck_path, bulk_data)
+    out = goldfish_envelope(hd, games=games, turns=turns, seed=seed)
+    emit(out, output_path, render_goldfish_markdown)
+
+
 @click.command()
 @click.argument("deck_a", type=click.Path(exists=True, dir_okay=False))
 @click.argument("deck_b", type=click.Path(exists=True, dir_okay=False))
 @click.option(
     "--games", default=100, show_default=True, help="Number of games to simulate"
 )
-@click.option("--seed", default=0, show_default=True, type=int)
-@click.option(
-    "--difficulty",
-    default="Medium",
-    show_default=True,
-    type=click.Choice(["Easy", "Medium", "Hard"]),
-)
-@click.option(
-    "--timeout-s",
-    type=int,
-    default=None,
-    help=(
-        "Time budget for the run, in seconds (default: 10 s per game, at least 600). "
-        "Games that finish inside it are kept if it runs out."
-    ),
-)
+@_seed_option()
+@_difficulty_option()
+@_timeout_option("for the run")
 @click.option(
     "--force",
     is_flag=True,
     default=False,
     help="Run even if phase coverage is below the threshold",
 )
-@click.option("--output", "output_path", type=click.Path(dir_okay=False), default=None)
+@_output_option()
 def match_main(
     deck_a: str,
     deck_b: str,
@@ -737,7 +355,7 @@ def match_main(
 
     names = []
     for d in (deck_a_obj, deck_b_obj):
-        if "main" in d and "cards" not in d:
+        if _phase.is_phase_native(d):
             # Phase-native: extract names from main list.
             for entry in d.get("main") or []:
                 names.append(entry["name"])
@@ -746,15 +364,14 @@ def match_main(
                 names.append(entry["name"])
 
     cov = _phase.coverage_report(names)
-    if cov["status"] == "blocked" and not force:
-        click.echo(
+    if not force:
+        _refuse_if_blocked(
+            cov,
             f"Refusing to run: phase coverage {cov['supported_pct']:.1%} "
             f"is below the 90% threshold "
             f"({len(cov['missing'])} cards missing).\n"
             "Pass --force to run anyway, or use playtest-goldfish.",
-            err=True,
         )
-        raise SystemExit(2)
 
     timeout_s = phase_timeout(timeout_s, games)
     phase_a = _phase.to_phase_deck(deck_a_obj, label="A")
@@ -767,29 +384,22 @@ def match_main(
         b_path.write_text(json.dumps(phase_b))
 
         start = time.perf_counter()
-        try:
-            result = _phase.run_duel(
-                a_path,
-                b_path,
-                games=games,
-                seed=seed,
-                format_=phase_a["format"],
-                difficulty=difficulty,
-                timeout_s=timeout_s,
-            )
-        except _phase.PhaseRuntimeError as exc:
-            raise click.ClickException(
-                f"{exc}\nEngine stderr:\n{exc.stderr}",
-            ) from exc
+        result = _run_duel(
+            a_path,
+            b_path,
+            games=games,
+            seed=seed,
+            format_=phase_a["format"],
+            difficulty=difficulty,
+            timeout_s=timeout_s,
+        )
         elapsed = time.perf_counter() - start
 
     warnings = []
     if cov["status"] == "warn":
-        sample = ", ".join(cov["missing"][:5])
-        more = "…" if len(cov["missing"]) > 5 else ""
         warnings.append(
             f"Phase coverage {cov['supported_pct']:.1%} — "
-            f"{len(cov['missing'])} cards substituted: {sample}{more}",
+            f"{len(cov['missing'])} cards substituted: {_first_five(cov['missing'])}",
         )
     if result.get("timed_out"):
         done, asked = result["games_completed"], result["games_requested"]
@@ -803,32 +413,21 @@ def match_main(
             ),
         )
 
-    out = envelope(
+    out = _phase_envelope(
         mode="match",
-        engine="phase",
-        engine_version=f"phase {_phase.PHASE_TAG}",
         seed=seed,
         format_=phase_a["format"],
-        card_coverage=cov,
+        cov=cov,
         results=result,
         warnings=warnings,
-        duration_s=elapsed,
+        elapsed=elapsed,
     )
-
-    serialized = json.dumps(out, indent=2)
-    if output_path:
-        Path(output_path).write_text(serialized)
-    click.echo(render_match_markdown(out))
+    emit(out, output_path, render_match_markdown)
 
 
 @click.command()
 @click.argument("cube_path", type=click.Path(exists=True, dir_okay=False))
-@click.option(
-    "--hydrated",
-    "hydrated_path",
-    type=click.Path(exists=True, dir_okay=False),
-    required=True,
-)
+@_hydrated_option()
 @click.option(
     "--gauntlet",
     "gauntlet_path",
@@ -839,23 +438,10 @@ def match_main(
 @click.option(
     "--games-per-pair", "games_per_pair", default=100, show_default=True, type=int
 )
-@click.option("--seed", default=0, show_default=True, type=int)
-@click.option(
-    "--difficulty",
-    default="Medium",
-    show_default=True,
-    type=click.Choice(["Easy", "Medium", "Hard"]),
-)
-@click.option(
-    "--timeout-s",
-    type=int,
-    default=None,
-    help=(
-        "Time budget per pair, in seconds (default: 10 s per game, at least 600). "
-        "Games that finish inside it are kept if it runs out."
-    ),
-)
-@click.option("--output", "output_path", type=click.Path(dir_okay=False), default=None)
+@_seed_option()
+@_difficulty_option()
+@_timeout_option("per pair")
+@_output_option()
 def gauntlet_main(
     cube_path: str,
     hydrated_path: str,
@@ -874,12 +460,7 @@ def gauntlet_main(
     from mtg_utils import _phase
     from mtg_utils._gauntlet_build import build_gauntlet_deck
 
-    cube = json.loads(Path(cube_path).read_text())
-    hydrated_raw = json.loads(Path(hydrated_path).read_text())
-    lookup = build_card_lookup(hydrated_raw)
-    cube_cards = [
-        lookup[e["name"]] for e in cube.get("cards", []) if e["name"] in lookup
-    ]
+    cube, _lookup, cube_cards = _load_cube(cube_path, hydrated_path)
 
     # Resolve archetype manifest. Three precedence levels:
     #   1. --gauntlet flag → explicit manifest file (used for ad-hoc tests).
@@ -941,46 +522,40 @@ def gauntlet_main(
             p = Path(td) / f"deck_{i}.json"
             phase_deck = {
                 "name": deck["_archetype_name"],
-                "format": manifest.get("format", "modern").replace("_cube", ""),
+                "format": _gauntlet_phase_format(manifest),
                 "main": deck["main"],
             }
             p.write_text(json.dumps(phase_deck))
             deck_paths.append((deck["_archetype_name"], p))
 
-        # Coverage gate over the union of all archetype decks.
+        # Coverage gate over the union of all archetype decks. The gauntlet has no
+        # --force: a blocked gate always refuses.
         all_names: list[str] = []
         for deck in archetype_decks:
             for entry in deck["main"]:
                 all_names.append(entry["name"])
         if all_names:
             cov = _phase.coverage_report(all_names)
-            if cov["status"] == "blocked":
-                click.echo(
-                    f"Refusing: phase coverage {cov['supported_pct']:.1%} "
-                    f"is below threshold for built archetype decks.",
-                    err=True,
-                )
-                raise SystemExit(2)
+            _refuse_if_blocked(
+                cov,
+                f"Refusing: phase coverage {cov['supported_pct']:.1%} "
+                f"is below threshold for built archetype decks.",
+            )
 
         timed_out_pairs: list[str] = []
         for i in range(len(deck_paths)):
             for j in range(i + 1, len(deck_paths)):
                 a_name, a_path = deck_paths[i]
                 b_name, b_path = deck_paths[j]
-                try:
-                    result = _phase.run_duel(
-                        a_path,
-                        b_path,
-                        games=games_per_pair,
-                        seed=seed + i * 100 + j,
-                        format_=manifest.get("format", "modern").replace("_cube", ""),
-                        difficulty=difficulty,
-                        timeout_s=timeout_s,
-                    )
-                except _phase.PhaseRuntimeError as exc:
-                    raise click.ClickException(
-                        f"{exc}\nEngine stderr:\n{exc.stderr}",
-                    ) from exc
+                result = _run_duel(
+                    a_path,
+                    b_path,
+                    games=games_per_pair,
+                    seed=seed + i * 100 + j,
+                    format_=_gauntlet_phase_format(manifest),
+                    difficulty=difficulty,
+                    timeout_s=timeout_s,
+                )
                 if result.get("timed_out"):
                     # Its rate covers only the games that finished (the matrix marks
                     # it), or none at all: report it, don't let it read as complete.
@@ -1002,13 +577,11 @@ def gauntlet_main(
                 )
     elapsed = time.perf_counter() - start
 
-    out = envelope(
+    out = _phase_envelope(
         mode="gauntlet",
-        engine="phase",
-        engine_version=f"phase {_phase.PHASE_TAG}",
         seed=seed,
         format_=manifest.get("format"),
-        card_coverage=cov,
+        cov=cov,
         results={
             "pairs": pairs,
             "archetypes": [d["_archetype_name"] for d in archetype_decks],
@@ -1021,39 +594,31 @@ def gauntlet_main(
         )
         + (
             [
-                f"{len(timed_out_pairs)} pair(s) timed out after {timeout_s}s; "
-                "each rate covers only the games that finished (games done/asked): "
-                f"{', '.join(timed_out_pairs[:5])}"
-                + ("…" if len(timed_out_pairs) > 5 else "")
+                (
+                    f"{len(timed_out_pairs)} pair(s) timed out after {timeout_s}s; "
+                    "each rate covers only the games that finished (games "
+                    f"done/asked): {_first_five(timed_out_pairs)}"
+                )
             ]
             if timed_out_pairs
             else []
         ),
-        duration_s=elapsed,
+        elapsed=elapsed,
     )
-
-    serialized = json.dumps(out, indent=2)
-    if output_path:
-        Path(output_path).write_text(serialized)
-    click.echo(render_gauntlet_markdown(out))
+    emit(out, output_path, render_gauntlet_markdown)
 
 
 @click.command()
 @click.argument("cube_path", type=click.Path(exists=True, dir_okay=False))
-@click.option(
-    "--hydrated",
-    "hydrated_path",
-    type=click.Path(exists=True, dir_okay=False),
-    required=True,
-)
+@_hydrated_option()
 @click.option("--pods", default=4, show_default=True, type=int)
 @click.option("--players", default=8, show_default=True, type=int)
 @click.option("--packs", default=3, show_default=True, type=int)
 @click.option("--pack-size", default=15, show_default=True, type=int)
 @click.option("--goldfish-games", default=1000, show_default=True, type=int)
 @click.option("--goldfish-turns", default=8, show_default=True, type=int)
-@click.option("--seed", default=0, show_default=True, type=int)
-@click.option("--output", "output_path", type=click.Path(dir_okay=False), default=None)
+@_seed_option()
+@_output_option()
 def draft_main(
     cube_path: str,
     hydrated_path: str,
@@ -1067,14 +632,11 @@ def draft_main(
     output_path: str | None,
 ) -> None:
     """Heuristic cube draft + per-deck goldfish."""
-    from mtg_utils._archetype_resolver import matcher_for, resolve_stated_archetypes
+    from mtg_utils._archetype_resolver import matcher_for
     from mtg_utils._draft_ai import draft_pod
     from mtg_utils._gauntlet_build import build_gauntlet_deck, score_card
 
-    cube = json.loads(Path(cube_path).read_text())
-    hydrated_raw = json.loads(Path(hydrated_path).read_text())
-    lookup = build_card_lookup(hydrated_raw)
-    pool = [lookup[e["name"]] for e in cube.get("cards", []) if e["name"] in lookup]
+    cube, lookup, pool = _load_cube(cube_path, hydrated_path)
 
     start = time.perf_counter()
     deck_reports: list[dict] = []
@@ -1086,17 +648,8 @@ def draft_main(
     # stated_archetypes, we fall back to the canonical four shapes —
     # appropriate for stock cubes, lets the drafter still produce a sane
     # report.
-    resolved = resolve_stated_archetypes(cube)
-    stated_names: list[str] = []
-    stated_names.extend(resolved.preset_names)
-    stated_names.extend(g.name for g in resolved.groups)
-    stated_names.extend(c.name for c in resolved.custom)
-    stated_entries = (cube.get("designer_intent") or {}).get("stated_archetypes") or []
-    overrides = {
-        e["name"]: e.get("gauntlet")
-        for e in stated_entries
-        if isinstance(e, dict) and e.get("name")
-    }
+    resolved, stated_names = _stated_archetypes(cube)
+    overrides = _stated_overrides(cube)
     archetype_candidates: list[dict] = []
     if stated_names:
         for name in stated_names:
@@ -1258,11 +811,7 @@ def draft_main(
         warnings=[],
         duration_s=elapsed,
     )
-
-    serialized = json.dumps(out, indent=2)
-    if output_path:
-        Path(output_path).write_text(serialized)
-    click.echo(render_draft_markdown(out))
+    emit(out, output_path, render_draft_markdown)
 
 
 @click.command()
@@ -1284,12 +833,7 @@ def install_phase_main() -> None:
 
 @click.command()
 @click.argument("cube_path", type=click.Path(exists=True, dir_okay=False))
-@click.option(
-    "--hydrated",
-    "hydrated_path",
-    type=click.Path(exists=True, dir_okay=False),
-    required=True,
-)
+@_hydrated_option()
 @click.option(
     "--format-module",
     "format_module_name",
@@ -1335,13 +879,8 @@ def install_phase_main() -> None:
     help="Turns per game (defaults to module's DEFAULT_TURNS)",
 )
 @click.option("--games", default=1000, show_default=True, type=int)
-@click.option("--seed", default=0, show_default=True, type=int)
-@click.option(
-    "--output",
-    "output_path",
-    type=click.Path(dir_okay=False),
-    default=None,
-)
+@_seed_option()
+@_output_option()
 def custom_format_main(
     cube_path: str,
     hydrated_path: str,
@@ -1479,8 +1018,4 @@ def custom_format_main(
         warnings=[],
         duration_s=elapsed,
     )
-
-    serialized = json.dumps(out, indent=2)
-    if output_path:
-        Path(output_path).write_text(serialized)
-    click.echo(render_custom_format_markdown(out))
+    emit(out, output_path, render_custom_format_markdown)

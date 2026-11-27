@@ -7,9 +7,7 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils._card_ir.crosswalk import SEARCH_COUNT_CAP
-from mtg_utils._playtest_common import render_goldfish_markdown
-from mtg_utils.card_classify import land_fetch_profile
-from mtg_utils.playtest import (
+from mtg_utils._goldfish import (
     _aggregate_goldfish,
     _build_indexed_deck,
     _deck_basic_colors,
@@ -22,8 +20,11 @@ from mtg_utils.playtest import (
     _run_goldfish,
     _simulate_game,
     _unresolved_fetch_warnings,
-    goldfish_main,
+    goldfish_envelope,
 )
+from mtg_utils._playtest_common import render_goldfish_markdown
+from mtg_utils.card_classify import land_fetch_profile
+from mtg_utils.playtest import goldfish_main
 from mtg_utils.testkit import test_card
 
 
@@ -620,3 +621,167 @@ class TestGoldfishMarkdown:
         assert "Color-screw rate" in md
         assert "5.0%" in md  # color screw
         assert "Kept on 7: 85.0%" in md
+
+
+def _golden_deck() -> tuple[tuple[dict, int], ...]:
+    """A 60-card real-card deck (ADR-0056) for the seeded golden runs: basics, fetch
+    lands, dorks, a rock, enters-triggered and spell land fetches, a split card.
+    Literal ``test_card`` calls, so ``build-card-snapshot`` sees every name."""
+    return (
+        (test_card("Forest"), 9),
+        (test_card("Mountain"), 7),
+        (test_card("Evolving Wilds"), 2),
+        (test_card("Fabled Passage"), 1),
+        (test_card("Llanowar Elves"), 4),
+        (test_card("Birds of Paradise"), 2),
+        (test_card("Mind Stone"), 2),
+        (test_card("Wood Elves"), 3),
+        (test_card("Sakura-Tribe Elder"), 3),
+        (test_card("Rampant Growth"), 2),
+        (test_card("Lightning Bolt"), 4),
+        (test_card("Shock"), 3),
+        (test_card("Monastery Swiftspear"), 4),
+        (test_card("Grizzly Bears"), 4),
+        (test_card("Explosive Vegetation"), 2),
+        (test_card("Kodama's Reach"), 2),
+        (test_card("Cultivate"), 2),
+        (test_card("Fire // Ice"), 4),
+    )
+
+
+#: The full ``results`` of ``--games 40 --turns 5`` per seed, captured at b56f0295
+#: (before the goldfish model moved to ``_goldfish``) and unchanged since: any change
+#: to the model or its RNG call order moves these numbers.
+_GOLDEN_RESULTS = {
+    0: {
+        "games": 40,
+        "mean_lands_by_turn": {"1": 1.0, "2": 2.0, "3": 2.85, "4": 3.55, "5": 4.2},
+        "mean_casts_by_turn": {"1": 0.5, "2": 1.1, "3": 1.6, "4": 1.5, "5": 1.2},
+        "color_screw_rate": 0.55,
+        "mulligan_rate": {"7": 0.85, "6": 0.1, "5": 0.0, "4": 0.05},
+    },
+    1: {
+        "games": 40,
+        "mean_lands_by_turn": {
+            "1": 1.0,
+            "2": 1.95,
+            "3": 2.825,
+            "4": 3.55,
+            "5": 4.175,
+        },
+        "mean_casts_by_turn": {
+            "1": 0.55,
+            "2": 1.15,
+            "3": 1.45,
+            "4": 1.45,
+            "5": 1.075,
+        },
+        "color_screw_rate": 0.625,
+        "mulligan_rate": {"7": 0.675, "6": 0.125, "5": 0.125, "4": 0.075},
+    },
+}
+
+
+class TestGoldfishGolden:
+    @pytest.mark.parametrize("seed", sorted(_GOLDEN_RESULTS))
+    def test_seeded_run_is_pinned(self, tmp_path, seed):
+        deck = _golden_deck()
+        assert sum(q for _, q in deck) == 60
+        bulk = [{**card, "id": f"golden-{i}"} for i, (card, _) in enumerate(deck)]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(bulk))
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(
+            json.dumps(
+                {
+                    "format": "modern",
+                    "commanders": [],
+                    "cards": [
+                        {"name": card["name"], "quantity": q} for card, q in deck
+                    ],
+                    "sideboard": [],
+                }
+            )
+        )
+        out_path = tmp_path / "out.json"
+        result = CliRunner().invoke(
+            goldfish_main,
+            [
+                str(deck_path),
+                "--bulk-data",
+                str(bulk_path),
+                "--games",
+                "40",
+                "--turns",
+                "5",
+                "--seed",
+                str(seed),
+                "--output",
+                str(out_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        env = json.loads(out_path.read_text())
+        assert env["results"] == _GOLDEN_RESULTS[seed]
+        assert env["warnings"] == []
+        assert env["card_coverage"] == {
+            "requested": 60,
+            "supported": 60,
+            "missing": [],
+        }
+
+
+class TestGoldfishEnvelope:
+    """``goldfish_envelope``: the one result-builder the command and the hub call."""
+
+    def test_warns_about_a_fetch_the_model_cannot_resolve(self):
+        from mtg_utils.hydrated_deck import HydratedDeck
+
+        wilds, tower, bears = (
+            test_card("Evolving Wilds"),
+            test_card("Command Tower"),
+            test_card("Grizzly Bears"),
+        )
+        deck = {
+            "format": "modern",
+            "commanders": [],
+            "cards": [
+                {"name": "Evolving Wilds", "quantity": 4},
+                {"name": "Command Tower", "quantity": 16},
+                {"name": "Grizzly Bears", "quantity": 20},
+            ],
+        }
+        hd = HydratedDeck.from_parsed(
+            deck, {c["name"]: c for c in (wilds, tower, bears)}
+        )
+        env = goldfish_envelope(hd, games=4, turns=3, seed=0)
+        assert env["mode"] == "goldfish"
+        assert env["engine_version"] == "goldfish v1"
+        assert env["warnings"] == _unresolved_fetch_warnings(
+            hd.expanded(zones=("commanders", "cards"))
+        )
+        assert "Evolving Wilds" in env["warnings"][0]
+
+    def test_missing_counts_the_main_deck_only(self):
+        from mtg_utils.hydrated_deck import HydratedDeck
+
+        forest, bears = test_card("Forest"), test_card("Grizzly Bears")
+        deck = {
+            "format": "modern",
+            "commanders": [],
+            "cards": [
+                {"name": "Forest", "quantity": 17},
+                {"name": "Grizzly Bears", "quantity": 22},
+                {"name": "Unjoined Typo", "quantity": 1},
+            ],
+            # A sideboard-only miss is never drawn, so it is not reported.
+            "sideboard": [{"name": "Unjoined Sideboard Typo", "quantity": 1}],
+        }
+        hd = HydratedDeck.from_parsed(deck, {c["name"]: c for c in (forest, bears)})
+        env = goldfish_envelope(hd, games=4, turns=3, seed=0)
+        assert env["card_coverage"] == {
+            "requested": 40,
+            "supported": 39,
+            "missing": ["Unjoined Typo"],
+        }
+        assert env["warnings"] == ["1 cards not in hydrated cache"]
