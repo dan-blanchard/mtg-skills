@@ -8,8 +8,11 @@ rule (an
 Arena keyword instance, "Fading 5", pairs with the ability phase writes for that
 keyword; a Saga's chapter pairs by its number with phase's "Chapter N"), by a
 grant ("~ gains "…"" is the granting ability), or as one Arena ability
-phase writes as two triggers. Anything weaker is reported as unsure and never scored,
-since a wrong pairing turns into a false finding or, worse, a false pass. An
+phase writes as two triggers ("When ~ enters or dies", "When ~ enters and at the
+beginning of your upkeep"). An ability word in front of either text is dropped
+(CR 207.2c: it has no rules meaning). Anything weaker is reported as unsure and
+never scored, since a wrong pairing turns into a false finding or, worse, a false
+pass. An
 instance of a keyword phase lists on the card with no ability to compare it to
 (prowess, ward, warp's delayed exile, ninjutsu's untexted activation) is
 ``keyword-only`` rather than unsure, and only once nothing else pairs and the
@@ -31,6 +34,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     iter_nested_granted_bodies,
+    tag_of,
     trigger_def_unit,
     walk_effect_chain,
 )
@@ -140,6 +144,72 @@ _ARENA_MANA = re.compile(r"\{o([^}]*)\}")
 _SELF = re.compile(
     r"\bthis (?:permanent|creature|artifact|enchantment|land|card|spell|equipment)\b"
 )
+#: The ability words (CR 207.2c), which "have no special rules meaning": Arena
+#: writes one in front of its ability ("Landfall — Whenever …") and phase may not.
+ABILITY_WORDS = (
+    "adamant",
+    "addendum",
+    "alliance",
+    "battalion",
+    "bloodrush",
+    "celebration",
+    "channel",
+    "chroma",
+    "cohort",
+    "constellation",
+    "converge",
+    "council's dilemma",
+    "coven",
+    "delirium",
+    "descend 4",
+    "descend 8",
+    "disappear",
+    "domain",
+    "eerie",
+    "eminence",
+    "enrage",
+    "fateful hour",
+    "fathomless descent",
+    "ferocious",
+    "flurry",
+    "formidable",
+    "grandeur",
+    "hellbent",
+    "heroic",
+    "imprint",
+    "infusion",
+    "inspired",
+    "join forces",
+    "kinship",
+    "landfall",
+    "lieutenant",
+    "magecraft",
+    "metalcraft",
+    "morbid",
+    "opus",
+    "pack tactics",
+    "paradox",
+    "parley",
+    "radiance",
+    "raid",
+    "rally",
+    "renew",
+    "repartee",
+    "revolt",
+    "secret council",
+    "spell mastery",
+    "strive",
+    "survival",
+    "sweep",
+    "tempting offer",
+    "threshold",
+    "undergrowth",
+    "valiant",
+    "vivid",
+    "void",
+    "will of the council",
+)
+_ABILITY_WORD = re.compile(rf"^(?:{'|'.join(ABILITY_WORDS)}) ?— ?")
 
 
 def _mana(match: re.Match) -> str:
@@ -148,10 +218,12 @@ def _mana(match: re.Match) -> str:
 
 def norm(text: str | None) -> str:
     """Arena's or phase's ability text in one spelling: markup dropped, mana
-    symbols as ``{1}{R}``, the card as ``~``, lower case."""
+    symbols as ``{1}{R}``, the card as ``~``, lower case, and no ability word in
+    front (:data:`ABILITY_WORDS`)."""
     text = _ARENA_MANA.sub(_mana, strip_markup(text or ""))
     text = text.replace("CARDNAME", "~").translate(_QUOTES)
-    return _SELF.sub("~", _SPACE.sub(" ", text).strip().lower())
+    text = _SPACE.sub(" ", text).strip().lower()
+    return _SELF.sub("~", _ABILITY_WORD.sub("", text))
 
 
 #: An Arena keyword (``Abilities.BaseId``'s text) → the word phase's own ability
@@ -164,20 +236,32 @@ KEYWORD_ABILITIES: dict[str, str] = {
     # CR 702.79a, as phase writes persist's own trigger
     "persist": "if it had no -1/-1 counters on it",
     "for mirrodin!": "for mirrodin!",
+    # CR 702.181a's attack trigger: "Mobilize — create Warrior tokens tapped and
+    # attacking"
+    "mobilize": "mobilize",
+    # CR 702.175a's enters trigger: "When this permanent enters, if its offspring
+    # cost was paid, create a token that's a copy of it, except it's 1/1"
+    "offspring": "offspring cost was paid",
 }
 #: Arena's ``BaseId`` text for a Saga's chapter ability; its numeral is the chapter.
 SAGA_CHAPTER = "sagachapter"
-#: Arena text of a keyword's ability that has no ``BaseId`` (warp's delayed exile).
+#: Arena text of a keyword's ability that has no ``BaseId`` (warp's delayed exile)
+#: → the word phase's own ability for it carries.
 KEYWORD_TEXTS: dict[str, str] = {
     "exile this at the beginning of the next end step": "warp",
 }
+#: A Case's "To solve — [condition]" (CR 719.3a): the trigger phase writes with a
+#: ``SolveCase`` effect.
+_TO_SOLVE = "to solve —"
 
 
 @dataclass(frozen=True)
 class Pairing:
     ability: PhaseAbility | None
     #: ``text`` / ``cost-prefix`` / ``keyword`` / ``chapter`` / ``grant`` /
-    #: ``split``, or with no ability ``keyword-only`` / ``unsure`` / ``none``.
+    #: ``split`` / ``modal``, or with no ability ``keyword-only`` / ``unsure`` /
+    #: ``none`` (no candidate) / ``no-text`` (Arena's database has no text for
+    #: the ability).
     method: str
     score: float
     #: The best phase text, for an unsure pairing.
@@ -200,7 +284,9 @@ def _similarity(a: str, b: str) -> float:
             ":"
         ):
             return 1.0
-    return difflib.SequenceMatcher(None, a, b).ratio()
+    # no autojunk: it drops every character seen in more than 1% of a text over
+    # 200 characters, which scores two identical long texts near 0
+    return difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()
 
 
 def _best(
@@ -210,10 +296,37 @@ def _best(
     return max(scored, key=lambda s: s[0], default=None)
 
 
-#: "When ~ enters and whenever it deals combat damage to a player, <effect>": one
-#: Arena ability phase writes as two triggers with the same effect.
-_COMBINED = re.compile(r"^(when(?:ever)? .+?) and (whenever .+?), (.+)$")
+#: One Arena ability phase writes as two triggers with the same effect: "When ~
+#: enters and whenever it deals combat damage to a player, <effect>", "When ~
+#: enters and at the beginning of your upkeep, <effect>" (two trigger
+#: conditions), and "Whenever ~ enters or attacks, <effect>" (two events of one
+#: object). Each gives its two halves; a split pairs only when each half pairs
+#: confidently with a different phase trigger.
+_COMBINED: tuple[tuple[re.Pattern, Callable[[re.Match], tuple[str, str]]], ...] = (
+    (
+        re.compile(r"^(when(?:ever)? .+?) and ((?:whenever|at) .+?), (.+)$"),
+        lambda m: (f"{m[1]}, {m[3]}", f"{m[2]}, {m[3]}"),
+    ),
+    (
+        re.compile(r"^(when(?:ever)? .+?) (\w+) or (\w+), (.+)$"),
+        lambda m: (f"{m[1]} {m[2]}, {m[4]}", f"{m[1]} {m[3]}, {m[4]}"),
+    ),
+)
 _GRANT = re.compile(r'gains? "(.+?)"?$')
+#: A modal ability's condition before its modes ("When ~ enters, choose one —
+#: …"): phase writes a modal trigger's description as that condition alone.
+_MODAL = re.compile(r"^(.+?), choose (?:one|two|three|one or more|any number)\b")
+
+
+def _split(text: str, candidates: Sequence[PhaseAbility]) -> Pairing | None:
+    """The two phase triggers one combined Arena ability is (:data:`_COMBINED`)."""
+    for pattern, halves in _COMBINED:
+        if (match := pattern.match(text)) is None:
+            continue
+        one, two = (_best(half, candidates) for half in halves(match))
+        if one and two and one[1] is not two[1] and min(one[0], two[0]) >= CONFIDENT:
+            return Pairing(one[1], "split", min(one[0], two[0]), also=(two[1],))
+    return None
 
 
 def _keep_all(_ability: PhaseAbility) -> bool:
@@ -236,7 +349,7 @@ def pair(
     text = norm(arena_text)
     candidates = [a for a in abilities if keep(a)]
     if not text:
-        return Pairing(None, "none", 0.0)
+        return Pairing(None, "no-text", 0.0)
     named = norm(keyword)
     if named == SAGA_CHAPTER and numeral:
         chapter = [a for a in candidates if a.normed == f"chapter {numeral}"]
@@ -267,12 +380,20 @@ def pair(
         granter = best[1].granted_by if best else None
         if best and granter and best[0] >= CONFIDENT and keep(granter):
             return Pairing(granter, "grant", best[0])
-    if (combined := _COMBINED.match(text)) is not None:
-        when, whenever, effect = combined.groups()
-        one = _best(f"{when}, {effect}", candidates)
-        two = _best(f"{whenever}, {effect}", candidates)
-        if one and two and one[1] is not two[1] and min(one[0], two[0]) >= CONFIDENT:
-            return Pairing(one[1], "split", min(one[0], two[0]), also=(two[1],))
+    if text.startswith(_TO_SOLVE):
+        solves = [
+            a
+            for a in candidates
+            if any(tag_of(c.node) == "SolveCase" for c in a.effects)
+        ]
+        if solves:
+            return Pairing(solves[0], "keyword", 1.0)
+    if (split := _split(text, candidates)) is not None:
+        return split
+    if (modal := _MODAL.match(text)) is not None:
+        heads = [a for a in candidates if a.normed == modal[1]]
+        if len(heads) == 1:
+            return Pairing(heads[0], "modal", 1.0)
     best = _best(text, candidates)
     if best is None or best[0] < CONFIDENT:
         if listed:

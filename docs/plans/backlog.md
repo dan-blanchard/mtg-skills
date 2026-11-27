@@ -407,14 +407,53 @@ phase-rs issue.
   board, continuous effects other than a pump's size (an object's abilities before
   and after its resolution; a pump beside a base-P/T set or a keyword grant:
   Tyvar's Stand), and the costs and
-  alternative costs in Arena's legal-action lists. Measured on the 33 archived
-  games, 2026-11-25, after saga chapters, keyword instances, pump sizes and the
-  chosen X went in: 7 pairings still unsure, all of two shapes — a modal
-  "choose one —" trigger Arena writes whole and phase writes per mode (Divining
-  Duelist, Archive Arbiter, Monument to Endurance), and "enters or dies" as one
-  Arena ability phase writes as two triggers the split rule misses (Apex
-  Witchstalker). The chosen X was checked in 6 resolutions (it is rare in play);
-  X doubled, halved or offset is not read.
+  alternative costs in Arena's legal-action lists. The chosen X was checked in 6
+  resolutions (it is rare in play); X doubled, halved or offset is not read. (The
+  modal and "enters or dies" pairings this entry listed pair since 2026-11-26.)
+- **What a corpus of other players' logs showed (2026-11-26).** Run over the public
+  manasight corpus (38 sessions, 95 games; `~/mtg/arena-log-corpus/`, triage in
+  `triage/triage.md`), `arena-crosscheck` reported 50 trigger mismatches and 4
+  failed checks, every one the tool's own fault. Fixed (ADR-0064): a created token
+  is an enter, a cast is remembered while its spell is on the stack, a cause-less
+  trigger reads its whole message, autojunk off, the split / ability-word / modal /
+  To-solve / mobilize / offspring pairings, `granted-keyword` and own-grant
+  `keyword-only`, emblems and rules holders (speed, earthbend's return), the
+  player half of "player or planeswalker", a spell's own exile and ending the turn,
+  an empty named group, a player counter's player and a control change's new
+  controller, a token put onto the battlefield attacking never "attacked" (CR
+  508.4), a Case's solve read off its `SolveCase` effect and solved designation,
+  and the vocabulary for double P/T, doubled counters,
+  poison, intensify, conjure, give control, class levels, become a copy, end the
+  turn, reveal-until, a stash counter on a move and a countered ability. After:
+  corpus 0 mismatches, 0 failed checks, 13 arena-extra, 7 phase-extra; the
+  owner's 40 archived games lost every unsure pairing, and 34 arena-extra rows
+  became agree or conditional (26 of them Fynn's poison). Left, each a lead or a log limit, not
+  scored: tapping or untapping an object already so logs nothing (Kaito, Bane of
+  Nightmares' −2, Hydro-Man, Stony Strength); Goliath Daydreamer's "exile …
+  instead … as it resolves" sets up a replacement, nothing moves on resolution;
+  Case of the Gateway Express's "each creature you control deals 1 damage" is
+  damage other objects deal, set aside; Karai, Future of the Foot's
+  game-sourced layered effect follows another source's counters; Shoot the
+  Sheriff logged nothing; 3 triggers set off by objects Arena put onto the
+  battlefield with no logged move (Stitcher's Supplier, Generous Ent) are
+  `not-logged` (phase parses both of Stitcher's Supplier's triggers: its old
+  `unsure` was the split rule missing "or"); a cause-less trigger reads events
+  logged after it in its message, so any such event satisfies it; a combined
+  "enters or dies" ability with a long effect can still pair by its whole text
+  with a one-half parse (before this fix too); a split pairing with one uncheckable half (Optimistic Scavenger's
+  "fully unlock") stays `unchecked`; conjure's card name and count, and a
+  doubled P/T's size, are not strict-checked; Shellfish Scholar's threshold
+  cost reduction is phase's `Unimplemented`, which `_card_ir/recovery.py`'s
+  `cast_from_zone` token mislabels a cast from a zone. Phase differences the
+  corpus found: Case of the Stashed Skeleton's "and suspect it" dropped from its
+  Token effect (CR 701.60a/c: menace, can't block), a real difference this tool
+  found from another player's log, already open upstream as phase-rs/phase #8106
+  and in phase's census (vetted 2026-11-26, measured in phase's engine at v0.134.0:
+  the token enters unsuspected and the Case solves at the first end step); phase
+  flags Absolving Lammasu's and Snarlfang Vermin's suspect clauses unsupported; and
+  phase's own `Unimplemented` on Awestruck Cygnet's intensify of "cards you own
+  named …" and Ace Flockbringer's "The duplicate perpetually gains flying". Nothing
+  new to file.
 
 **From a powered-cube draft tune (2026-11-02; fixed 2026-11-25, ADR-0055's two amendments)**
 

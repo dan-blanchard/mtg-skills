@@ -19,7 +19,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from mtg_utils._arena_crosscheck.check import Checker, crosscheck, load_ignores
+from mtg_utils._arena_crosscheck.check import checker_for, crosscheck
 from mtg_utils._arena_crosscheck.report import (
     ARCHIVE,
     render_markdown,
@@ -80,11 +80,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     if not paths:
         parser.error("no logs to read")
-    from mtg_utils._card_ir.trees import trees_for
     from mtg_utils.card_pool import CardPool
 
-    pool = CardPool.load(None)
-    checker = Checker(CardText(db), pool.by_name.get, trees_for, load_ignores())
+    checker = checker_for(CardText(db), CardPool.load(None))
     report = crosscheck(paths, checker, PHASE_TAG)
     sys.stdout.write(render_markdown(report))
     if args.json:

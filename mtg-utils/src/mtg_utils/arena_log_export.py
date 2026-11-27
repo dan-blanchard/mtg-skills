@@ -70,8 +70,7 @@ PRIVATE = Path.home() / "mtg" / "arena-log-corpus" / "private"
 
 def _signal_report() -> SignalReport:
     """``arena-crosscheck``'s report for one log file (its Python API)."""
-    from mtg_utils._arena_crosscheck.check import Checker, crosscheck, load_ignores
-    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils._arena_crosscheck.check import checker_for, crosscheck
     from mtg_utils._phase import PHASE_TAG
     from mtg_utils.arena_card_db import CardText, find_card_db
     from mtg_utils.card_pool import CardPool
@@ -82,8 +81,7 @@ def _signal_report() -> SignalReport:
             "no Arena card database found for the signal check "
             "(set MTG_SKILLS_ARENA_CARD_DB, or pass --skip-signal-check)"
         )
-    pool = CardPool.load(None)
-    checker = Checker(CardText(db), pool.by_name.get, trees_for, load_ignores())
+    checker = checker_for(CardText(db), CardPool.load(None))
     return lambda path: crosscheck([path], checker, PHASE_TAG)
 
 

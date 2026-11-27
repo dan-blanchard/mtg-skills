@@ -811,3 +811,620 @@ def test_cli_reads_the_logs_and_writes_the_report(
     report = json.loads(out.read_text())
     assert report["summary"]["resolutions"] == {"agree": 1}
     assert (archive / "reports" / f"{report['phase_tag']}.json").is_file()
+
+
+# -- what a corpus of other players' logs showed (2026-11-26) ----------------
+#
+# Fictional ids throughout; each card whose parse matters comes from testkit.
+def _add_card(card_db: Path, grp: int, name: str, *, token: bool = False) -> None:
+    con = sqlite3.connect(card_db)
+    con.execute("INSERT INTO Localizations_enUS VALUES (?, 0, ?)", (grp, name))
+    con.execute("INSERT INTO Cards VALUES (?, ?, 0, 0, ?)", (grp, grp, int(token)))
+    con.commit()
+    con.close()
+
+
+def _add_ability(
+    card_db: Path,
+    aid: int,
+    text: str,
+    *,
+    category: int = TRIGGERED,
+    keyword: str | None = None,
+    hidden_by: int | None = None,
+) -> None:
+    """An Arena ability: its text, the keyword it is an instance of (a
+    ``BaseId`` naming an ability with that keyword's text), the ability that
+    hides it (``HiddenByAbilityIds``)."""
+    con = sqlite3.connect(card_db)
+    con.execute("INSERT INTO Localizations_enUS VALUES (?, 1, ?)", (aid + 50000, text))
+    base = 0
+    if keyword is not None:
+        base = aid + 60000
+        con.execute(
+            "INSERT INTO Localizations_enUS VALUES (?, 1, ?)", (base + 50000, keyword)
+        )
+        con.execute(
+            "INSERT INTO Abilities VALUES (?, 3, ?, 0, NULL, 0)", (base, base + 50000)
+        )
+    con.execute(
+        "INSERT INTO Abilities VALUES (?, ?, ?, ?, ?, 0)",
+        (aid, category, aid + 50000, base, str(hidden_by) if hidden_by else None),
+    )
+    con.commit()
+    con.close()
+
+
+def _zones(*, stack=(), battlefield=()) -> list[dict]:
+    """The zones with the objects in the stack and on the battlefield."""
+    ids = {STACK: list(stack), BATTLEFIELD: list(battlefield)}
+    return [{**z, "objectInstanceIds": ids.get(z["zoneId"], [])} for z in ZONES]
+
+
+def _ability_obj(iid: int, grp: int, src: int, parent: int | None, **extra) -> dict:
+    return _obj(
+        iid,
+        grp,
+        kind="Ability",
+        types=(),
+        objectSourceGrpId=src,
+        parentId=parent,
+        **extra,
+    )
+
+
+def _fired(match: str, ability: dict, cause: int | None, *annotations: dict) -> dict:
+    """A message in which ``ability`` goes on the stack, set off by ``cause``."""
+    state = _state(
+        match,
+        [ability],
+        [
+            *annotations,
+            _ann(80, "AbilityInstanceCreated", cause, [ability["instanceId"]]),
+        ],
+    )
+    if cause is not None:
+        state["persistentAnnotations"] = [
+            _ann(81, "TriggeringObject", ability["instanceId"], [cause])
+        ]
+    return state
+
+
+def _resolves(match: str, inst: int, grp: int, *effects: dict, objects=()) -> dict:
+    return _state(
+        match,
+        list(objects),
+        [
+            _ann(1, "ResolutionStart", inst, [inst], grpid=grp),
+            *effects,
+            _ann(90, "ResolutionComplete", inst, [inst], grpid=grp),
+        ],
+    )
+
+
+def test_a_created_token_entered_the_battlefield(tmp_path):
+    """Arena logs a token's creation with no zone move. It entered the
+    battlefield all the same (CR 111.2), which an enters trigger watches. A
+    token put onto the battlefield attacking (mobilize's Warriors) was never
+    declared an attacker: it never "attacked" for a trigger (CR 508.4), though
+    its attack state says attacking; a creature declared an attacker did."""
+    attacking = {"attackState": "AttackState_Attacking"}
+    token = _obj(300, 9999, kind="Token", types=("Creature",), **attacking)
+    game = [
+        _state("t1", first=True),
+        _fired(
+            "t1",
+            _ability_obj(301, 8888, 7777, 200),
+            300,
+            _ann(10, "TokenCreated", 250, [300]),
+        ),
+    ]
+    game[1]["gameObjects"].append(token)
+    _, (fired,), _ = read_logs([_write(tmp_path / "a.log", game)])
+    assert fired.events == {"enters", "zone_change"}
+    # a creature on the battlefield before combat, declared an attacker
+    declared = [
+        _state("t2", [_obj(310, 9999, types=("Creature",))], first=True),
+        _fired("t2", _ability_obj(311, 8888, 7777, 200), 310),
+    ]
+    declared[1]["gameObjects"].append(_obj(310, 9999, types=("Creature",), **attacking))
+    _, (fired,), _ = read_logs([_write(tmp_path / "b.log", declared)])
+    assert fired.events == {"attacks"}
+
+
+def test_a_spells_cast_is_remembered_while_it_is_on_the_stack(tmp_path):
+    """A cast trigger can go on the stack many messages after the cast (each
+    mana tap and target choice is a message): the spell's cast still counts
+    while the spell is on the stack, and not once it has left."""
+    spell = _obj(100, 9998)
+    cast = _state(
+        "t2",
+        [spell],
+        [
+            _ann(
+                5,
+                "ZoneTransfer",
+                None,
+                [100],
+                zone_src=HAND,
+                zone_dest=STACK,
+                category="CastSpell",
+            )
+        ],
+    )
+    cast["zones"] = _zones(stack=[100])
+    taps = [
+        _state(
+            "t2", annotations=[_ann(6 + n, "TappedUntappedPermanent", 40 + n, [40 + n])]
+        )
+        for n in range(5)
+    ]
+    game = [
+        _state("t2", first=True),
+        cast,
+        *taps,
+        _fired("t2", _ability_obj(301, 8888, 7777, 200), 100),
+    ]
+    _, (fired,), _ = read_logs([_write(tmp_path / "a.log", game)])
+    assert "cast_spell" in fired.events
+    left = _state("t2", annotations=[])
+    left["zones"] = _zones()  # the spell resolved: off the stack
+    game = [*game[:-1], left, _fired("t2", _ability_obj(302, 8888, 7777, 200), 100)]
+    _, (fired,), _ = read_logs([_write(tmp_path / "b.log", game)])
+    assert "cast_spell" not in fired.events
+
+
+def test_a_trigger_logged_before_its_event_reads_its_whole_message(tmp_path):
+    """Arena can log a trigger ahead of the event that set it off in the same
+    message (a card leaving a graveyard, logged after the trigger); with no
+    object named, the whole message is the trigger's. A message without
+    ``turnInfo`` is in the turn the last one named."""
+    fired = _state(
+        "t3",
+        [_ability_obj(301, 8888, 7777, 200)],
+        [
+            _ann(5, "AbilityInstanceCreated", 200, [301]),
+            _ann(7, "ZoneTransfer", 12, [400], zone_src=GRAVEYARD, zone_dest=EXILE),
+        ],
+    )
+    del fired["turnInfo"]
+    _, (trigger,), _ = read_logs(
+        [_write(tmp_path / "Player.log", [_state("t3", first=True), fired])]
+    )
+    assert "zone_change" in trigger.events
+    assert trigger.turn == 3
+
+
+def test_a_long_text_scores_as_itself():
+    """difflib's autojunk drops every character common in a text over 200
+    characters: two identical long texts scored near 0."""
+    from mtg_utils._arena_crosscheck.align import _similarity
+
+    text = norm(_arena_text("Tinybones, Bauble Burglar"))
+    assert len(text) > 200
+    assert _similarity(text, text) == 1.0
+
+
+@pytest.mark.parametrize(
+    ("name", "line", "events"),
+    [
+        # "enters or dies" (CR 603.6a, 603.6c: two events of one object)
+        ("Stitcher's Supplier", 0, {"enters", "dies"}),
+        # two trigger conditions, an ability word in front (CR 207.2c)
+        ("Optimistic Scavenger", 0, {"enters", "fullyunlock"}),
+        # "When ~ enters and at the beginning of your upkeep"
+        ("Gathering Stone", 2, {"enters", "phase"}),
+    ],
+)
+def test_one_arena_ability_is_two_phase_triggers(name, line, events):
+    abilities = abilities_of(trees_for(_card_of(name)))
+    pairing = pair(_arena_text(name).splitlines()[line], abilities)
+    assert pairing.method == "split"
+    assert {a.trigger_event for a in pairing.abilities} == events
+
+
+def test_an_ability_word_is_dropped():
+    """An ability word has no rules meaning (CR 207.2c): Arena writes one in
+    front of Brave Meadowguard's "Valiant — Whenever …", phase need not."""
+    assert norm("Valiant — Whenever CARDNAME attacks") == "whenever ~ attacks"
+    assert (
+        norm("Mobilize — create Warrior tokens") == "mobilize — create warrior tokens"
+    )
+
+
+def test_a_modal_trigger_pairs_with_phases_condition():
+    """Phase writes a modal trigger's description as its condition alone."""
+    abilities = abilities_of(trees_for(_card_of("Gaius van Baelsar")))
+    text = _arena_text("Gaius van Baelsar").split("•")[0]
+    pairing = pair(text, abilities)
+    assert (pairing.method, pairing.ability.trigger_event) == ("modal", "enters")
+
+
+@pytest.mark.parametrize(
+    ("name", "text", "keyword", "event"),
+    [
+        # CR 702.181a: "Whenever this creature attacks, create N … tokens"
+        ("Voice of Victory", "Mobilize 2", "Mobilize", "attacks"),
+        # CR 702.175a: "When this permanent enters, if its offspring cost was paid"
+        ("Pawpatch Recruit", "Offspring {o2}", "Offspring", "enters"),
+        # CR 719.3a: "To solve — [condition]" is an end-step trigger
+        (
+            "Case of the Gateway Express",
+            "To solve — Three or more creatures attacked this turn.",
+            None,
+            "phase",
+        ),
+    ],
+)
+def test_a_keyword_pairs_with_phases_ability_for_it(name, text, keyword, event):
+    abilities = abilities_of(trees_for(_card_of(name)))
+    pairing = pair(text, abilities, keyword=keyword)
+    assert (pairing.method, pairing.ability.trigger_event) == ("keyword", event)
+
+
+def _checker(card_db: Path, keywords: frozenset[str] = frozenset()) -> Checker:
+    return Checker(CardText(card_db), _card_of, trees_for, [], keywords)
+
+
+def test_a_keyword_another_object_granted_is_labelled(card_db, tmp_path):
+    """Empyrean Eagle has no decayed of its own: a decayed counter gave it. A
+    keyword the card's own ability grants is the card's (Bloodbraid Marauder's
+    "This spell has cascade as long as …")."""
+    eagle, marauder = 3001, 3002
+    _add_card(card_db, eagle, test_card("Empyrean Eagle")["name"])
+    _add_card(card_db, marauder, test_card("Bloodbraid Marauder")["name"])
+    _add_ability(card_db, 4001, "Decayed")
+    _add_ability(card_db, 4002, "Cascade")
+    game = [
+        _state("k1", first=True),
+        _resolves("k1", 301, 4001, objects=[_ability_obj(301, 4001, eagle, 300)]),
+        _fired("k1", _ability_obj(311, 4002, marauder, 310), 310),
+    ]
+    log = _write(tmp_path / "Player.log", game)
+    checker = _checker(card_db, frozenset({"decayed", "cascade"}))
+    report = crosscheck([log], checker, "vtest")
+    (res,) = report["resolutions"]
+    assert (res["card"], res["status"], res["keyword"]) == (
+        "Empyrean Eagle",
+        "granted-keyword",
+        "decayed",
+    )
+    (trig,) = report["triggers"]
+    assert (trig["card"], trig["status"]) == ("Bloodbraid Marauder", "keyword-only")
+    # no keyword vocabulary, no keyword: an unsure pairing, as before
+    report = crosscheck([log], _checker(card_db), "vtest")
+    assert report["resolutions"][0]["status"] == "unsure-pairing"
+
+
+def test_rules_objects_and_emblems(card_db, tmp_path):
+    """Speed's trigger "has no source" (CR 702.179d): Arena hangs it on a trigger
+    holder it names "Start Your Engines!". Earthbend's return (CR 701.66a) is a
+    holder's with no card at all. An emblem's ability is its source card's (CR
+    114.1), though Arena's database files it under the ability that made it."""
+    engines, vraska = 3011, 3012
+    speed, ret, emblem_ab, ultimate = 4011, 4012, 4013, 4014
+    _add_card(card_db, engines, "Start Your Engines!", token=True)
+    _add_card(card_db, vraska, test_card("Vraska, Golgari Queen")["name"])
+    _add_ability(
+        card_db,
+        speed,
+        "Whenever one or more opponents lose life during your turn, if your speed "
+        "is less than 4, increase your speed by 1. This ability triggers only once "
+        "each turn.",
+    )
+    _add_ability(
+        card_db, ret, "Return that land to the battlefield tapped under your control"
+    )
+    _add_ability(
+        card_db,
+        emblem_ab,
+        "Whenever a creature you control deals combat damage to a player, that player loses the game.",
+        hidden_by=ultimate,
+    )
+    holder = _obj(400, 5, kind="TriggerHolder", types=(), objectSourceGrpId=engines)
+    emblem = _obj(420, 2, kind="Emblem", types=(), objectSourceGrpId=vraska)
+    land = _obj(430, 55555, types=("Land",))
+    attacker = _obj(440, 55556, types=("Creature",))
+    game = [
+        _state("r1", [holder, emblem, land, attacker], first=True),
+        _fired(
+            "r1",
+            _ability_obj(401, speed, 5, 400),
+            None,
+            _ann(10, "ModifiedLife", 7, [2], life=-1),
+        ),
+        _resolves("r1", 401, speed, objects=[_ability_obj(401, speed, 5, 400)]),
+        _resolves(
+            "r1",
+            411,
+            ret,
+            _ann(
+                2, "ZoneTransfer", 411, [431], zone_src=GRAVEYARD, zone_dest=BATTLEFIELD
+            ),
+            objects=[_ability_obj(411, ret, 5, 430)],
+        ),
+        _fired(
+            "r1",
+            _ability_obj(421, emblem_ab, 2, 420),
+            440,
+            _ann(10, "DamageDealt", 440, [2], damage=2, type=1),
+        ),
+    ]
+    report = _run(card_db, _write(tmp_path / "Player.log", game))
+    speed_res, ret_res = report["resolutions"]
+    assert (speed_res["card"], speed_res["status"]) == (
+        "Start Your Engines!",
+        "rules-object",
+    )
+    assert (ret_res["card"], ret_res["status"]) == (None, "agree")
+    speed_trig, emblem_trig = report["triggers"]
+    assert speed_trig["status"] == "rules-object"
+    assert emblem_trig["card"] == "Vraska, Golgari Queen"
+    assert emblem_trig["warnings"] == ["emblem"]
+    assert (emblem_trig["phase_event"], emblem_trig["status"]) == (
+        "deals_damage",
+        "match",
+    )
+
+
+def _etb_game(match: str, card: int, etb: int, *effects: dict, others=()) -> list[dict]:
+    """Card instance 500 on the battlefield (with ``others``), its ability 501 resolving."""
+    first = _state(match, [_obj(500, card, types=("Creature",)), *others], first=True)
+    first["zones"] = _zones(battlefield=[500, *(o["instanceId"] for o in others)])
+    return [
+        first,
+        _resolves(
+            match, 501, etb, *effects, objects=[_ability_obj(501, etb, card, 500)]
+        ),
+    ]
+
+
+def test_a_player_or_planeswalker_target_may_be_the_player(card_db, tmp_path):
+    """Sunscorched Desert's "target player or planeswalker": a damaged player is
+    the target's player half, no wrong type."""
+    desert, etb = 3021, 4021
+    _add_card(card_db, desert, test_card("Sunscorched Desert")["name"])
+    _add_ability(card_db, etb, _arena_text("Sunscorched Desert").splitlines()[0])
+    game = _etb_game(
+        "v1",
+        desert,
+        etb,
+        _ann(2, "DamageDealt", 501, [2], damage=1, type=2),
+        _ann(3, "ModifiedLife", 501, [2], life=-1),
+    )
+    _row, checks = _checks_of(card_db, tmp_path, game)
+    assert checks["damage target type"]["ok"]
+
+
+@pytest.mark.parametrize(
+    ("name", "moves"),
+    [
+        # "… airbend all other creatures. … Exile Avatar's Wrath."
+        ("Avatar's Wrath", [(BATTLEFIELD, EXILE, "Exile")]),
+        # "Destroy all artifacts and creatures. End the turn." (CR 724.1b)
+        ("Ultima", [(BATTLEFIELD, GRAVEYARD, "Destroy")]),
+    ],
+)
+def test_the_spell_moving_itself_is_no_wrong_type(card_db, tmp_path, name, moves):
+    """A spell's own "Exile ~", and ending the turn exiling every object on the
+    stack the resolving spell among them, move the sorcery itself: its type is
+    no creature's or artifact's."""
+    spell = 3031
+    _add_card(card_db, spell, test_card(name)["name"])
+    theirs = _obj(300, VISIONARY, types=("Creature",), controller=2)
+    game = _spell_game(
+        spell,
+        *(
+            _ann(2 + n, "ZoneTransfer", 100, [300], zone_src=a, zone_dest=b, category=c)
+            for n, (a, b, c) in enumerate(moves)
+        ),
+        _ann(10, "ObjectIdChanged", 100, [100], orig_id=100, new_id=110),
+        _ann(
+            11,
+            "ZoneTransfer",
+            100,
+            [110],
+            zone_src=STACK,
+            zone_dest=EXILE,
+            category="Exile",
+        ),
+        objects=[theirs, _obj(110, spell, types=("Sorcery",))],
+    )
+    game[0]["gameObjects"][0]["cardTypes"] = ["CardType_Sorcery"]
+    row, checks = _checks_of(card_db, tmp_path, game)
+    assert checks["moved object type"]["ok"]
+    assert all(c["ok"] for c in row["checks"])
+    assert "move:Stack->Exile" not in row["unexplained"]
+
+
+def test_each_other_creature_named_x_may_be_none(card_db, tmp_path):
+    """Baloth Packhunter's "two +1/+1 counters on each other creature you control
+    named Baloth Packhunter": with no other one on the battlefield nothing gets
+    a counter, and that is no missing effect; with another, it is."""
+    baloth, etb = 3041, 4041
+    _add_card(card_db, baloth, test_card("Baloth Packhunter")["name"])
+    # Arena's text keeps the name the filter matches ("named Baloth Packhunter")
+    _add_ability(
+        card_db,
+        etb,
+        "When CARDNAME enters, put two +1/+1 counters on each other creature you "
+        "control named Baloth Packhunter.",
+    )
+    report = _run(card_db, _write(tmp_path / "a.log", _etb_game("g1", baloth, etb)))
+    assert report["resolutions"][0]["status"] == "conditional"
+    other = _obj(502, baloth, types=("Creature",))
+    report = _run(
+        card_db,
+        _write(tmp_path / "b.log", _etb_game("g2", baloth, etb, others=[other])),
+    )
+    assert report["resolutions"][0]["status"] == "phase-extra"
+    counters = _ann(2, "CounterAdded", 501, [502], counter_type=1, transaction_amount=2)
+    game = _etb_game("g3", baloth, etb, counters, others=[other])
+    row, checks = _checks_of(card_db, tmp_path, game)
+    assert row["status"] == "agree"
+    assert checks["counter amount"]["ok"]
+
+
+def test_poison_counters_are_a_players_counters(card_db, tmp_path):
+    """Fynn's "that player gets two poison counters" (CR 122.1): a counter on a
+    player, its kind and number checked."""
+    fynn, trig = 3051, 4051
+    _add_card(card_db, fynn, test_card("Fynn, the Fangbearer")["name"])
+    _add_ability(card_db, trig, _arena_text("Fynn, the Fangbearer").splitlines()[1])
+    con = sqlite3.connect(card_db)
+    con.execute("INSERT INTO Localizations_enUS VALUES (9010, 1, 'Poison')")
+    con.execute("INSERT INTO Enums VALUES ('CounterType', 4, 9010)")
+    con.commit()
+    con.close()
+    game = _etb_game(
+        "p1",
+        fynn,
+        trig,
+        _ann(2, "CounterAdded", 501, [2], counter_type=4, transaction_amount=2),
+    )
+    row, checks = _checks_of(card_db, tmp_path, game)
+    assert row["status"] == "agree"
+    assert checks["counter type"]["observed"] == "poison"
+    assert checks["counter amount"]["ok"]
+
+
+def test_a_countered_ability_is_the_counters_effect(card_db, tmp_path):
+    """Arena files a countered ability's deletion under the ability's source;
+    it is the counter's effect when the ability is its target (CR 701.6a)."""
+    stifle = 3061
+    _add_card(card_db, stifle, test_card("Stifle")["name"])
+    game = _spell_game(stifle, _ann(2, "AbilityInstanceDeleted", 355, [356]))
+    game[0]["persistentAnnotations"] = [
+        _ann(50, "TargetSpec", 100, [356], promptParameters=100)
+    ]
+    report = _run(card_db, _write(tmp_path / "Player.log", game))
+    (row,) = report["resolutions"]
+    assert (row["arena"], row["status"]) == (["counter_spell"], "agree")
+    del game[0]["persistentAnnotations"]  # not its target: another's doing
+    report = _run(card_db, _write(tmp_path / "b.log", game))
+    assert report["resolutions"][0]["status"] == "phase-extra"
+
+
+@pytest.mark.parametrize(
+    ("name", "index", "observed", "status"),
+    [
+        ("Tifa Lockhart", 0, {"continuous"}, "agree"),  # double power, CR 701.10a
+        ("Mossborn Hydra", 0, {"counter_add", "continuous"}, "agree"),  # CR 701.10e
+        ("Harmless Offering", 0, {"gain_control", "continuous"}, "agree"),
+        ("Thespian's Stage", 1, {"continuous"}, "agree"),  # a copy, CR 707.2
+        ("Innkeeper's Talent", 0, {"continuous"}, "agree"),  # Level 2: a static
+        ("Innkeeper's Talent", 1, set(), "agree"),  # Level 3: a replacement
+        ("Drix Interlacer", 1, {"designation"}, "agree"),  # intensify
+        ("Brave Meadowguard", 0, {"move:Limbo->Hand"}, "agree"),  # conjure
+        ("Brave Meadowguard", 0, {"token"}, "arena-extra"),  # a conjured card: no token
+        ("Sandcloud Harbinger", 0, {"move:Limbo->Library"}, "agree"),
+        ("Ultima", 0, {"destroy", "move:Stack->Exile"}, "agree"),  # CR 724.1b
+        (
+            "Tinybones, Bauble Burglar",
+            1,
+            {"move:Graveyard->Exile", "counter_add"},
+            "agree",
+        ),
+        ("Tishana's Tidebinder", 0, {"counter_spell", "continuous"}, "agree"),
+    ],
+)
+def test_effect_vocabulary(name, index, observed, status):
+    abilities = [
+        a for a in abilities_of(trees_for(_card_of(name))) if a.origin != "granted"
+    ]
+    assert compare_kinds(observed, [abilities[index]]).status == status
+
+
+def test_a_split_needs_two_different_triggers():
+    """Each half of a combined Arena ability must pair with its own phase
+    trigger: both halves near one trigger is no split."""
+    enters = [
+        a
+        for a in abilities_of(trees_for(_card_of("Stitcher's Supplier")))
+        if a.trigger_event == "enters"
+    ]
+    text = _arena_text("Stitcher's Supplier").splitlines()[0]
+    assert pair(text, enters).method != "split"
+
+
+def test_a_player_isnt_a_creature_or_planeswalker_target(card_db, tmp_path):
+    """Strangle deals 3 damage to target creature or planeswalker: a damaged
+    player is no target it could have had."""
+    strangle = 3071
+    _add_card(card_db, strangle, test_card("Strangle")["name"])
+    game = _spell_game(
+        strangle,
+        _ann(2, "DamageDealt", 100, [2], damage=3, type=2),
+        _ann(3, "ModifiedLife", 100, [2], life=-3),
+    )
+    game[0]["gameObjects"][0]["cardTypes"] = ["CardType_Sorcery"]
+    _row, checks = _checks_of(card_db, tmp_path, game)
+    assert not checks["damage target type"]["ok"]
+
+
+@pytest.mark.parametrize(("seat", "ok"), [(2, True), (1, False)])
+def test_poison_goes_to_the_player_fynns_creature_hit(card_db, tmp_path, seat, ok):
+    """Fynn's "that player" is the player a creature of yours dealt combat damage
+    to: an attacking creature's, the player it attacks (CR 510.1b), an opponent
+    (CR 506.2). Poison on its own controller is the wrong player."""
+    fynn, trig = 3081, 4081
+    _add_card(card_db, fynn, test_card("Fynn, the Fangbearer")["name"])
+    _add_ability(card_db, trig, _arena_text("Fynn, the Fangbearer").splitlines()[1])
+    counters = _ann(
+        2, "CounterAdded", 501, [seat], counter_type=1, transaction_amount=2
+    )
+    _row, checks = _checks_of(card_db, tmp_path, _etb_game("p2", fynn, trig, counters))
+    assert checks["counter player"]["ok"] is ok
+    assert checks["counter player"]["expected"] == ["opponent"]
+
+
+@pytest.mark.parametrize(
+    ("name", "now", "ok"),
+    [
+        # "Target opponent gains control of target permanent you control."
+        ("Harmless Offering", 2, True),
+        ("Harmless Offering", 1, False),
+        # "Gain control of target creature until end of turn."
+        ("Act of Treason", 1, True),
+        ("Act of Treason", 2, False),
+    ],
+)
+def test_who_ends_up_controlling_it(card_db, tmp_path, name, now, ok):
+    """Giving control away and gaining it are two directions: Arena logs the
+    object under its new controller."""
+    spell = 3091
+    _add_card(card_db, spell, test_card(name)["name"])
+    before = 1 if name == "Harmless Offering" else 2
+    moved = _obj(300, VISIONARY, types=("Creature",), controller=before)
+    game = _spell_game(spell, _ann(2, "ControllerChanged", 100, [300]), objects=[moved])
+    game[1]["gameObjects"] = [_obj(300, VISIONARY, types=("Creature",), controller=now)]
+    row, checks = _checks_of(card_db, tmp_path, game)
+    assert checks["new controller"]["ok"] is ok
+    assert ("give_control" if before == 1 else "gain_control") in row["phase"]
+
+
+def test_a_case_solves_by_its_solve_effect(card_db, tmp_path):
+    """A Case's "To solve" pairs with phase's trigger that solves it, and the
+    solve shows as the designation Arena marks the Case with while the trigger
+    resolves (CR 719.3b: solved is a designation)."""
+    case, solve = 3101, 4101
+    _add_card(card_db, case, test_card("Case of the Gateway Express")["name"])
+    _add_ability(
+        card_db, solve, "To solve — Three or more creatures attacked this turn."
+    )
+
+    def solved(*, marked: bool) -> list[dict]:
+        game = _etb_game("c1", case, solve)
+        game[0]["gameObjects"][0]["cardTypes"] = ["CardType_Enchantment"]
+        if marked:
+            game[1]["persistentAnnotations"] = [
+                _ann(50, "Designation", 500, [500], DesignationType=15)
+            ]
+        return game
+
+    report = _run(card_db, _write(tmp_path / "a.log", solved(marked=True)))
+    (row,) = report["resolutions"]
+    assert (row["pairing"], row["status"]) == ("keyword", "agree")
+    assert row["arena"] == ["marked"]
+    report = _run(card_db, _write(tmp_path / "b.log", solved(marked=False)))
+    assert report["resolutions"][0]["status"] != "agree"
