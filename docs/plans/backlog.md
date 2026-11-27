@@ -20,29 +20,11 @@ phase-rs issue.
 
 **From the closing precon scoreboard (2026-11-26, N18 at e25fb0d3 against N17 at 2720444a; `~/mtg/tuner-work/w-2026-11-25/`)**
 
-- **A near tie at a theme page's head still flips the promoted card** (traced
-  2026-11-26, `~/mtg/tuner-work/w-2026-11-26/rift/`). `_theme_ties` now anchors
-  an exact tie at the head on the best read among the tied cards (2026-11-27).
-  The traced case was not exact, though. Call for Backup's card-draw blend had
-  Guardian Project and Sylvan Library tied at 2.7676 at N17. 0493e4e2's evasion
-  read then moved Sylvan Library ahead by a hair, so the on-theme card within
-  `_THEME_TIE` of the head became Mask of Memory (read 0.339, near Sylvan
-  Library's 0.389) instead of Tribute to the World Tree (0.58, Guardian
-  Project's). A small input change can still flip the head of a near tie.
-  Anchoring the tie on every off-theme card within some distance of the head's
-  lead (not only an equal one) would steady it, at the cost of a new tolerance
-  to choose and measure. Nothing is built.
 - **A reanimation bound phase drops whole is read as none** (ADR-0066).
   Reunion of the House's "total power 10 or less" is absent from its typed target,
   so the curve cap counts it as returning any creature card (UPSTREAM-KNOWN). The
   named-combo-piece guard half of this entry was measured and stays stricter
   (ADR-0066, 2026-11-27).
-- **An untyped cheat lifts the curve cap for every permanent card** (ADR-0066).
-  Genesis Hydra, Emergent Woodwurm and Broodcaller Scourge cheat only up to a
-  bound, but `cheat_into_play|you|` carries none: its subject is the card type.
-  Bounding it would mean reading each emitter's trees, as the reanimation read
-  does. Self-paying cards were the other half of this entry; they are priced by
-  what the deck feeds them (Dan's decision, 2026-11-27).
 - **Settling up the budget the even share held back: v1 held, v2 landed** (2026-11-26).
   - *The cause.* TyranidSwarm_40K lost Cyclonic Rift as an add (traced
     2026-11-26). At Exocrine's board-wipe upgrade, three swaps from the end with
@@ -95,6 +77,17 @@ phase-rs issue.
     reading of the 19 decks was 2 better, 6 worse, 11 sideways (it hands some of
     N28's settled upgrades back to cheaper cards: Phyrexian Altar to Burnished
     Hart). Don't re-litigate the default without a new measurement.
+  - *What landed together, the new baseline N36* (2026-11-27; the self-paying cap,
+    the cheaper window and its reach, the exact-tie anchor, the gain order; files
+    in `~/mtg/tuner-work/w-2026-11-27/`, `RUNS.md`). Main's read fixes since N28
+    change no deck (N36b, main 85ff13e1 alone, is N28 on all 55). N36 against it:
+    259 pairs in 40 decks; the 25 727 / 342 cuts / 121 guide adds / plan 499 /
+    job 42; the held-out 20 562 / 264 / 111 / 412 / 39; the fresh 10 293 / 124 /
+    49 / 170 / 17. On the held-out 20 the plan is -3 (the primary fails), guide
+    adds plus job-equivalents 0 and cuts 0 (both floors hold). 238 of the 259
+    pairs are the window's or the gain order's own; a reading of twenty was 4
+    better, 5 worse, 11 sideways. Dan landed both on the floors, knowing each
+    one's numbers.
 
 **From ranking the upstream drafts (2026-11-25; `docs/plans/phase-upstream-issues/ranking.md`)**
 
@@ -843,6 +836,27 @@ headroom and parked items.
 
 ## Settled: don't re-suggest
 
+- **A near tie at a theme page's head still flips the promoted card** (traced
+  2026-11-26, `~/mtg/tuner-work/w-2026-11-26/rift/`). `_theme_ties` now anchors
+  an exact tie at the head on the best read among the tied cards (2026-11-27).
+  The traced case was not exact, though. Call for Backup's card-draw blend had
+  Guardian Project and Sylvan Library tied at 2.7676 at N17. 0493e4e2's evasion
+  read then moved Sylvan Library ahead by a hair, so the on-theme card within
+  `_THEME_TIE` of the head became Mask of Memory (read 0.339, near Sylvan
+  Library's 0.389) instead of Tribute to the World Tree (0.58, Guardian
+  Project's). A small input change can still flip the head of a near tie.
+  Anchoring the tie on every off-theme card within some distance of the head's
+  lead (not only an equal one) would steady it, at the cost of a new tolerance
+  to choose and measure. Left as a limit (Dan, 2026-11-27: one traced case, and
+  a tolerance is another knob that reshuffles picks).
+- **An untyped cheat lifts the curve cap for every permanent card** (ADR-0066).
+  Genesis Hydra, Emergent Woodwurm and Broodcaller Scourge cheat only up to a
+  bound, but `cheat_into_play|you|` carries none: its subject is the card type.
+  Bounding it would mean reading each emitter's trees, as the reanimation read
+  does. Self-paying cards were the other half of this entry; they are priced by
+  what the deck feeds them (Dan's decision, 2026-11-27). The untyped cheat's bound
+  is left as a limit (Dan, 2026-11-27): a deck holding one of the three gets a
+  looser cap, never a wrong refusal.
 - **Earthbend is its own thing; the counter keywords count, under `counters`**
   (Dan, 2026-11-27; ADR-0065). Earthbend's +1/+1 counters go on the land it
   animates (CR 701.66a): no `boosts_others` and no own target
