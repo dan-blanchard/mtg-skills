@@ -217,16 +217,25 @@ class TestInstall:
 
 
 class TestDuelFilesPatch:
-    # Minimal ai_duel.rs carrying the four patch anchors.
+    # Minimal ai_duel.rs carrying the five patch anchors (phase v0.133.0's shape:
+    # options parsed into a CliOptions struct).
     _FAKE_SRC = (
-        "fn main() {\n"
-        '    let mut matchup = "red-vs-green".to_string();\n'
-        "    while let Some(arg) = it.next() {\n"
+        "struct CliOptions {\n"
+        "    matchup: String,\n"
+        "}\n\n"
+        "fn parse_cli() -> CliOptions {\n"
+        "    let mut cli = CliOptions {\n"
+        '            matchup: "red-vs-green".to_string(),\n'
+        "    };\n"
+        "    while let Some(arg) = args.next() {\n"
         "        match arg {\n"
-        '            "--suite" => mode = Mode::Suite,\n'
+        '            "--matchup" => cli.matchup = take_value(&mut args, "--matchup")?.clone(),\n'
         "        }\n"
         "    }\n"
-        "    match mode {\n"
+        "    cli\n"
+        "}\n\n"
+        "fn main() {\n"
+        "    match cli.mode {\n"
         "        Mode::Single => run_single(),\n"
         "    }\n"
         "}\n\n"
@@ -239,7 +248,7 @@ class TestDuelFilesPatch:
         src.write_text(self._FAKE_SRC)
         return src
 
-    def test_applies_all_four_edits(self, tmp_path):
+    def test_applies_every_edit(self, tmp_path):
         src = self._write_src(tmp_path)
         _phase._apply_duel_files_patch(tmp_path)
         text = src.read_text()
@@ -249,9 +258,9 @@ class TestDuelFilesPatch:
         assert "fn run_matchup_files(" in text
         assert "fn read_deck_file(" in text
         # dispatch grafted ahead of the mode match
-        assert text.index("if let Some((ref a, ref b)) = matchup_files") < text.index(
-            "match mode {"
-        )
+        assert text.index(
+            "if let Some((ref a, ref b)) = cli.matchup_files"
+        ) < text.index("match cli.mode {")
 
     def test_idempotent(self, tmp_path):
         src = self._write_src(tmp_path)

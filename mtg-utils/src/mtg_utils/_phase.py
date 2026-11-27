@@ -123,12 +123,15 @@ _DUEL_FILES_MARKER = "// matchup-files patch (mtg-skills)"
 
 # The two functions the patch grafts ahead of ai_duel.rs's `fn run_game(`. Plain
 # string (Rust braces are literal here — NOT a Python f-string). Imports it needs
-# (PlayerDeckList / DeckList / resolve_deck_list / CardDatabase / AiDifficulty /
-# PlayerId / Instant) are all already in ai_duel.rs's `use` block.
+# (DeckList / resolve_deck_list / CardDatabase / ComboTable / AiDifficulty /
+# PlayerId / Instant) are all already in ai_duel.rs's `use` block; PlayerDeckList
+# is named by its full path (v0.133.0's `use` block no longer imports it).
 _DUEL_FILES_FNS = """\
 // matchup-files patch (mtg-skills): load two phase-native deck files into a
 // 2-player batch, restoring the v0.1.60 --matchup-files affordance v0.8.0 dropped.
-fn read_deck_file(path: &std::path::Path) -> (PlayerDeckList, String) {
+fn read_deck_file(
+    path: &std::path::Path,
+) -> (engine::game::deck_loading::PlayerDeckList, String) {
     let file = std::fs::File::open(path).unwrap_or_else(|e| {
         eprintln!("failed to open deck {}: {e}", path.display());
         std::process::exit(1);
@@ -153,7 +156,7 @@ fn read_deck_file(path: &std::path::Path) -> (PlayerDeckList, String) {
         .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
         .unwrap_or_default();
     (
-        PlayerDeckList {
+        engine::game::deck_loading::PlayerDeckList {
             main_deck,
             commander,
             ..Default::default()
@@ -162,8 +165,10 @@ fn read_deck_file(path: &std::path::Path) -> (PlayerDeckList, String) {
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_matchup_files(
     db: &CardDatabase,
+    combos: &ComboTable,
     a_path: &std::path::Path,
     b_path: &std::path::Path,
     batch: Option<usize>,
@@ -178,7 +183,7 @@ fn run_matchup_files(
         opponent: b_list,
         ..Default::default()
     };
-    let payload = resolve_deck_list(db, &deck_list);
+    let payload = resolve_deck_list(db, combos, &deck_list);
 
     let game_count = batch.unwrap_or(1);
     let mut p0_wins: usize = 0;
@@ -189,7 +194,8 @@ fn run_matchup_files(
     for game_idx in 0..game_count {
         let game_seed = base_seed + game_idx as u64;
         let start = Instant::now();
-        let (winner, turns) = run_game(&payload, game_seed, difficulty, verbose, true);
+        let (winner, turns) =
+            run_game(db, &payload, game_seed, difficulty, verbose, true);
         let elapsed = start.elapsed().as_millis();
         match winner {
             Some(PlayerId(0)) => p0_wins += 1,
@@ -238,40 +244,57 @@ def _apply_duel_files_patch(repo: Path) -> None:
     if _DUEL_FILES_MARKER in text:
         return  # already patched (idempotent)
     edits = [
-        # 1. declare the option holding the two deck-file paths
+        # 1. declare the option holding the two deck-file paths (struct + default)
         (
-            'let mut matchup = "red-vs-green".to_string();',
-            'let mut matchup = "red-vs-green".to_string();\n'
-            "    let mut matchup_files: Option<(PathBuf, PathBuf)> = None;  "
-            + _DUEL_FILES_MARKER,
+            "    matchup: String,\n",
+            (
+                "    matchup: String,\n"
+                "    matchup_files: Option<(PathBuf, PathBuf)>, "
+                + _DUEL_FILES_MARKER
+                + "\n"
+            ),
         ),
-        # 2. parse the flag (two positional values) ahead of the --suite arm
         (
-            '"--suite" => mode = Mode::Suite,',
+            '            matchup: "red-vs-green".to_string(),\n',
+            (
+                '            matchup: "red-vs-green".to_string(),\n'
+                "            matchup_files: None,\n"
+            ),
+        ),
+        # 2. parse the flag (two values) ahead of the --matchup arm
+        (
+            '"--matchup" => cli.matchup = take_value(&mut args, "--matchup")?.clone(),',
             (
                 '"--matchup-files" => {\n'
-                # Split mid-expression purely to stay under the line limit — the
-                # concatenated value is the Rust source this patch injects verbatim.
-                "                let a = args_iter.next()"
-                ".cloned().unwrap_or_default();\n"
-                "                let b = args_iter.next()"
-                ".cloned().unwrap_or_default();\n"
-                "                matchup_files ="
+                "                let a = take_value(&mut args,"
+                ' "--matchup-files")?.clone();\n'
+                "                let b = take_value(&mut args,"
+                ' "--matchup-files")?.clone();\n'
+                "                cli.matchup_files ="
                 " Some((PathBuf::from(a), PathBuf::from(b)));\n"
                 "            }\n"
-                '            "--suite" => mode = Mode::Suite,'
+                '            "--matchup" => cli.matchup ='
+                ' take_value(&mut args, "--matchup")?.clone(),'
             ),
         ),
         # 3. dispatch to the custom runner before the built-in mode match
         (
-            "    match mode {\n",
+            "    match cli.mode {\n",
             (
-                "    if let Some((ref a, ref b)) = matchup_files {\n"
-                "        run_matchup_files("
-                "&db, a, b, batch, base_seed, difficulty, verbose);\n"
+                "    if let Some((ref a, ref b)) = cli.matchup_files {\n"
+                "        run_matchup_files(\n"
+                "            &db,\n"
+                "            &combos,\n"
+                "            a,\n"
+                "            b,\n"
+                "            cli.batch,\n"
+                "            base_seed,\n"
+                "            cli.difficulty,\n"
+                "            cli.verbose,\n"
+                "        );\n"
                 "        return;\n"
                 "    }\n\n"
-                "    match mode {\n"
+                "    match cli.mode {\n"
             ),
         ),
         # 4. the runner + deck-file reader, ahead of run_game
