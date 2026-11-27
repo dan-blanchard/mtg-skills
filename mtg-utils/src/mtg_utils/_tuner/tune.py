@@ -88,6 +88,10 @@ class TuneParams:
     # and 3 of 58 guide land rows matched, so a tune that wants its mana base
     # fixed asks for it (``deck-tune --land-swaps``).
     land_swaps: bool = False
+    # The settle-up's order (``SwapContext.settle_order``): ``"gain"``, the
+    # default, the largest rank gain first (Dan's decision, 2026-11-27), or
+    # ``"swap"``, the swaps' own order.
+    settle_order: str = "gain"
 
 
 def _deck_identity(hd: HydratedDeck) -> str:
@@ -623,6 +627,7 @@ def tune(
             playrate=cal.playrate_meaningful,
             playrate_condemns=condemns,
             curve_room=cal.curve_room,
+            settle_order=params.settle_order,
             exclude=params.exclude,
             deck_mana=deck_mana,
             need_avenues=need_avenues,

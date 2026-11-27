@@ -3730,7 +3730,8 @@ def test_with_no_budget_to_spend_nothing_settles(monkeypatch):
     """The owned-only pass and a tier of no wildcards spend nothing, so the
     settle-up runs no search (``_Purse.limited_by_spend``): every candidate is
     read once. With a budget Swords to Plowshares, priced out past the share,
-    is read again."""
+    is read again: once as the largest-gain order looks at the swap, once as it
+    takes the card."""
     from mtg_utils._tuner import swaps as swaps_mod
 
     reads = []
@@ -3763,6 +3764,16 @@ def test_with_no_budget_to_spend_nothing_settles(monkeypatch):
         assert reads.count("Swords to Plowshares") == 1
     reads.clear()
     _removal_swaps(pool, budget=20.0, max_swaps=5, cuts=("Murder",), **owned)
+    assert reads.count("Swords to Plowshares") == 3
+    reads.clear()
+    _removal_swaps(
+        pool,
+        budget=20.0,
+        max_swaps=5,
+        cuts=("Murder",),
+        settle_order="swap",
+        **owned,
+    )
     assert reads.count("Swords to Plowshares") == 2
 
 
@@ -3800,12 +3811,21 @@ def _two_removal_upgrades(*, settle_up=True, **ctx_extra):
 
 
 def test_settling_up_upgrades_one_swap_in_place_and_frees_nothing_for_another():
-    """Settled up, Murder's swap takes Swords to Plowshares, ranked ahead of
-    Path to Exile on its own search and paid from the money left. Path, freed,
-    goes to no later settle-up: it was held when the main loop ended, so Doom
-    Blade keeps Hero's Downfall (the held v1 gave it Path, and each such chain
-    lost guide adds)."""
+    """Settled up, one swap takes Swords to Plowshares, ranked ahead of its add
+    on its own search and paid from the money left. The largest gain goes
+    first: Doom Blade's Hero's Downfall climbs two places to Swords, Murder's
+    Path to Exile one, so Doom Blade's swap takes it and Murder keeps Path. In
+    swap order (``settle_order="swap"``) Murder's swap takes it, and Path,
+    freed, goes to no later settle-up: it was held when the main loop ended,
+    so Doom Blade keeps Hero's Downfall (the held v1 gave it Path, and each
+    such chain lost guide adds)."""
     out = _two_removal_upgrades()
+    assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
+        ("Murder", "Path to Exile"),
+        ("Doom Blade", "Swords to Plowshares"),
+    ]
+    _books_balance(out, budget=20.0)
+    out = _two_removal_upgrades(settle_order="swap")
     assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
         ("Murder", "Swords to Plowshares"),
         ("Doom Blade", "Hero's Downfall"),
@@ -3813,20 +3833,21 @@ def test_settling_up_upgrades_one_swap_in_place_and_frees_nothing_for_another():
     _books_balance(out, budget=20.0)
 
 
-def test_settling_up_leaves_every_other_swap_byte_identical():
+@pytest.mark.parametrize(("settle_order", "settled"), [("gain", 1), ("swap", 0)])
+def test_settling_up_leaves_every_other_swap_byte_identical(settle_order, settled):
     """Only the upgraded swap changes: the other swap's whole entry (cut, add,
     cost, coverage, reason) is the main loop's, byte for byte."""
     before = _two_removal_upgrades(settle_up=False)["swaps"]
-    after = _two_removal_upgrades()["swaps"]
+    after = _two_removal_upgrades(settle_order=settle_order)["swaps"]
     # The parent's proposal (no settle-up): Path to Exile at $1, then Hero's
     # Downfall at $1.
     assert [(s["add"]["name"], s["add"]["cost"]) for s in before] == [
         ("Path to Exile", 1.0),
         ("Hero's Downfall", 1.0),
     ]
-    assert after[0]["add"]["name"] == "Swords to Plowshares"
-    assert after[0]["cut"] == before[0]["cut"]
-    assert after[1:] == before[1:]
+    assert after[settled]["add"]["name"] == "Swords to Plowshares"
+    assert after[settled]["cut"] == before[settled]["cut"]
+    assert after[1 - settled] == before[1 - settled]
 
 
 def _dead_weight_pair(pool, **ctx_extra):
@@ -4416,6 +4437,90 @@ def test_a_settle_up_loses_no_bomb_under_a_polymorph_commander():
         ctx,
     )
     assert [s["add"]["name"] for s in out["swaps"]] == ["Big Construct"]
+
+
+def _two_orders(settle_order):
+    """Murder's upgrade (Swords to Plowshares, $15, past its purse cap: Path to
+    Exile, one place lower) and a dead-weight slot (Dear Theme, $15, past the
+    share: Cheap Theme, five places lower, the near tie), on $20 over five
+    swaps. Money is left for one $15 card."""
+    sig = _sig_of("proliferate_matters")
+    label = spec_for(sig).label
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    theme = [
+        {**_plain("Dear Theme", 100), "prices": {"usd": "15.00"}},
+        *(
+            {**_plain(f"Theme {i}", 101 + i), "prices": {"usd": "16.00"}}
+            for i in range(4)
+        ),
+        {**_plain("Cheap Theme", 110), "prices": {"usd": "1.00"}},
+    ]
+    job = [
+        _priced("Swords to Plowshares", 10, "15.00"),
+        _priced("Path to Exile", 14, "1.00"),
+    ]
+
+    def search(**kw):
+        on_theme = kw.get("serve") is not None or "proliferate" in kw["preset_names"]
+        return theme if on_theme else job
+
+    ctx = SwapContext(
+        budgets={"interaction": _band(9, 8, 10)},
+        focus_result={
+            **_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+            "mains": [label],
+            "upgrade_cards": [murder.name],
+        },
+        deck_signals=[sig],
+        search_fn=search,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=20.0,
+        max_swaps=5,
+        top_heavy=False,
+        settle_order=settle_order,
+    )
+    issues = [
+        {"kind": "upgrade", "severity": 1, "count": 1},
+        {"kind": "dead_weight", "severity": 1, "count": 1, "message": "x"},
+    ]
+    out = _swaps_for_issue_dicts([murder, _cc("Junk", "filler", cmc=3.0)], issues, ctx)
+    return [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]]
+
+
+def test_a_gain_off_the_page_is_not_measured():
+    """The largest-gain order's gain is the places the new add stands ahead of
+    the held one on the swap's own page; a card off the page gives no gain
+    (counting it at the page's end would overstate it)."""
+    from mtg_utils._tuner.swaps import _rank_gain
+
+    page = ["A", "B", "C", "D"]
+    assert _rank_gain(page, "D", "A") == 3
+    assert _rank_gain(page, "Gone", "A") is None
+    assert _rank_gain(page, "D", "Gone") is None
+
+
+def test_the_settle_up_spends_in_swap_order_by_default():
+    """By default the settle-up spends in the swaps' own order, the issues'
+    priority. Murder's swap comes first and takes Swords to Plowshares, which
+    gains one place, so the dead-weight slot keeps Cheap Theme."""
+    assert _two_orders("swap") == [
+        ("Murder", "Swords to Plowshares"),
+        ("Junk", "Cheap Theme"),
+    ]
+
+
+def test_the_largest_gain_order_spends_on_the_biggest_climb_first():
+    """``settle_order="gain"``: the dead-weight slot's Dear Theme climbs five
+    places on its own page against Swords to Plowshares' one, so it takes the
+    money and Murder keeps Path to Exile (Prismari Artistry's Phyrexian Altar
+    against Rhystic Study, 2026-11-26)."""
+    assert _two_orders("gain") == [
+        ("Murder", "Path to Exile"),
+        ("Junk", "Dear Theme"),
+    ]
 
 
 def test_settling_up_meets_the_curve_cap():

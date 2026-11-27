@@ -42,6 +42,9 @@ TARGET_BRACKET = 3
 #: Land swaps (Phase C, opt-in in the tune): on with PRECON_LAND_SWAPS=1, so the
 #: default recipe stays comparable with the Phase A/B baselines.
 LAND_SWAPS = os.environ.get("PRECON_LAND_SWAPS") == "1"
+# The settle-up's order (``TuneParams.settle_order``): "gain" (the tuner's
+# default since 2026-11-27) or "swap" (the order the baselines up to N28 ran).
+SETTLE_ORDER = os.environ.get("PRECON_SETTLE_ORDER", "gain")
 #: Record every theme page's whole match set too (PRECON_DEEP_PAGES=1; slower),
 #: for the reach profile: a guide card the page cut off vs one the serve never admits.
 DEEP_PAGES = os.environ.get("PRECON_DEEP_PAGES") == "1"
@@ -203,7 +206,7 @@ def run_deck(args):
     hd = acquire_for_cli(d / "deck.json", None)
     started = time.perf_counter()
     res = tune(hd, search_fn=functools.partial(card_search.search_cards, default_bulk_path()),
-               params=TuneParams(budget=budget_for(root, name), max_swaps=MAX_SWAPS, target_bracket=TARGET_BRACKET, land_swaps=LAND_SWAPS),
+               params=TuneParams(budget=budget_for(root, name), max_swaps=MAX_SWAPS, target_bracket=TARGET_BRACKET, land_swaps=LAND_SWAPS, settle_order=SETTLE_ORDER),
                combos_fn=lambda deck: combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name=hd.by_name)))
     seconds = round(time.perf_counter() - started, 1)
     if spellbook_down:

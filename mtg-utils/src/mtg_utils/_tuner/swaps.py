@@ -528,6 +528,12 @@ class SwapContext:
     #: Whether the settle-up pass runs once the swaps are made (``propose_swaps``'
     #: docstring); False leaves the main loop's proposal as it stands.
     settle_up: bool = True
+    #: The order the settle-up spends in: ``"gain"`` (the default: the largest
+    #: rank gain first, positions climbed on the swap's own page, looked at
+    #: again after each spend; Dan's decision, 2026-11-27, on N35) or
+    #: ``"swap"`` (the swaps' own order, the issues' priority: the order it
+    #: had before).
+    settle_order: str = "gain"
     #: Adds the builder rejected — never sourced, on any path (the issue loop, the
     #: dead-weight drain, the fill pass all pick through ``addable``).
     exclude: Collection[str] = ()
@@ -582,6 +588,16 @@ class SwapState:
     full_job: bool
 
 
+def _rank_gain(page: Sequence[str], old: str, new: str) -> int | None:
+    """The places ``new`` stands ahead of ``old`` on ``page`` (names, in
+    order): the largest-gain settle order's gain. None when either is off the
+    page: the gain can't be measured, and a held add counted at the page's end
+    would overstate it (such a swap settles after the measured ones)."""
+    if old not in page or new not in page:
+        return None
+    return page.index(old) - page.index(new)
+
+
 def propose_swaps(
     classes: Sequence[CardClass],
     issues: Sequence[Issue],
@@ -595,7 +611,8 @@ def propose_swaps(
 
     Settling up: once every swap is made and rechecked, a swap whose search
     passed over a card for its price (the even share, the purse cap, more than
-    was left) may take, in swap order, the best card ranked ahead of its add on
+    was left) may take, the largest rank gain first (``SwapContext.
+    settle_order``), the best card ranked ahead of its add on
     that same search, at its own page, that passes every gate there (the curve
     cap included, the Game Changer room as the proposal ends), that no swap
     holds or held, and that moves no counted share the wrong way (no support
@@ -1030,6 +1047,8 @@ def propose_swaps(
     settling = [False]
     # The add a settling search stops at (``find_add``): its own swap's.
     settle_stop: list[str | None] = [None]
+    # The page a settle-up search last ranked (the largest-gain order's gain).
+    settle_page: list[list[dict] | None] = [None]
     ledger: _Purse = (
         _WildcardLedger(ctx.wildcard_budget)
         if ctx.wildcard_budget is not None
@@ -1598,6 +1617,8 @@ def propose_swaps(
             priced_out[0] = any(p < at[id(card)] for p in priced_at)
             return card, cost, off_avenue
 
+        if settling[0]:
+            settle_page[0] = ranked
         for position, card in enumerate(ranked):
             at[id(card)] = position
             if first is not None and position - at[id(first[0])] > (
@@ -2370,16 +2391,16 @@ def propose_swaps(
         priced.insert(i, priced.pop())
         swap_states.insert(i, swap_states.pop())
 
-    # Settling up (see the docstring): each priced-out swap, in swap order, may
-    # take a card ranked ahead of its add on its own search that no swap holds
-    # or held, paid from the money left; nothing else moves. Swap order is the
-    # tuner's own priority (the issues, ranked): the money no later swap spent
-    # goes to the most important slot first, as the main loop's share would
-    # have given it, and with no per-card cap (the share is the purse's whole):
+    # Settling up (see the docstring): each priced-out swap may take a card
+    # ranked ahead of its add on its own search that no swap holds or held,
+    # paid from the money left with no per-card cap (the share is the purse's
+    # whole); nothing else moves. Tyranid Swarm's tune ended $78 under its $234
+    # budget with Cyclonic Rift ($29.71) priced out by a $27.71 share three
+    # swaps before the end. The order it spends in is ``ctx.settle_order``
+    # (below): in swap order, the tuner's own priority (the issues, ranked),
     # an early swap may spend what a later one would have (Prismari Artistry's
-    # Phyrexian Altar, $54, before its Rhystic Study, 2026-11-26). Tyranid
-    # Swarm's tune ended $78 under its $234 budget with Cyclonic Rift ($29.71)
-    # priced out by a $27.71 share three swaps before the end.
+    # Phyrexian Altar, $54, before its Rhystic Study, 2026-11-26), so the
+    # default is the largest gain first.
     #
     # The shares the main loop holds the proposal to by counting as it adds (a
     # theme's support share, a polymorph deck's whiffs) can't be replayed as
@@ -2408,15 +2429,18 @@ def propose_swaps(
         (old_low, old_high), (new_low, new_high) = low_high(old), low_high(new)
         return new_low <= old_low and new_high >= old_high
 
-    settling[0] = True
-    for i, was_priced in enumerate(priced if ctx.settle_up else ()):
+    def settle(i: int, *, apply: bool) -> tuple[dict, float] | None:
+        """Swap ``i``'s settle-up: the card ahead of its add it would take, and
+        its cost (None: it keeps its add). With ``apply`` the swap takes it;
+        without, every book is left as it was (the largest-gain order's
+        look)."""
         search, state = searches[i], swap_states[i]
-        if not was_priced or search is None or state.full_job:
-            continue
+        if not priced[i] or search is None or state.full_job:
+            return None
         cut, add_card, cost, charged = committed[i]
         name = add_card.get("name", "")
         if sum(1 for _c, a, _p, _x in committed if a.get("name", "") == name) > 1:
-            continue
+            return None
         # The re-run's purse is the money left with this add given back, and
         # the room without its Game Changer slot; it stops at the add.
         room = game_changers.room
@@ -2425,6 +2449,7 @@ def propose_swaps(
         game_changers.release(add_card)
         before = set(_unfueled_adds(committed, deck_records, ctx.commanders))
         picked = None
+        refused: list[str] = []
         settle_stop[0] = name
         spec, options = search
         while True:
@@ -2442,15 +2467,19 @@ def propose_swaps(
                 break
             # Unfed itself, starving another add or moving a share the wrong
             # way: the next card ahead.
-            settle_held.add(picked[0].get("name", ""))
+            refused.append(picked[0].get("name", ""))
+            settle_held.add(refused[-1])
         settle_stop[0] = None
         last_find[0], priced_out[0] = None, False
         game_changers.room = room
-        if picked is None:
-            # Kept, as booked: nothing ahead of it passes and is affordable.
+        if picked is None or not apply:
+            # Kept, as booked: nothing ahead of it passes and is affordable
+            # (or only looked at).
             if charged:
                 ledger.charge(add_card, cost)
-            continue
+            if not apply:
+                settle_held.difference_update(refused)
+            return None if picked is None else (picked[0], picked[1])
         game_changers.release(add_card)
         unbook_add(add_card)
         new_card = picked[0]
@@ -2463,6 +2492,50 @@ def propose_swaps(
             .replace(name, add_entry["name"])
             .removesuffix(" (off-avenue fallback)")
         )
+        return new_card, picked[1]
+
+    def rank_gain(i: int, new: dict) -> int | None:
+        """The positions swap ``i``'s add would climb on its own page, ``new``
+        taken for it (the page the look just searched; :func:`_rank_gain`)."""
+        names = [c.get("name", "") for c in settle_page[0] or ()]
+        return _rank_gain(names, committed[i][1].get("name", ""), new.get("name", ""))
+
+    settling[0] = True
+    if ctx.settle_up and ctx.settle_order == "gain":
+        # The largest rank gain first (``SwapContext.settle_order``): each
+        # round looks at every swap still to settle, takes the one whose add
+        # climbs most on its own page (the earlier swap on a tie), and looks
+        # again, since that spend changes what is left. A swap with nothing to
+        # take keeps nothing to take: the money left and the cards held only
+        # shrink. A swap whose gain can't be measured (its add off the page it
+        # searched) settles last, in swap order: the option orders the
+        # settle-up, it never drops a swap from it.
+        remaining = list(range(len(committed)))
+        unmeasured: list[int] = []
+        while remaining:
+            best: tuple[int, int] | None = None
+            for i in list(remaining):
+                looked = settle(i, apply=False)
+                if looked is None:
+                    remaining.remove(i)
+                    continue
+                gain = rank_gain(i, looked[0])
+                if gain is None:
+                    # No measurable gain: the held add is not on the page.
+                    remaining.remove(i)
+                    unmeasured.append(i)
+                    continue
+                if best is None or gain > best[0]:
+                    best = (gain, i)
+            if best is None:
+                break
+            settle(best[1], apply=True)
+            remaining.remove(best[1])
+        for i in sorted(unmeasured):
+            settle(i, apply=True)
+    else:
+        for i in range(len(committed) if ctx.settle_up else 0):
+            settle(i, apply=True)
     settling[0] = False
 
     digital = ctx.wildcard_budget is not None

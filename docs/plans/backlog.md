@@ -83,11 +83,18 @@ phase-rs issue.
     - No plan-fit rule is added. The tuner's own reads call Esper Sentinel and
       Phyrexian Altar on-plan (Morska's "drawn makers" need, Rootha's "token maker
       consumers"); the table is in `~/mtg/tuner-work/w-2026-11-26/planfit/`.
-  - *The order, a choice to revisit.* Swap order is the tuner's issue priority, and
-    the settle spends without the per-card purse cap. One early swap can take money
-    a later, better upgrade would have spent. In Prismari Artistry, swap 11
-    (Rousing Refrain → Phyrexian Altar, $54) takes what swap 25 would have spent on
-    Rhystic Study. A largest-gain order is the alternative; it is not measured.
+  - *The order: the largest gain first* (Dan's decision, 2026-11-27). Swap order,
+    the tuner's issue priority, let one early swap take money a later, better
+    upgrade would have spent: in Prismari Artistry, swap 11 (Rousing Refrain →
+    Phyrexian Altar, $54) took what swap 25 would have spent on Rhystic Study. The
+    settle-up now spends first on the swap whose add climbs most on its own page,
+    then looks again (`SwapContext.settle_order="gain"`, the default; `"swap"`
+    keeps the old order, `PRECON_SETTLE_ORDER=swap` for `misses.py`). Measured
+    alone against N28 (N35): 46 pairs in 19 decks move; guide adds 128 → 126 /
+    110 → 110 / 51 → 52, plan 505 → 504 / 415 → 415 / 167 → 169, floors held; a
+    reading of the 19 decks was 2 better, 6 worse, 11 sideways (it hands some of
+    N28's settled upgrades back to cheaper cards: Phyrexian Altar to Burnished
+    Hart). Don't re-litigate the default without a new measurement.
 
 **From ranking the upstream drafts (2026-11-25; `docs/plans/phase-upstream-issues/ranking.md`)**
 
