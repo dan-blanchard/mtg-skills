@@ -338,23 +338,6 @@ def _sac_kept(tree: ConceptTree) -> str:
     return _REMINDER_RX.sub(" ", tree.oracle or "")
 
 
-# (3) Casualty GRANTED onto ANOTHER spell, not the bearer's OWN printed
-# keyword array ("The first instant or sorcery spell you cast each turn
-# has casualty 2." — Anhelo, the Painter; "Each instant and sorcery spell
-# you cast has casualty 1." — Silverquill, the Disputant; CR 702.153a). The
-# bearer's OWN Casualty is a separate, ALREADY-STRUCTURAL Scryfall-keyword
-# read (:data:`~mtg_utils._analysis.lanes._SWEEP_KEYWORD_LANES`)
-# — this bridge is scoped to the keyword-LESS granter only (the gap check
-# excludes any card that already carries a Sacrifice node from elsewhere,
-# but a granter with NO own Casualty keyword needs this text anchor
-# regardless).
-_SAC_CASUALTY_GRANT_RX = re.compile(r"\bhas casualty\b", re.IGNORECASE)
-
-
-def _sac_casualty_grant_match(tree: ConceptTree) -> bool:
-    return bool(_SAC_CASUALTY_GRANT_RX.search(_sac_kept(tree)))
-
-
 # (6) An emblem's OWN granted activated ability whose COST is a Sacrifice
 # leaf, parked entirely as opaque ``CreateEmblem.statics`` description text
 # ("You get an emblem with '{1}{B}, Sacrifice a creature: You gain X life
@@ -1414,7 +1397,8 @@ def keep_n_shape_b_reads(tree: ConceptTree) -> list[tuple[str, str]]:
     arm) and the bridge's gap consume — acceptance means core types in
     ``KEEP_N_CHOOSE_TYPES`` AND a resolvable scope (symmetric ScopedPlayer/
     All → "each"; You under an Opponent player_scope or an
-    OnlyDuringOpponentsTurn trigger → "opponents")."""
+    OnlyDuringOpponentsTurn trigger → "opponents"), and each Shape-C chain
+    (:func:`_keep_n_tracked_rest`: Duneblast)."""
     out: list[tuple[str, str]] = []
     for unit in tree.iter_units():
         pending: str | None = None
@@ -1444,6 +1428,46 @@ def keep_n_shape_b_reads(tree: ConceptTree) -> list[tuple[str, str]]:
             ):
                 out.append((pending, c.raw or ""))
                 pending = None
+        out.extend(_keep_n_tracked_rest(unit))
+    return out
+
+
+def _spares_tracked_set(target: object) -> bool:
+    """Whether a mass effect's filter leaves out the tracked set ("the rest":
+    a ``Not InTrackedSet`` property)."""
+    return any(
+        tag_of(p) == "Not" and tag_of(getattr(p, "prop", None)) == "InTrackedSet"
+        for p in getattr(target, "properties", None) or ()
+    )
+
+
+def _keep_n_tracked_rest(unit: AbilityUnit) -> list[tuple[str, str]]:
+    """(scope, raw) per Shape-C keep-N chain: phase's
+    ``ChooseObjectsIntoTrackedSet`` of the kept objects, then a ``DestroyAll`` /
+    ``SacrificeAll`` over the same types that spares the tracked set ("Choose up
+    to one creature. Destroy the rest." — Duneblast; Mount Doom's "Choose up to
+    two creatures, then destroy the rest"). Scope as Shape B's: "each", or
+    "opponents" when one-sided."""
+    out: list[tuple[str, str]] = []
+    chosen = False
+    for c in unit.effects:
+        t = tag_of(c.node)
+        if t == "ChooseObjectsIntoTrackedSet":
+            chosen = bool(
+                set(filter_core_types(getattr(c.node, "filter", None)))
+                & KEEP_N_CHOOSE_TYPES
+            )
+            continue
+        target = getattr(c.node, "target", None)
+        if (
+            chosen
+            and t in ("DestroyAll", "SacrificeAll")
+            and set(filter_core_types(target)) & KEEP_N_CHOOSE_TYPES
+            and _spares_tracked_set(target)
+        ):
+            scope = "opponents" if _knw_one_sided(unit, c.node) else "each"
+            out.append((scope, c.raw or ""))
+            chosen = False
     return out
 
 
@@ -2754,11 +2778,11 @@ BRIDGES: dict[str, Bridge] = {
                 "structurally via keep_n_casr_reads, Limited Resources is a "
                 "Land-gated ChooseAndSacrificeRest, 2026-09-26"
             ),
-            pins=(
-                "Duneblast",
-                "Stick Together",
-                "Mount Doom",
-            ),
+            # Duneblast and Mount Doom retired (2026-11-27): phase types their
+            # choose as ``ChooseObjectsIntoTrackedSet`` at every tag from
+            # v0.66.0, read by ``_keep_n_tracked_rest``
+            # (``phase-upstream-issues/vetting-2026-11-27.md``).
+            pins=("Stick Together",),
             gap=_knw_gap,
             match=_knw_match,
         ),
@@ -2861,33 +2885,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Timeline Culler",),
             gap=_keyword_dropped_gap,
             match=_keyword_dropped_match,
-        ),
-        Bridge(
-            bridge_id="sac_casualty_granted_onto_other_spell",
-            key="sacrifice_outlets",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): a static "
-                "GrantAbility whose granted text is 'has casualty N' onto "
-                "spells the player casts drops the casualty grant entirely "
-                "— no typed Casualty-cost node survives for the GRANT (the "
-                "bearer's OWN printed Casualty keyword IS structurally "
-                "reachable via the Scryfall keyword array; only the "
-                "granter shape is a dropped clause). Retires on a phase "
-                "bump that decomposes a granted-keyword's own cost (task "
-                "#82)"
-            ),
-            census=(
-                "3 hits / 31,622 commander-legal, no-typed-Sacrifice-node "
-                "subset scanned via a `has casualty` text anchor (matching "
-                "legacy's own _CASUALTY_GRANT regex), phase v0.20.0, "
-                "2026-07-11 (Ashad, the Lone Cyberman also matches but is "
-                "already served by its own 'sacrificed' payoff trigger — "
-                "harmless redundant fire, membership dedupes)"
-            ),
-            pins=("Anhelo, the Painter", "Silverquill, the Disputant"),
-            gap=_no_typed_sacrifice_node,
-            match=_sac_casualty_grant_match,
         ),
         Bridge(
             bridge_id="sac_emblem_activated_cost",
@@ -4172,7 +4169,11 @@ def _no_shrink_node(tree: ConceptTree) -> bool:
     """No P/T shrink the ``debuff_makers`` lane reads: no ``Pump`` / ``PumpAll``
     lowering a stat (a dynamic amount phase can't sign counts, so a typed -X/-X
     stands the row down) and no -1/-1 counter placed on a creature not
-    restricted to yours (CR 613.4c, 122.1)."""
+    restricted to yours (CR 613.4c, 122.1). A perpetual shrink is read through
+    its pump view on the unit (``crosswalk.perpetual``: Davriel's Withering),
+    which the typed walk below never sees."""
+    if any(c.perpetual and pump_is_negative(c.node) for c in tree.iter_concepts()):
+        return False
     for n in tree.iter_typed():
         tag = tag_of(n)
         if tag in ("Pump", "PumpAll") and (
@@ -6803,14 +6804,6 @@ def _keyword_tribe_subjects(tree: ConceptTree) -> frozenset[str]:
     }
 
 
-def _no_vigilance_payoff(tree: ConceptTree) -> bool:
-    return "Vigilance" not in _keyword_tribe_subjects(tree)
-
-
-def _no_trample_payoff(tree: ConceptTree) -> bool:
-    return "Trample" not in _keyword_tribe_subjects(tree)
-
-
 def _no_defender_payoff(tree: ConceptTree) -> bool:
     return "Defender" not in _keyword_tribe_subjects(tree)
 
@@ -7097,26 +7090,9 @@ BRIDGES.update(
                 ("The Eleventh Doctor",),
                 _suspend_grant_parked,
             ),
-            # Payoffs of one creature having the keyword: Solid Footing's damage
-            # assignment, Ram Through's own excess-damage rider for a trampler.
-            _keyword_payoff_row(
-                "enchanted_vigilance_payoff_dropped",
-                "Vigilance",
-                "Solid Footing's 'As long as enchanted creature has vigilance, it "
-                "assigns combat damage equal to its toughness'",
-                "Solid Footing",
-                r"\bAs long as enchanted creature has vigilance\b",
-                _no_vigilance_payoff,
-            ),
-            _keyword_payoff_row(
-                "trampler_excess_damage_payoff_dropped",
-                "Trample",
-                "Ram Through's 'If the creature you control has trample, excess "
-                "damage is dealt to that creature's controller instead'",
-                "Ram Through",
-                r"\bIf the creature you control has trample\b",
-                _no_trample_payoff,
-            ),
+            # Solid Footing's and Ram Through's rows retired 2026-11-27: phase
+            # types both payoffs at every tag from v0.66.0, read by
+            # ``types_tribal.structural_keyword_subjects``.
             _keyword_payoff_row(
                 "equipped_defender_attack_misread",
                 "Defender",

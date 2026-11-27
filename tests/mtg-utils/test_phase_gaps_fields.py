@@ -444,17 +444,16 @@ def test_cards_put_into_graveyards_this_way_name_no_owner():
 # ── player_counter_kind: "whenever you get one or more {E}" ───────────────────
 
 
-@pytest.mark.retirement_canary
-def test_player_counter_kind_canary():
-    """Moved from the energy read's unconditional ``CounterPlayerAddedAll`` row,
-    which the correction gated on the kind."""
+def test_a_player_counter_trigger_is_phase_s_energy_mode():
+    """Phase's intended shape, not a misparse (vetting-2026-11-27): "Whenever you
+    get one or more {E}" is ``CounterPlayerAddedAll`` with no counter kind,
+    a mode phase's engine matches only on an energy gain, so the
+    ``player_counter_kind`` correction writes the energy it means for the energy
+    read."""
     (record,) = test_phase_records("Territorial Gorger")
     (trigger,) = record["triggers"]
     assert trigger["mode"] == "CounterPlayerAddedAll"
-    named = [k for k, v in trigger.items() if "counter" in k.lower() and v]
-    assert not named, _retire(
-        "Territorial Gorger", "_arm_player_counter_kind", f"counter kind ({named})"
-    )
+    assert not [k for k, v in trigger.items() if "counter" in k.lower() and v]
 
 
 def test_an_energy_get_trigger_is_an_energy_payoff():

@@ -100,19 +100,29 @@ phase-rs issue.
 
 **From ranking the upstream drafts (2026-11-25; `docs/plans/phase-upstream-issues/ranking.md`)**
 
-- **Workarounds with no draft.** 101 of the 199 bridge-ledger rows record a phase
-  bug that no draft names (measured 2026-11-25: §D1's 102 of 201, less the two
-  perpetual-pump rows retired since, plus `self_pump_condition_parked`, split
-  from `pump_condition_parked`; the drafts left the report's Appendix A out on
-  purpose; two rows, `energy_gain_replacement_parked` and `wither_grant_unparsed`,
-  are in no report either). Of the 100 `retirement_canary` tests, 29 guard a bug
-  no draft names (§D2, counted over 87), and none of the 14 added since (the
-  parked-pump and "it" rows of `misparsed_shapes`, `test_parked_card_boost_canary`)
-  is named in a draft. `ranking.md` §D lists them for the next drafting pass.
+- **Every workaround is vetted** (2026-11-27,
+  `phase-upstream-issues/vetting-2026-11-27.md`: the 146 ledger rows and 59
+  canaries no earlier pass had checked, against phase v0.134.0). 141 are already
+  flagged unsupported by phase on that clause, 50 are in its census, 7 were
+  ours, 3 have no game impact, one was fixed, one is a Dungeon (no record), one
+  is the class of the filed phase-rs/phase #11385, and one is staged for the
+  owner to file: Bumi's Feast Lecture's earthbend return bound to the Food
+  token (`LastCreated`; the batch-5 notes' `issues/01`). Acted on the same day
+  (the backlog reads block): three ledger rows retired and one trimmed where phase typed the
+  clause at every tag back to v0.66.0 (`keep_n_wrath_unimplemented_choose` for
+  Duneblast and Mount Doom, kept for Stick Together;
+  `sac_casualty_granted_onto_other_spell`;
+  `enchanted_vigilance_payoff_dropped`; `trampler_excess_damage_payoff_dropped`),
+  and five tests unmarked as canaries, since they pin a shape phase intends.
+  The ledger holds 195 rows and the tests 112 `retirement_canary` functions
+  (counted 2026-11-27).
 
 **From the phase v0.133.0 pin bump (2026-11-25)**
 
-- **Phase gaps the bump found** (report upstream, Dan posts; not drafted):
+- **Phase gaps the bump found** (vetted 2026-11-25,
+  `phase-upstream-issues/vetting-2026-11-25.md`: the stray subtypes are filed as
+  phase-rs/phase #11360; Hive Mind, Skyline Savior and the other named cards are
+  in phase's census or parked; nothing more to file):
   - *Silent misparses* (phase types it wrong): Hive Mind's "Each of those
     players may choose new targets for their copy" is a `TargetOnly` of a
     `Typed` filter with the subtype `New` (new at v0.133.0). Read past by the
@@ -135,22 +145,6 @@ phase-rs issue.
     card remains exiled" is an `Unrecognized` duration condition. Issue 36 is
     fixed for four cards; Persecute, Mind Extraction and nine more still park
     the discard.
-- **Dan's rulings applied** (2026-11-25): quoted static grants are read in
-  phase's new `GrantStaticAbility` form through `reads.added_static_mode`,
-  and one is an ability grant only where it serves the creature
-  (`reads.grants_an_ability`); what can land only on an opponent's cards
-  names nothing of yours (`reads.opponent_only_nodes`: a hand attack's
-  discarded cards, a static handed to an opponent's creature); Soul
-  Partition keeps a tax read (`stax_taxes|opponents|` only: its surcharge is
-  on opponents' spells alone, so no `symmetric_stax`).
-- **Settled (Dan, 2026-11-25; don't re-suggest):** Whipgrass Entangler's lost
-  `keyword_grant_target|you|ability` stands: "target creature gains 'This
-  creature can't attack or block unless its controller pays {1} for each
-  Cleric on the battlefield'" hands it a drawback, and a granted drawback is
-  no grant (`reads.HANDICAP_MODES`). The `cant_block_grant|you|` gains on
-  Bower Passage, Champion of Lambholt, Heat Wave and Storm, Windrider stay:
-  "… can't block creatures you control" (a `BlockRestriction` over `Not` your
-  creatures) forces blockers off your attackers.
 - **The reads block (2026-11-25, Dan's rulings; at v0.133.0 every item below was
   still misread by phase):** the three Fynn bites read as bites
   (`misparsed_shapes`' bite row over `clause_grammar.power_damage_target`, the
@@ -171,9 +165,8 @@ phase-rs issue.
   Magus of the Mind's elided library (impulse draw); eight parked targeting
   payoffs name their source (`crosswalk.parked_targeting_payoffs`); Penregon
   Besieged, Territorial Strike, Scour the Scene and Darigaaz's Whelp are
-  corrected, each with a canary. Left: the counter keywords (training,
-  dethrone, mentor) are not in the boost-keyword rule, and flanking (a shrink)
-  is out. (Tomik's lands shield is read by the shield grammar since the
+  corrected, each with a canary. Flanking (a shrink) is out; the
+  counter keywords are read since Dan's ruling of 2026-11-27 (Settled). (Tomik's lands shield is read by the shield grammar since the
   own-target block, 2026-11-26, its ledger row retired; Wall of Shadows's "can't
   be the target of spells that can target only Walls" stays unread on purpose:
   a creature's own shield gives no signal, Dan's ruling.)
@@ -267,18 +260,19 @@ phase-rs issue.
 
 **From the phase v0.131.0 pin bump (2026-11-24)**
 
-- **Phase gaps the bump found** (report upstream, Dan posts; none worked around
-  unless a canary is named): Danse Macabre's non-targeting "return up to two
+- **Phase gaps the bump found** (vetted 2026-11-25: Danse Macabre, Veiling
+  Oddity and Disorder are parked, Emergent Sequence and Battlefield Thaumaturge
+  in phase's census; nothing to file; none worked around unless a canary is
+  named): Danse Macabre's non-targeting "return up to two
   creature cards" carries a `multi_target` (reads `per_target_payoff|variable`);
   Emergent Sequence's "Put a +1/+1 counter on it" binds the fetched land to the
   sorcery (`test_spell_self_counter_misbinding_canary`); Veiling Oddity's
   "creatures can't be blocked this turn" parks as `broadcast_static_mode_live_set`
-  (reads `evasion_self` off the text arm, should be a team grant); Crabomination's
-  three-zone exile is a `ChooseFromZone` chain with a `TargetedPlayer` zone owner,
-  which the `theft_makers` / `opp_top_exile` reads don't follow; Battlefield
+  (reads `evasion_self` off the text arm, should be a team grant); Battlefield
   Thaumaturge's and Disorder's qualifiers park (`cost_reduction`'s instant/sorcery
-  subject, `color_hoser`); Cocoon's comma-joined instruction list isn't split by
-  the recovery stage. (The twenty "can't be the target of [some] spells" statics
+  subject, `color_hoser`). (Crabomination's three-zone exile and Cocoon's
+  comma-joined list were ours, read since the backlog reads block of
+  2026-11-27. The twenty "can't be the target of [some] spells" statics
   that park as `mode: {Other: text}` are read now: the v0.133.0 reads block.)
 - **Phase now leaves "When you attack enchanted opponent" an `Unknown` trigger
   mode**: Tenuous Truce lost `attack_matters` (upstream draft 30; no read can
@@ -326,14 +320,8 @@ phase-rs issue.
     "cards you own" changes (Naktamun Shines Again, Network Marauder,
     Unbreakable Remnant) also reach your permanents of those cards: that half is
     written as the same team pump over your owned permanents, the residue kept
-    for `card_boost|you|everywhere`. Left parked, and why:
-    - *Mace of Disruption*: "if it has the same name as …" is the condition
-      phase parked; reading the boost without it would make it unconditional.
-    - *Alora, Cheerful Thief*: "a creature of your choice an opponent controls
-      perpetually gets -1/-0" — chosen, not targeted, and a shrink (no
-      `card_boost` either way).
-    - *Undersimplify*: "it perpetually gets -2/-0", a shrink of a spell on the
-      stack: no boost.
+    for `card_boost|you|everywhere`. (The three left parked, and why, are under
+    Settled.)
   - *`card_boost` known gaps* (2026-11-25; Territorial Strike's beheld Dragon
     and Scour the Scene's battlefield option are read since the v0.133.0 reads
     block, both a pump and `card_boost|you|hand`): Tawnos Endures's granted "if
@@ -347,25 +335,29 @@ phase-rs issue.
     row — Sickle Dancer's self-pump on `self_pump_condition_parked` since
     ADR-0065). The condition is what phase parked: typing the pump without it would
     make it unconditional.
-  - *A static line*: Archangel of Strife's two ("Creatures controlled by
-    players who chose war get +3/+0": no phase filter for the choice),
-    Tyrannical Pitlord's "The chosen creature gets +3/+3 and has flying", and
-    The Muckslinger Gang's (cards outside the battlefield; its battlefield
-    anthem is read). (Death's Approach's and Disturbing Conversion's "-X/-X"
+  - *A static line* (looked at again 2026-11-27, still left, each unsupported
+    and in no census): Archangel of Strife's two ("Creatures controlled by
+    players who chose war get +3/+0"): phase has no filter for creatures by
+    their controller's own choice (its `ChosenLabelIs` is the card's
+    controller's choice only), so any typed form overstates whose creatures
+    they are. Tyrannical Pitlord's "The chosen creature gets +3/+3 and has
+    flying": phase's form for "the chosen creature" is `ChosenCard` (Zenos yae
+    Galvus), but the choice itself ("As ~ enters, choose another creature you
+    control") is parked too, and no boost read has a recipient for
+    `ChosenCard`; writing the choice's own filter would read as a team anthem.
+    It needs the owner's pick of key (see the 2026-11-27 reply: a static boost
+    to one other creature of yours). The Muckslinger Gang's cards outside the
+    battlefield: a static, not a perpetual change, so it ends as the card
+    enters, where its battlefield anthem (read) takes over; `card_boost` is for
+    perpetual changes only. (Death's Approach's and Disturbing Conversion's "-X/-X"
     are shrinks, read as `debuff_makers`; Heartseeker's "Equipped creature gets
     +2/+1 and has \"…\"" is typed now.)
-  - *Known limits of the pump view* (`crosswalk.perpetual`, no fix yet): a
-    walk over the typed tree doesn't see it — `walk_effect_chain` rebuilds its
-    decorations from the tree, so a lane that walks a unit itself sees the
-    `ApplyPerpetual`, not the pump. (`_etb_pump_unit` reads the unit's effect
-    concepts since 2026-11-25: Leaf-Leap Guide is `entered_attacker|you|etb_pump`.)
 - **Left open by the boost lines (ADR-0065, 2026-11-25)**:
-  - Earthbend's "put N +1/+1 counters on it" (a land it animates, which it
-    targets) is `boosts_others|target_ability`.
   - Meatsqueak, Hoard Lord's "For every seven Foods you control, Squirrels you
     control get +3/+3" is typed as a static on `SelfRef` with the count dropped,
-    so it reads as `self_boost|you|static` and not as a team pump; an upstream
-    phase misparse (worth a phase issue), not ledgered.
+    so it reads as `self_boost|you|static` and not as a team pump; phase's
+    census already lists that clause (`wrong_object`; vetted 2026-11-25 and
+    2026-11-26), so nothing to draft; not ledgered.
 - **Not recovered**: 3 of the 31 `where_x_binding` residues on legal cards
   (census at v0.133.0 after the reads block; 28 recovered): Commander Liara
   Portyr's "cost {X} less" binding (its `unparsed_quantity` twin holds the
@@ -423,8 +415,9 @@ phase-rs issue.
   with a one-half parse (before this fix too); a split pairing with one uncheckable half (Optimistic Scavenger's
   "fully unlock") stays `unchecked`; conjure's card name and count, and a
   doubled P/T's size, are not strict-checked; Shellfish Scholar's threshold
-  cost reduction is phase's `Unimplemented`, which `_card_ir/recovery.py`'s
-  `cast_from_zone` token mislabels a cast from a zone. Phase differences the
+  cost reduction is phase's `Unimplemented` (the recovery stage no longer reads
+  it, or Commander Liara Portyr's, as a cast from a zone:
+  `clause_grammar.class_cost_reduction`, 2026-11-27). Phase differences the
   corpus found: Case of the Stashed Skeleton's "and suspect it" dropped from its
   Token effect (CR 701.60a/c: menace, can't block), a real difference this tool
   found from another player's log, already open upstream as phase-rs/phase #8106
@@ -452,12 +445,18 @@ phase-rs issue.
   "where X is the amount of damage it dealt" as `where_x_binding`, so
   `card_draw_engine` can't read it); (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
   trigger;
-  Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
-  Canopy Cover's opponent-only hexproof as SelfRef; Phyrexian Unlife and the
-  zero-life cards as unconditional CantLoseTheGame; seek has no player and nine
-  seeks drop; printed firebending has no trigger; double team as CopyTokenOf;
-  conjure-of-choice as DraftFromSpellbook; Ojutai Exemplars' "Return it" as
-  TriggeringSource (a canary); Fatespinner's skip (a canary); Leonin Arbiter,
+  Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You;
+  Phyrexian Unlife and the zero-life cards as unconditional CantLoseTheGame;
+  printed firebending has no trigger; double team as CopyTokenOf;
+  conjure-of-choice as DraftFromSpellbook; Fatespinner's skip (a canary). (Two
+  were ours or fixed, checked 2026-11-27: seek needs no player, since it always
+  uses its controller's library (vetting-2026-11-25), and of the 103 seek cards
+  at v0.133.0 four park the seek: Discover the Formula and Herald's Reveille are
+  read by the recovery stage's `seek` token since then
+  (`test_parked_seek_canary`), Spectacle of Destruction drops it with no trace
+  (phase's census has it, `missing_effect`), and Tasteful Offering's sits inside
+  a boon's quote. Canopy Cover's hexproof and Ojutai Exemplars' "Return it" are
+  typed right since v0.131.0.) Also: Leonin Arbiter,
   Shadow of Doubt, Pale Moon, Cephalid Shrine, Hallowed Moonlight, Mistcaller,
   Juxtapose, Cultural Exchange, Legerdemain, Desolation,
   Cleanse, Crusade, Artificial Evolution, Tomik; Champion of Stray Souls'
@@ -628,7 +627,8 @@ phase-rs issue.
   phase's census already flags Grave Pact). `twohg_scan` vetoes it with an oracle-text check guarded by
   a `retirement_canary` test; delete the veto when the canary fails.
 - **phase writes "target opponent may …" as each opponent** (found 2026-11-07,
-  v0.118.0; not yet reported upstream). The punisher "target opponent may have you
+  v0.118.0; already reported upstream as phase-rs/phase #7755 and #7767, both
+  open: vetted 2026-11-25). The punisher "target opponent may have you
   draw a card. If they don't, …" (Tell Me What You See, Risk Factor, Combustible
   Gearhulk, Palantír of Orthanc, Rakdos, Patron of Chaos; 13 abilities) carries
   `player_scope: Opponent` and no target. `crosswalk.targets_one_opponent` reads
@@ -707,8 +707,6 @@ phase-rs issue.
     `unparsed_verb_arguments`; recovered by new grammar rows.
   - Mana Clash's and Rakdos, the Showstopper's per-flip outcome park as
     `per_object_coin_flip_outcome` (direct_damage / mass_removal lost).
-  - Bestial Fury's "it gets +4/+0 and gains trample" binds `ParentTarget`, not
-    the enchanted creature (aura_equip_kw_grant lost).
   - Seasoned Cryomancer's reflexive tap and Summon: Kujata's, Vivien's
     Invocation's and Adaptive Armorer's reflexive effects park as
     `zone_change_reflexive_*`.
@@ -787,11 +785,6 @@ phase-rs issue.
     Role's "Enchanted creature gets +1/+1 and has trample" (CR 111.10k; Royal's
     "has ward {1}", 111.10m), which known-tokens has: restored before load, 11
     cards. Become Brutes parks the creation itself (a ledger row).
-  - *A spell's conditional flash dropped.* Crashing Tide: "This spell has flash
-    as long as you control a Merfolk" leaves no node; phase types the same line
-    on Supernatural Rescue. Graveyard Shift, Mutual Destruction (whose
-    condition is also a flash payoff) and Take for a Ride likewise (one ledger
-    row).
   - *A grant swallowed beside the effect phase types.* Woolly Razorback's "it
     has defender" (the prevention kept), Nick Fury, Spymaster's "and gains
     indestructible until end of turn" (a ``SwallowedClause``), Guardian Beast's
@@ -842,6 +835,40 @@ headroom and parked items.
 
 ## Settled: don't re-suggest
 
+- **Earthbend is its own thing; the counter keywords count, under `counters`**
+  (Dan, 2026-11-27; ADR-0065). Earthbend's +1/+1 counters go on the land it
+  animates (CR 701.66a): no `boosts_others` and no own target
+  (`crosswalk.earthbend_effects`, keyed on phase's `RegisterBending{kind:
+  Earth}`). A grant of training, dethrone or mentor to your other creatures is
+  `boosts_others|you|counters` (CR 702.149a, 702.105a, 702.134a), a one-target
+  grant with its target flag; the other counter-placing keywords (evolve,
+  outlast, adapt, riot …) are outside the ruling.
+- **Dan's rulings applied** (2026-11-25): quoted static grants are read in
+  phase's new `GrantStaticAbility` form through `reads.added_static_mode`,
+  and one is an ability grant only where it serves the creature
+  (`reads.grants_an_ability`); what can land only on an opponent's cards
+  names nothing of yours (`reads.opponent_only_nodes`: a hand attack's
+  discarded cards, a static handed to an opponent's creature); Soul
+  Partition keeps a tax read (`stax_taxes|opponents|` only: its surcharge is
+  on opponents' spells alone, so no `symmetric_stax`).
+- **Whipgrass Entangler's grant and the block restrictions** (Dan,
+  2026-11-25): Whipgrass Entangler's lost `keyword_grant_target|you|ability`
+  stands: "target creature gains 'This
+  creature can't attack or block unless its controller pays {1} for each
+  Cleric on the battlefield'" hands it a drawback, and a granted drawback is
+  no grant (`reads.HANDICAP_MODES`). The `cant_block_grant|you|` gains on
+  Bower Passage, Champion of Lambholt, Heat Wave and Storm, Windrider stay:
+  "… can't block creatures you control" (a `BlockRestriction` over `Not` your
+  creatures) forces blockers off your attackers.
+- **Perpetual boosts left parked, and why** (the 2026-11-25 perpetual census
+  behind `misparsed_shapes`' parked-pump rows):
+  - *Mace of Disruption*: "if it has the same name as …" is the condition
+    phase parked; reading the boost without it would make it unconditional.
+  - *Alora, Cheerful Thief*: "a creature of your choice an opponent controls
+    perpetually gets -1/-0" — chosen, not targeted, and a shrink (no
+    `card_boost` either way).
+  - *Undersimplify*: "it perpetually gets -2/-0", a shrink of a spell on the
+    stack: no boost.
 - **`scryfall-lookup` reads the local card data first** (Dan, 2026-11-27). Without
   `--bulk-data` both modes use the downloaded MTGJSON bulk when there is one and ask
   Scryfall only for a name it lacks, as `rulings-lookup` does; `--online` asks Scryfall

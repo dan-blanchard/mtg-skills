@@ -37,6 +37,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind_any,
     counter_raises,
     dynamic_pt_mod_sites,
+    earthbend_effects,
     effect_actor_scope,
     effect_conditional,
     effect_filter,
@@ -555,6 +556,9 @@ def has_own_target_spell(tree: ConceptTree) -> bool:
         # activation (Wither and Bloom), a reflexive or delayed trigger the spell
         # creates (Prishe's Wanderings, Fatal Fissure)
         and boost_delivery(unit, tree, node) == "spell"
+        # earthbend's land is its own thing, no target of yours (Dan's ruling,
+        # 2026-11-27: Earthbending Lesson)
+        and id(node) not in earthbend_effects(unit)
         for unit in tree.units
         for node in unit.iter_typed()
     )
@@ -639,9 +643,12 @@ def _beneficial_spell_boost(unit: AbilityUnit, tree: ConceptTree) -> bool:
     ``Multiply`` too), a ``GenericEffect`` whose P/T statics raise and lower
     nothing (``crosswalk.generic_effect_boosts``), or a counter that raises
     power or toughness and lowers neither (``crosswalk.counter_raises``)."""
+    earthbend = earthbend_effects(unit)
     for c in unit.effects:
         node = c.node
         tag = tag_of(node)
+        if id(node) in earthbend:
+            continue
         if boost_delivery(unit, tree, node) != "spell" or not effect_targets(
             unit.node, node, unit
         ):

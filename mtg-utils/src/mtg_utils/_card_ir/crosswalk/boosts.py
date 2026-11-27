@@ -302,6 +302,52 @@ def _event_object(unit: AbilityUnit, node: object) -> BoostRecipient:
     return "self"
 
 
+def trigger_referent(unit: AbilityUnit, static_def: object) -> object | None:
+    """The object a trigger's untargeted "it" names in a static its chain
+    grants (a ``GenericEffect``'s ``ParentTarget``-affected static), when no
+    earlier object in the chain does: the object the trigger watched, the
+    event's referent ("Whenever enchanted creature becomes blocked, it gets
+    +4/+0 and gains trample" — Bestial Fury: ``AttachedTo``; "Whenever another
+    creature you control enters, that creature gets +2/+0 and gains haste" —
+    Ogre Battledriver, through the effect's ``TriggeringSource``). Phase binds
+    such an "it" to the trigger event's object as the ability resolves (its
+    ``resolved_targets``' event-context fallback). ``None`` when the "it" is
+    threaded to an earlier object, the unit is no trigger, or the event has a
+    second object it names instead (:data:`_COMBATANT_MODES` with a
+    ``valid_target`` — Mammoth Harness's "the other creature" —,
+    :data:`_CREW_MODES`)."""
+    if unit.origin != "trigger" or tag_of(getattr(static_def, "affected", None)) != (
+        "ParentTarget"
+    ):
+        return None
+    found = _anaphora(unit)
+    if id(static_def) in found.threaded or id(static_def) in found.delayed:
+        return None
+    owner = next(
+        (
+            node
+            for node in iter_typed_nodes(unit.node)
+            if tag_of(node) == "GenericEffect"
+            and any(st is static_def for st in _listed(node, "static_abilities"))
+        ),
+        None,
+    )
+    if owner is None or id(owner) in found.delayed:
+        return None
+    if tag_of(getattr(owner, "target", None)) not in (None, "TriggeringSource"):
+        return None
+    if id(owner) in found.named or id(owner) in found.threaded:
+        return None
+    trig = unit.node
+    mode = _mode(trig)
+    if mode in _CREW_MODES or (
+        mode in _COMBATANT_MODES and getattr(trig, "valid_target", None) is not None
+    ):
+        return None
+    watched = getattr(trig, "valid_card", None)
+    return getattr(trig, "valid_source", None) if watched is None else watched
+
+
 def object_recipient(
     unit: AbilityUnit, target: object, node: object = None
 ) -> BoostRecipient:

@@ -179,8 +179,9 @@ def test_recast_row_fires_and_gates():
         ("Shellshock", False),
         # a real "target creature you control" beside a mass effect still counts
         ("Strength of the Coalition", True),
-        # earthbend's own rule targets a land you control (CR 701.66a)
-        ("Earthbending Lesson", True),
+        # earthbend is its own thing, no target of yours (Dan's ruling,
+        # 2026-11-27), though its rule targets a land you control (CR 701.66a)
+        ("Earthbending Lesson", False),
         # the beneficial arm's sign gate reads "-X" and a negated count too
         ("Death Wind", False),
         ("Sickening Shoal", False),

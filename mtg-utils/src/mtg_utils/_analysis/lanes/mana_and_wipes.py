@@ -869,8 +869,9 @@ _DISCARD_OUTLET_SKIP_FIELDS: frozenset[str] = frozenset(
 # cost payload): jump-start discards a card (CR 702.133a), retrace a land card
 # (CR 702.81a), each an optional way to cast the card from your graveyard, so an
 # outlet by the keyword-cost verdict (Dan, 2026-10-10). Read by name off
-# ``tree.card_keywords``; ``test_untyped_discard_cast_keywords_canary`` fails once
-# phase types the cost, and the typed cost walk takes over.
+# ``tree.card_keywords``: phase's intended shape (the engine implements both
+# keywords; vetting-2026-11-27), pinned by
+# ``test_discard_cast_keywords_are_bare_keywords``.
 _UNTYPED_DISCARD_CAST_KEYWORDS: frozenset[str] = frozenset({"jumpstart", "retrace"})
 
 

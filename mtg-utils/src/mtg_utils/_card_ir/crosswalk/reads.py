@@ -8353,6 +8353,49 @@ def ends_group_thread(eff: TypedMirrorNode, unit: AbilityUnit | None = None) -> 
     )
 
 
+def earthbend_effects(unit: AbilityUnit) -> frozenset[int]:
+    """The ids of the effect nodes of ``unit`` that are an earthbend's own (CR
+    701.66a: "Target land you control becomes a 0/0 land creature with haste …
+    Put N +1/+1 counters on it. When that land dies or is put into exile, return
+    it …"): phase writes the keyword action as an ``Animate`` of a land, the
+    ``PutCounter`` on it, the delayed return, and a closing
+    ``RegisterBending{kind: Earth}`` — each node from the ``Animate`` through the
+    marker, and a counter put on "that land" right after it. Earthbend is its
+    own thing, no boost of another creature and no
+    target of yours for the spell-targeting reads (Dan's ruling, 2026-11-27); a
+    clause of the same unit outside the earthbend keeps its reading."""
+    return memo_on(unit, "_xw_earthbend_effects", _read_earthbend_effects)
+
+
+def _read_earthbend_effects(unit: AbilityUnit) -> frozenset[int]:
+    out: set[int] = set()
+    effects = [c.node for c in unit.effects]
+    for at, node in enumerate(effects):
+        if tag_of(node) != "RegisterBending" or getattr(node, "kind", None) != "Earth":
+            continue
+        start = next(
+            (
+                i
+                for i in range(at - 1, -1, -1)
+                if tag_of(effects[i]) == "Animate"
+                and "Land" in filter_core_types(getattr(effects[i], "target", None))
+            ),
+            None,
+        )
+        if start is None:
+            continue
+        out.update(id(n) for n in effects[start : at + 1])
+        # "put an additional +1/+1 counter on that land" right after it (Toph,
+        # Hardheaded Teacher): the earthbent land's ``ParentTarget``
+        for later in effects[at + 1 :]:
+            if tag_of(later) != "PutCounter" or (
+                tag_of(getattr(later, "target", None)) != "ParentTarget"
+            ):
+                break
+            out.add(id(later))
+    return frozenset(out)
+
+
 def acts_on_a_group(eff: object, unit: AbilityUnit | None = None) -> bool:
     """Whether an effect acts on every object its filter matches, never a
     chosen target: an ``*All`` variant (``PutCounterAll``, ``PumpAll``), one
@@ -9535,9 +9578,9 @@ def _overloaded(tree: ConceptTree) -> bool:
     the spell's text to "each". phase v0.104.0 keeps overload as an alternative
     cost (``card_alt_costs``) and types only the targeted base mode — the
     overloaded sweep is the base mode's own effect on every object matching its
-    description, legal target or not (CR 702.96b). Retires when phase types the
-    overloaded mode (``retirement_canary``:
-    ``test_overload_sweep_is_read_from_the_base_mode``)."""
+    description, legal target or not (CR 702.96b). Phase's intended shape: its
+    engine applies overload at cast (vetting-2026-11-27;
+    ``test_overload_sweep_is_read_from_the_base_mode`` pins it)."""
     return any(alt.kind == "overload" for alt in tree.card_alt_costs)
 
 
@@ -10587,6 +10630,21 @@ def _picks_other_players_card(unit: AbilityUnit) -> bool:
     return False
 
 
+def _gathers_other_players_cards(unit: AbilityUnit) -> bool:
+    """Whether the unit's tracked set ("those cards") is the cards a chain of
+    choices gathered out of another player's zones: phase's ``ChooseFromZone``
+    with a ``gather_role`` over a targeted player's or an opponent's zone
+    ("target opponent exiles the top card of their library, a card at random
+    from their graveyard, and a card at random from their hand" —
+    Crabomination)."""
+    return any(
+        tag_of(c.node) == "ChooseFromZone"
+        and getattr(c.node, "gather_role", None) is not None
+        and getattr(c.node, "zone_owner", None) in ("TargetedPlayer", "Opponent")
+        for c in unit.effects
+    )
+
+
 def _exiles_countered_spell(unit: AbilityUnit) -> bool:
     """Whether the unit counters a spell and exiles it instead of putting it into
     its owner's graveyard (Dissipate, Force of Negation): a ``Counter`` followed by
@@ -10667,6 +10725,8 @@ def _exiles_other_players_card(unit: AbilityUnit, node: TypedMirrorNode) -> bool
     tag = tag_of(target)
     if tag == "ParentTarget":
         return _picks_other_players_card(unit)
+    if tag == "TrackedSet":
+        return _gathers_other_players_cards(unit)
     if tag not in ("Typed", "Or", "And"):
         return False
     owner = filter_controller(target)

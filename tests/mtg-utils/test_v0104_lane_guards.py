@@ -389,22 +389,18 @@ def test_a_random_discard_still_makes_discards():
     assert "discard_outlet|you|" not in idents
 
 
-@pytest.mark.retirement_canary
 @pytest.mark.parametrize(
     ("name", "key"), [("Radical Idea", "JumpStart"), ("Raven's Crime", "Retrace")]
 )
-def test_untyped_discard_cast_keywords_canary(name, key):
-    """Retirement canary for ``mana_and_wipes._UNTYPED_DISCARD_CAST_KEYWORDS``:
-    phase v0.104.0 carries jump-start and retrace as a bare keyword name, with no
-    typed discard cost."""
+def test_discard_cast_keywords_are_bare_keywords(name, key):
+    """Phase's intended shape, not a misparse (vetting-2026-11-27): jump-start
+    and retrace are keywords phase's engine implements, carried as a bare
+    keyword name with no typed discard cost, so
+    ``mana_and_wipes._UNTYPED_DISCARD_CAST_KEYWORDS`` reads the keyword."""
     keywords = [
         kw for rec in test_phase_records(name) for kw in rec.get("keywords") or ()
     ]
-    assert key in keywords, (
-        f"mana_and_wipes._UNTYPED_DISCARD_CAST_KEYWORDS: RETIRE-READY — phase now "
-        f"types {name}'s {key} cost. If discard_outlet still fires on {name} "
-        "without it, delete the keyword read, the constant and this canary."
-    )
+    assert key in keywords
 
 
 @pytest.mark.parametrize(

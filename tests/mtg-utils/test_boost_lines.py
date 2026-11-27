@@ -702,3 +702,61 @@ def test_a_quoted_payoff_in_a_typed_triggers_description_is_not_its_own():
         parked_targeting_payoffs(t)
         for t in trees_for(test_card("Niambi, Beloved Protector"))
     )
+
+
+# ── Dan's rulings of 2026-11-27: earthbend; the counter keywords ───────────────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Earthbending Lesson",  # "Earthbend 4." (a spell)
+        "Badgermole Cub",  # "When this creature enters, earthbend 1."
+        "Earthen Ally",  # an activated earthbend
+        "Bumi, Unleashed",
+        # "earthbend 1. If that spell is a Lesson, put an additional +1/+1 counter
+        # on that land": the earthbent land's counter too
+        "Toph, Hardheaded Teacher",
+    ],
+)
+def test_earthbend_is_no_boost_of_another_creature(name):
+    """Earthbend N animates a land you control and puts N +1/+1 counters on it
+    (CR 701.66a): its own thing, no ``boosts_others`` (Dan's ruling,
+    2026-11-27; keyed on phase's ``RegisterBending{kind: Earth}``)."""
+    assert not any(k == "boosts_others" for k, _s, _t in _idents(name))
+
+
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        # "put a +1/+1 counter on target creature you control" beside earthbend
+        ("Earthbender Ascension", {"counters", "target_ability"}),
+        # "put two +1/+1 counters on each land creature you control"
+        ("Bumi, Eclectic Earthbender", {"counters"}),
+    ],
+)
+def test_an_earthbend_card_keeps_its_other_boosts(name, subjects):
+    held = {t for k, _s, t in _idents(name) if k == "boosts_others"}
+    assert held == subjects
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Marchesa, the Black Rose",  # "Other creatures you control have dethrone."
+        "Warrior's Resolve",  # "Creatures you control have training."
+        "Elder Arthur Maxson",  # "Creature tokens you control have training."
+        "Aegis of the Legion",  # "Equipped creature … has mentor."
+    ],
+)
+def test_a_granted_counter_keyword_boosts_others_with_counters(name):
+    """Training, dethrone and mentor put +1/+1 counters and nothing else (CR
+    702.149a, 702.105a, 702.134a): granted to your other creatures, a
+    ``counters`` boost (Dan's ruling, 2026-11-27)."""
+    assert ("boosts_others", "you", "counters") in _idents(name)
+
+
+def test_a_printed_training_grows_only_itself():
+    idents = _idents("Hopeful Initiate")
+    assert ("self_boost", "you", "counters") in idents
+    assert not any(k == "boosts_others" for k, _s, _t in idents)

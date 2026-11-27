@@ -102,11 +102,11 @@ def test_an_attack_trigger_keyword_is_attack_matters(name):
     assert "attack_matters|you|" in _idents(name)
 
 
-@pytest.mark.retirement_canary
-def test_phase_drops_printed_firebending():
-    """Phase carries no trigger for printed firebending (CR 702.189a: "Whenever
-    this creature attacks, add N {R}"), so the bulk keyword array is the lane's
-    read. Once phase types it, the keyword arm is redundant."""
+def test_printed_firebending_is_a_keyword_phase_s_engine_expands():
+    """Phase's intended shape, not a misparse (vetting-2026-11-27): printed
+    firebending (CR 702.189a: "Whenever this creature attacks, add N {R}") is
+    carried as a keyword the engine turns into its trigger, so the card data
+    holds no attack trigger and the bulk keyword array is the lane's read."""
     events = {
         unit.trigger_event
         for tree in trees_for(test_card("Fire Sages"))

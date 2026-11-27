@@ -7603,8 +7603,8 @@ def test_mass_removal_languish_negative_amount_is_typed():
 )
 def test_mass_bounce_mass_gate(name, should_fire):
     """mass_bounce fires on a board sweep (CR 115.10): a BounceAll, or an
-    overload spell's targeted bounce (phase types only the base mode; the
-    retirement canary is ``test_overload_sweep_is_read_from_the_base_mode``)."""
+    overload spell's targeted bounce (phase types only the base mode, its
+    intended shape: ``test_overload_sweep_is_read_from_the_base_mode``)."""
     assert (("mass_bounce", "any", "") in _idents(name)) is should_fire
 
 
@@ -19232,3 +19232,76 @@ def test_kill_engine_payoff_includes_an_opponent_graveyard_arrival():
     # "Whenever a creature card is put into an opponent's graveyard from
     # anywhere, you gain 1 life" (Profane Memento) fires on every kill.
     assert ("kill_engine", "you", "payoff") in _idents("Profane Memento")
+
+
+# ── The backlog reads block (2026-11-27) ────────────────────────────────────────
+
+
+def test_an_aura_trigger_s_it_is_the_enchanted_creature():
+    """ "Whenever enchanted creature becomes blocked, it gets +4/+0 and gains
+    trample" (Bestial Fury): phase leaves the "it" a ``ParentTarget`` with no
+    target, which it binds to the trigger event's object, the enchanted
+    creature (``crosswalk.boosts.trigger_referent``)."""
+    assert ("aura_equip_kw_grant", "you", "trample") in _idents("Bestial Fury")
+    # "the other creature gains first strike": the creature in combat with it
+    assert not any(
+        k == "aura_equip_kw_grant" for k, _s, _t in _idents("Mammoth Harness")
+    )
+
+
+def test_a_gathered_exile_of_another_players_cards_is_theft():
+    """ "target opponent exiles the top card of their library, a card at random
+    from their graveyard, and a card at random from their hand. You may cast a
+    spell from among cards exiled this way" (Crabomination): a ``ChooseFromZone``
+    gather over the targeted player's zones, then one ``ChangeZoneAll`` of the
+    gathered set."""
+    idents = _idents("Crabomination")
+    assert ("theft_makers", "opponents", "") in idents
+    assert ("opp_top_exile", "you", "") in idents
+
+
+def test_a_perpetual_shrink_is_a_shrink_node_for_the_ledger_gate():
+    from mtg_utils._analysis.bridge_ledger import _no_shrink_node
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card, test_signals
+
+    test_signals("Davriel's Withering")
+    assert not any(
+        _no_shrink_node(t) for t in trees_for(test_card("Davriel's Withering"))
+    )
+
+
+# ── Phase's own shapes for four retired ledger rows (vetting-2026-11-27) ───────
+
+
+@pytest.mark.parametrize("name", ["Duneblast", "Mount Doom"])
+def test_a_tracked_set_keep_is_a_keep_n_wrath(name):
+    """ "Choose up to one creature. Destroy the rest." (Duneblast): phase's
+    ``ChooseObjectsIntoTrackedSet`` then a ``DestroyAll`` sparing the set."""
+    from mtg_utils._analysis.bridge_ledger import keep_n_shape_b_reads
+
+    assert [s for s, _raw in keep_n_shape_b_reads(_tree(name))] == ["each"]
+    assert ("keep_n_wrath", "each", "") in _idents(name)
+
+
+def test_granted_casualty_is_a_sacrifice_outlet():
+    # "Each instant and sorcery spell you cast has casualty 1": a
+    # ``CastWithKeyword{Casualty 1}`` static (CR 702.153a: you sacrifice as you
+    # cast)
+    from mtg_utils._analysis.lanes.board_and_ramp import _sacrifice_outlets
+
+    for name in ("Anhelo, the Painter", "Silverquill, the Disputant"):
+        assert _sacrifice_outlets(_tree(name))
+
+
+@pytest.mark.parametrize(
+    ("name", "keyword"), [("Solid Footing", "Vigilance"), ("Ram Through", "Trample")]
+)
+def test_a_typed_keyword_payoff_is_a_keyword_tribe(name, keyword):
+    """Solid Footing's static on ``EnchantedBy + WithKeyword Vigilance``; Ram
+    Through's ``DealDamage.excess.source_keyword: Trample``."""
+    from mtg_utils._analysis.tree_synthesis.types_tribal import (
+        structural_keyword_subjects,
+    )
+
+    assert keyword in structural_keyword_subjects(_tree(name))

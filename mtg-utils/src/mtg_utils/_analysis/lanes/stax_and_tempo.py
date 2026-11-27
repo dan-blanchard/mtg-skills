@@ -1253,7 +1253,7 @@ def _opp_top_exile(tree: ConceptTree) -> list[Signal]:
                 return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
         # (2) Choose-from-their-zones chain (Covetous Urge, Psychic Intrusion
         # — probed verbatim): a ``ChooseFromZone`` with an opponent/targeted
-        # zone owner + a same-unit sibling ChangeZone→Exile + a
+        # zone owner + a same-unit sibling ChangeZone(All)→Exile + a
         # ``cast_from_zone`` concept (the SequentialSibling chain,
         # granularity a). ``ChooseFromZone`` is a tag_of read only — no
         # EFFECT_CONCEPTS row (§0.2).
@@ -1262,8 +1262,11 @@ def _opp_top_exile(tree: ConceptTree) -> list[Signal]:
             and getattr(c.node, "zone_owner", None) in ("TargetedPlayer", "Opponent")
             for c in unit.effects
         )
+        # The exile is one card's or, after a gather of choices, the gathered
+        # set's (Crabomination's ``ChangeZoneAll`` on ``TrackedSet``).
         exiles = any(
-            tag_of(c.node) == "ChangeZone" and change_zone_dirs(c.node)[1] == "Exile"
+            tag_of(c.node) in ("ChangeZone", "ChangeZoneAll")
+            and change_zone_dirs(c.node)[1] == "Exile"
             for c in unit.effect_concepts("change_zone")
         )
         # phase v0.66.0 pin bump: the chain's "you may cast that card for as

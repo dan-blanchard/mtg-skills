@@ -59,6 +59,7 @@ from mtg_utils._card_ir.crosswalk import (
     mana_restricted_to_multicolored,
     memo_on,
     modify_cost_spell_filter,
+    names_attached_object,
     protection_cardtype,
     ref_count_filter,
     tag_of,
@@ -372,8 +373,25 @@ def _structural_keyword_subjects(tree: ConceptTree) -> frozenset[str]:
                 out.add(subject.capitalize())
 
     for unit in tree.units:
+        yours_chosen = any(
+            tag_of(x.node) == "TargetOnly"
+            and filter_controller(getattr(x.node, "target", None)) == "You"
+            for x in unit.effects
+        )
         for c in unit.effects:
             add_filter(count_operand_filter(c.node))
+            # a bite's excess damage for a dealer of yours with a keyword ("If the
+            # creature you control has trample, excess damage is dealt to that
+            # creature's controller instead" — Ram Through: phase's
+            # ``excess.source_keyword``)
+            excess_kw = getattr(getattr(c.node, "excess", None), "source_keyword", None)
+            if (
+                isinstance(excess_kw, str)
+                and getattr(c.node, "damage_source", None) == "Target"
+                and yours_chosen
+                and keyword_subject(excess_kw) in _ABILITY_KEYWORDS
+            ):
+                out.add(keyword_subject(excess_kw).capitalize())
             if c.concept not in ("make_token", "sacrifice"):
                 add_filter(
                     effect_filter(c.node),
@@ -388,7 +406,11 @@ def _structural_keyword_subjects(tree: ConceptTree) -> frozenset[str]:
         if unit.origin == "trigger":
             add_filter(getattr(unit.node, "valid_card", None))
         if unit.origin == "static":
-            add_filter(getattr(unit.node, "affected", None))
+            # the creature an Aura or Equipment of yours is on ("As long as
+            # enchanted creature has vigilance, it assigns combat damage equal to
+            # its toughness" — Solid Footing)
+            affected = getattr(unit.node, "affected", None)
+            add_filter(affected, yours=names_attached_object(affected))
         for cond in iter_condition_sites(unit.node):
             for q in iter_typed_nodes(cond):
                 if tag_of(q) == "Typed":

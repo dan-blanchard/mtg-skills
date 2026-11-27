@@ -103,6 +103,26 @@ first build); and **the builder's choices** where both were silent.
   effect with a duration (Vivien's Stampede's "Each creature you control gains …
   melee until end of turn"; Rammas Echor, Ancient Shield's "creatures you
   control with defender gain exalted until end of turn").
+- **The counter keywords count, under `counters` (Dan's ruling, 2026-11-27).**
+  Training (CR 702.149a), dethrone (702.105a) and mentor (702.134a) put +1/+1
+  counters and do nothing else. Granted to your other creatures, however the
+  grant lands (a group, gear's creature, one target), the card is
+  `boosts_others|you|counters` ("Other creatures you control have dethrone" —
+  Marchesa, the Black Rose); a grant to one target creature adds its target flag
+  as the boost keywords do. A creature that has mentor reads through the trigger
+  phase builds for it (a +1/+1 counter on another attacking creature), as a
+  printed exalted or battle cry does; a printed training or dethrone grows the
+  creature itself. The other counter-placing keywords are not part of this
+  ruling (evolve, outlast, adapt, riot and the rest; bolster, amass, support and
+  explore already read as counters on another creature, by their own actions).
+- **Earthbend is its own thing (Dan's ruling, 2026-11-27).** Earthbend N animates
+  a land you control and puts N +1/+1 counters on it (CR 701.66a): no boost of
+  another creature (`boosts_others` `counters` / `target_spell` /
+  `target_ability`), and no target of yours for `own_target_spell` or the
+  targeting payoffs' offers. Keyed on phase's keyword action
+  (`crosswalk.earthbend_effects`: the `Animate` of a land through phase's
+  `RegisterBending{kind: Earth}` marker); a clause of the same card outside the
+  earthbend keeps its reading.
   (`lanes.boosts._granted_boost_keywords`,
   `_targeted_boost_keyword_deliveries`, `_own_battle_cry`.)
 

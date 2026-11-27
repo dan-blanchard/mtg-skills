@@ -617,20 +617,17 @@ def _arm_animated_object(tree: ConceptTree, unit: AbilityUnit) -> list[FieldCorr
 
 
 # "Whenever you get one or more {E}" (Territorial Gorger): phase types the
-# trigger ``CounterPlayerAddedAll`` and drops the counter kind (CR 107.14: {E} is
-# one energy counter). Every such trigger of the corpus is an energy one; the
-# kind is in the trigger's own clause.
-_GETS_ENERGY = re.compile(r"\bone or more \{e\}")
-
-
+# trigger ``CounterPlayerAddedAll`` with no counter kind, a mode its engine
+# matches only on an energy gain (``match_counter_player_added_all`` reads
+# ``EnergyChanged``; vetting-2026-11-27): phase's intended shape. The kind is
+# written out for the energy read (CR 107.14: {E} is one energy counter).
 def _arm_player_counter_kind(
-    tree: ConceptTree, unit: AbilityUnit
+    _tree: ConceptTree, unit: AbilityUnit
 ) -> list[FieldCorrection]:
     return [
         FieldCorrection(n, "counter_kind", "energy", "player_counter_kind")
         for n in unit.iter_typed()
         if getattr(n, "mode", None) == "CounterPlayerAddedAll"
-        and _GETS_ENERGY.search(_clause_text(tree, unit, n))
     ]
 
 

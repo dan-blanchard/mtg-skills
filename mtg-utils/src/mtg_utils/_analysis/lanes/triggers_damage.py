@@ -126,6 +126,7 @@ from mtg_utils._card_ir.crosswalk import (
     watches_itself,
     zone_change_count_reads,
 )
+from mtg_utils._card_ir.crosswalk.boosts import trigger_referent
 from mtg_utils._card_ir.crosswalk.reads import chooses
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
@@ -1563,7 +1564,14 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 if unit.origin != "trigger":
                     continue
                 watched = getattr(unit.node, "valid_card", None)
-                if atag == "TriggeringSource" and (
+                # An "it" on a static is the trigger's own object only where the
+                # chain names nothing earlier (``boosts.trigger_referent``:
+                # Bestial Fury's "whenever enchanted creature becomes blocked, it
+                # gains trample"), never Mammoth Harness's other creature.
+                attached_it = atag == "TriggeringSource" or (
+                    trigger_referent(unit, sdef) is not None
+                )
+                if attached_it and (
                     tag_of(watched) == "AttachedTo"
                     or set(filter_predicates(watched)) & ATTACHED_OBJECT_PREDICATES
                 ):

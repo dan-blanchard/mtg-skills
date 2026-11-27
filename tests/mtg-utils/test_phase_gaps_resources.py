@@ -218,14 +218,14 @@ def test_foul_renewal_binding_recovers_as_a_debuff():
     assert "debuff" in _recovered("Foul Renewal")
 
 
-def test_an_instruction_parked_with_its_binding_is_read_once():
+def test_a_parked_class_cost_reduction_recovers_nothing():
     """Commander Liara Portyr's "spells you cast from exile this turn cost {X}
     less to cast, where X is …" is parked whole, and its binding once more by
-    itself. The second residue is the first's own binding, and reads nothing."""
+    itself. The second residue is the first's own binding, and reads nothing;
+    the first is a class cost reduction, no cast permission
+    (``clause_grammar.class_cost_reduction``), so nothing recovers."""
     liara = _recovered("Commander Liara Portyr")
-    assert {token: len(nodes) for token, nodes in liara.items()} == {
-        "cast_from_zone": 1
-    }
+    assert {token: len(nodes) for token, nodes in liara.items()} == {}
 
 
 def test_a_parked_scry_x_reads_its_own_clause():

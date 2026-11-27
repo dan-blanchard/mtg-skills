@@ -1262,7 +1262,6 @@ def test_lead_object_grammar_reads_no_other_lead():
     assert lead_object("draw X cards") is None
 
 
-@pytest.mark.retirement_canary
 @pytest.mark.parametrize(
     "name",
     [
@@ -1271,18 +1270,18 @@ def test_lead_object_grammar_reads_no_other_lead():
         "Samurai of the Pale Curtain",  # bushido 1 (CR 702.45a)
     ],
 )
-def test_keyword_pump_duration_canary(name):
-    """Phase expands exalted, battle cry and bushido into their trigger but
-    leaves the pump with no ``duration``; each keyword's pump lasts until end of
-    turn, so the trigger's body gets ``UntilEndOfTurn``, as phase writes it for
-    the same pump printed out (Glaze Fiend)."""
+def test_keyword_pump_duration_is_the_engine_default_written_out(name):
+    """Phase's intended shape, not a misparse (vetting-2026-11-27): phase
+    expands exalted, battle cry and bushido into their trigger with no
+    ``duration``, and its engine resolves a pump with none as until end of turn
+    (``pump::resolve``). The row writes that default out, as phase writes it
+    for the same pump printed (Glaze Fiend), because ``effect_boost`` reads a
+    timed pump only: without it 51 of the 89 cards with one of the keywords lose
+    ``effect_boost|you|`` and ``boosts_others|you|effect`` (measured
+    2026-11-27). It never retires."""
     (rec,) = test_phase_records(name)
     bodies = [t["execute"] for t in rec["triggers"]]
-    assert any(b["duration"] is None for b in bodies), (
-        "misparsed_shapes keyword pump duration: RETIRE-READY — phase writes "
-        f"{name}'s keyword pump with its duration. Delete the keyword-pump row "
-        "(_KEYWORD_PUMPS, _keyword_pump_bodies) and this canary."
-    )
+    assert any(b["duration"] is None for b in bodies)
     after = correct_misparsed_shapes(rec)
     assert all(t["execute"]["duration"] == "UntilEndOfTurn" for t in after["triggers"])
     assert all(t["execute"]["duration"] is None for t in rec["triggers"])

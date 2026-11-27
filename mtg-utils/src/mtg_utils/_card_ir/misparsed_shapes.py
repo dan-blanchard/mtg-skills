@@ -221,11 +221,15 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   turn"). Phase expands each keyword into its trigger (Akrasan Squire, Accorder
   Paladin, Samurai of the Pale Curtain) but leaves the body's ``duration``
   ``null``, which it writes ``UntilEndOfTurn`` for the same pump printed out
-  (Glaze Fiend), so no read sees a timed pump: 35 exalted and 14 battle cry
-  cards missed ``effect_boost``. A trigger with the keyword's own shape — its
-  mode, the object it watches, the pump and where it lands — on a face that has
-  the keyword gets the duration. ``test_keyword_pump_duration_canary`` fails
-  once phase writes it.
+  (Glaze Fiend). Phase's intended shape, not a misparse: its engine resolves a
+  pump with no duration as until end of turn (``pump::resolve``;
+  vetting-2026-11-27), so this row writes the engine's default out for our
+  reads, which see a timed pump only (51 of the 89 cards with one of the
+  keywords would lose ``effect_boost``, measured 2026-11-27). A trigger with the
+  keyword's own shape — its mode, the object it watches, the pump and where it
+  lands — on a face that has the keyword gets the duration. It never retires, so
+  it carries no canary (``test_keyword_pump_duration_is_the_engine_default_
+  written_out`` pins it).
 
 * **A trigger's "it" phase binds to the wrong object.** Four shapes, each
   read off the structure alone. (1) "Whenever ~ attacks, you may pay {E}{E}.

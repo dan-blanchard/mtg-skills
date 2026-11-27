@@ -1598,9 +1598,9 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # :data:`_SWEEP_KEYWORD_LANES` row (Silumgar Scavenger) and a
 # created-token Devour read (:func:`_has_created_token_devour` —
 # Dragon Broodmother's typed ``MirrorVariant(key='Devour')`` on
-# the Token effect's own keywords list); (3) two ADR-0039 ledgered
-# bridges for the residual NO-typed-Sacrifice-node bucket
-# (bridge_ledger.py: ``sac_casualty_granted_onto_other_spell``,
+# the Token effect's own keywords list); (3) the granted-casualty
+# ``CastWithKeyword`` static read, and one ADR-0039 ledgered bridge for the
+# residual NO-typed-Sacrifice-node bucket (bridge_ledger.py:
 # ``sac_emblem_activated_cost``). ADR-0039 task #82 grammar sprint
 # graduated the other three OFF the ledger onto typed
 # ``tree_synthesis`` marker-node reads (``sac_alt_cost_pitch`` /

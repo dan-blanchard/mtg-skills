@@ -39,6 +39,7 @@ from mtg_utils._card_ir.clause_grammar import (
     CardGroup,
     PumpSubject,
     binding_sentence,
+    class_cost_reduction,
     keyword_grants,
     parked_move_zone,
     parked_perpetual_change,
@@ -638,6 +639,9 @@ ALLOWLIST.update(
         # connives X", Fall of Cair Andros's "amass Orcs X", Officious
         # Interrogation's "Investigate X times".
         "connive": TokenRule(concept="connive", category="connive"),
+        # Seek (DD3, the digital supplement) phase parks (Discover the Formula,
+        # Herald's Reveille): the native ``Seek`` concept seek_matters reads.
+        "seek": TokenRule(concept="seek", category="seek"),
         "amass": TokenRule(concept="amass", category="amass"),
         "investigate": TokenRule(concept="investigate", category="make_token"),
         # CR 702.82a devour: Thromok the Insatiable's "Devour X, where X is …".
@@ -1427,6 +1431,11 @@ def _recover(
     # reads its verb without the idiom sentences, each a later instruction
     # (:func:`_later_clauses`).
     token, raw = _replacement_reading(raw)
+    if token is None and class_cost_reduction(raw):
+        # a cost reduction for a class of spells, never the cast permission the
+        # verb scan reads in "spells you cast from exile" (Commander Liara
+        # Portyr): no token of the table
+        return None
     token = token or parse_clause(raw) or scan_clause(raw) or static_token(raw)
     if token is None or token not in table:
         return None
@@ -1441,6 +1450,10 @@ def _recover(
     # verbatim so the crosswalk draws the identical line rather than
     # widening a reference-only card into a maker.
     if token == "roll_die" and _DICE_TRIG.search(raw):
+        return None
+    if token == "seek" and not _opens_imperatively(raw):
+        # another player seeks ("Its controller seeks a creature card" — Obscura
+        # Polymorphist: the exiled creature's controller), no seek of yours
         return None
     # "draw"'s grammar token also matches two NON-draw senses (the exact
     # trap that got a first attempt at this row trimmed): the game-result
@@ -1552,6 +1565,18 @@ def _is_candidate(c: ConceptNode) -> bool:
 # you draw an additional card"). A leading "you" is the instruction's own
 # subject.
 _CONJUNCTION_RX = re.compile(r",?\s+(?:and|then)\s+", re.IGNORECASE)
+# A bare comma of a serial list of instructions ("sacrifice it, put a +1/+1
+# counter on enchanted creature, and that creature gains flying" — Cocoon): a
+# break only where the item before it opens on a verb and the sentence closes
+# the list with ", and" / ", then".
+_SERIAL_COMMA_RX = re.compile(r",\s+(?!(?:and|then|or)\b)", re.IGNORECASE)
+_SERIAL_CLOSE_RX = re.compile(r",\s+(?:and|then)\s+", re.IGNORECASE)
+# The words an item of such a list opens on when it names its own doer or
+# object first, not the verb.
+_LIST_SUBJECT_RX = re.compile(
+    r"^(?:you|they|he|she|it|its|their|that|those|this|each|target|an?|the|if)\b",
+    re.IGNORECASE,
+)
 _YOU_SUBJECT_RX = re.compile(r"^you\s+", re.IGNORECASE)
 
 
@@ -1593,19 +1618,47 @@ def _later_clauses(raw: str, table: dict[str, TokenRule]) -> list[tuple[int, str
     idioms = replacement_sentences(text)
     if _REPLACEMENT_SENSE.search(_without_spans(text, idioms)):
         return []
+    sentence_ends = [m.start() for m in SENTENCE_BREAK_RX.finditer(text)]
     breaks = sorted(
         b
         for b in (
             *((m.start(), m.end(), False) for m in SENTENCE_BREAK_RX.finditer(text)),
             *((m.start(), m.end(), True) for m in _CONJUNCTION_RX.finditer(text)),
+            *(
+                (m.start(), m.end(), None)
+                for m in _SERIAL_COMMA_RX.finditer(text)
+                if _SERIAL_CLOSE_RX.search(
+                    text,
+                    m.end(),
+                    next((e for e in sentence_ends if e > m.start()), len(text)),
+                )
+            ),
         )
         # inside an idiom sentence, short of the period that ends it
         if not any(a <= b[0] < z - 1 for a, z, _token in idioms)
     )
     starts: list[int] = []
     segment = 0
+    item = 0
     for start, end, conjunction in breaks:
         part = text[end:]
+        if conjunction is None:
+            # a serial comma: the list's next instruction, where it and the item
+            # before it are both bare imperatives ("sacrifice it, put a +1/+1
+            # counter on …"); "If you can't, sacrifice it" opens no list, and a
+            # list whose items name their own players ("they lose 2 life, you
+            # draw a card" — Doom Foretold) is left as it was
+            before = text[item:start].strip()
+            if (
+                not _LIST_SUBJECT_RX.match(before)
+                and not _LIST_SUBJECT_RX.match(part)
+                and parse_clause(before)
+                and (parse_clause(part) or "") in table
+            ):
+                starts.append(end)
+            item = end
+            continue
+        item = end
         peeled = _YOU_SUBJECT_RX.sub("", part)
         shares_subject = _opens_imperatively(
             text[segment:start]

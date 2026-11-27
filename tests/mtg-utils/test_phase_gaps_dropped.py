@@ -292,24 +292,17 @@ def test_overload_sweep_names_what_overload_makes_of_the_base_mode(name, mode):
     assert modes - {None} == ({mode} if mode else set())
 
 
-@pytest.mark.retirement_canary
 @pytest.mark.parametrize(
     ("name", "mass_tag"), [("Damn", "DestroyAll"), ("Cyclonic Rift", "BounceAll")]
 )
 def test_overload_sweep_is_read_from_the_base_mode(name, mass_tag):
-    """Retirement canary for ``crosswalk.overload_sweep``: phase v0.104.0 keeps
-    overload as an alternative cost and types only the targeted base mode, so
-    the lanes and the board-wipe read take the sweep off it. When phase types
-    the overloaded mode as a mass node, the base-mode read is redundant —
-    retire it."""
+    """Phase's intended shape, not a misparse (vetting-2026-11-27): overload is
+    an alternative cost phase's engine applies at cast (CR 702.96a-b), and the
+    card data types only the targeted base mode, so the lanes and the
+    board-wipe read take the sweep off it (``crosswalk.overload_sweep``)."""
     tree = _tree(name)
     assert any(alt.kind == "overload" for alt in tree.card_alt_costs)
-    assert not tree.has_typed(mass_tag), (
-        f"{name}: RETIRE-READY — phase types the overloaded sweep; drop "
-        "``crosswalk.overload_sweep`` and its callers (the mass_removal / "
-        "mass_bounce lanes, kills_creatures_en_masse, job_quality/board_wipe.py's "
-        "_tree_sweeps and _overload_cost)."
-    )
+    assert not tree.has_typed(mass_tag)
 
 
 @pytest.mark.parametrize(

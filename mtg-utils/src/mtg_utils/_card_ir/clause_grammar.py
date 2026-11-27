@@ -364,6 +364,10 @@ _SIMPLE_VERB = comb.alt(
     comb.value("goad", comb.keyword({"goad", "goads"})),
     comb.value("scry", comb.keyword({"scry", "scries"})),
     comb.value("surveil", comb.keyword({"surveil", "surveils"})),
+    # Seek (the digital supplement's DD3: a random card matching the criteria
+    # from your library, into your hand), parked in a residue phase can't
+    # type (Discover the Formula's "Seek three nonland cards, then …").
+    comb.value("seek", comb.keyword({"seek", "seeks"})),
     # "reveal(s) {their/his or her/its} hand" (CR 402.3's disclosure family) —
     # the IMPERATIVE action idiom (Alhammarret, High Arbiter: "each opponent
     # reveals their hand. You choose the name of a nonland card revealed this
@@ -666,7 +670,8 @@ _VERB_PRESENT = re.compile(
     r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
     r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?"
     r"|fights?|switch|switches|adds?|foretells?|adapts?|crews?|stations?|soulshift"
-    r"|regenerates?|converts?|ends?|phases?|connives?|amass(?:es)?|investigates?|blights?)\b",
+    r"|regenerates?|converts?|ends?|phases?|connives?|amass(?:es)?|investigates?|blights?"
+    r"|seeks?)\b",
     re.IGNORECASE,
 )
 
@@ -938,6 +943,24 @@ STATIC_TOKENS = (
         "self_discount",
     ),
 )
+
+
+# ── A class cost reduction phase parks ─────────────────────────────────────────
+# "Spells you cast from your graveyard this turn cost {2} less to cast" (Shellfish
+# Scholar), "spells you cast from exile this turn cost {X} less to cast, where X
+# is …" (Commander Liara Portyr): a cost reduction for a class of spells (CR
+# 601.2f), never a permission to cast from that zone — the "cast … from" the verb
+# scan would read is the class's own description.
+_CLASS_COST_REDUCTION_RX = re.compile(
+    r"^[^.]*?\bspells? you cast\b[^.]*?\bcosts? (?:\{[^}]*\})+ less\b", re.IGNORECASE
+)
+
+
+def class_cost_reduction(text: str) -> bool:
+    """Whether a parked clause is a cost reduction for a class of spells you
+    cast ("Spells you cast from your graveyard this turn cost {2} less to cast"
+    — Shellfish Scholar): :data:`_CLASS_COST_REDUCTION_RX`."""
+    return bool(_CLASS_COST_REDUCTION_RX.search(_FAILED_PREFIX.sub("", text).strip()))
 
 
 # ── Keyword grants: the keywords a clause puts on a body ───────────────────────

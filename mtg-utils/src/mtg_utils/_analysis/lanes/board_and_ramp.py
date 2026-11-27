@@ -61,6 +61,7 @@ from mtg_utils._card_ir.crosswalk import (
     adds_creature_type,
     aggregate_filter,
     cast_keyword_type_words,
+    cast_with_keyword_name,
     change_zone_dirs,
     controller_paid_cost_leaves,
     count_distinct_operand_filter,
@@ -71,6 +72,7 @@ from mtg_utils._card_ir.crosswalk import (
     effects_exclusive,
     entered_this_turn_filters,
     filter_controller,
+    filter_controller_side,
     filter_core_types,
     filter_inzone_zones,
     filter_owned_controller,
@@ -426,10 +428,11 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     Casualty/Bargain's keyword-array lane (:data:`_SWEEP_KEYWORD_LANES`,
     Silumgar Scavenger / Thromok the Insatiable) and a created-token Devour
     read (:func:`_has_created_token_devour`, Dragon Broodmother's typed
-    ``MirrorVariant(key='Devour')``). (3) Two remaining ledgered bridges
-    (``bridge_ledger.py``) close the residual NO-typed-Sacrifice-node-
-    anywhere bucket: ``sac_casualty_granted_onto_other_spell`` covers the
-    Anhelo/Silverquill GRANT shape; ``sac_emblem_activated_cost`` covers Ob
+    ``MirrorVariant(key='Devour')``). (3) Casualty granted to your spells is
+    phase's ``CastWithKeyword{Casualty N}`` static (Anhelo, Silverquill; its
+    ledger row retired 2026-11-27, phase typed it at every tag from v0.66.0),
+    and one ledgered bridge (``bridge_ledger.py``) closes the residual
+    NO-typed-Sacrifice-node bucket: ``sac_emblem_activated_cost`` covers Ob
     Nixilis of the Black Oath's emblem — an opaque-description residue,
     gap-gated so a future phase bump or grammar verb retires the row
     automatically.
@@ -499,6 +502,17 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
                 ]
+    # Casualty granted to your spells ("Each instant and sorcery spell you cast
+    # has casualty 1" — Silverquill, the Disputant; Anhelo, the Painter): phase's
+    # ``CastWithKeyword{Casualty N}`` static, and you sacrifice as you cast (CR
+    # 702.153a).
+    for unit in tree.units:
+        if (
+            unit.origin == "static"
+            and cast_with_keyword_name(unit.node) == "Casualty"
+            and filter_controller_side(getattr(unit.node, "affected", None)) == "you"
+        ):
+            return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     m = _CAST_ADD_SAC_RX.search(_kept(tree))
     if m and not _cast_add_sac_clause_is_land_only(m.group(1)):
         return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
@@ -530,7 +544,7 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     # stays a documented ``live_only`` residue (ADR-0035 convergence tail). CR
     # 701.16 / 701.21. The ``ParentTargetController`` symmetric-sac class and the
     # Casualty-GRANT shape are CLOSED (ADR-0039 W7 — :func:`_sac_ptc_you_eligible`
-    # and the ``sac_casualty_granted_onto_other_spell`` bridge, this docstring's own
+    # and the ``CastWithKeyword{Casualty}`` static read, this docstring's own
     # W7 paragraph). Still-deferred: a ``GrantTrigger``-conferred sac (a TRIGGERED,
     # not activated, granted ability — "Enchanted creature has 'At the beginning of
     # your upkeep, sacrifice a creature.'" — Wayward Angel, Cultist of the Absolute,

@@ -401,3 +401,101 @@ def test_population_effects_grammar(text, tags):
     from mtg_utils._card_ir.clause_grammar import population_effects
 
     assert population_effects(text) == tags
+
+
+# ── The backlog reads block (2026-11-27) ────────────────────────────────────────
+
+
+def _concepts(name: str) -> list[str]:
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card
+
+    test_signals(name)  # seeds the card's trees
+    return [
+        c.concept
+        for t in trees_for(test_card(name))
+        for u in t.units
+        for c in u.effects
+    ]
+
+
+def test_a_serial_list_of_instructions_is_split():
+    """ "If you can't, sacrifice it, put a +1/+1 counter on enchanted creature,
+    and that creature gains flying" (Cocoon): the bare comma before "put" breaks
+    the list too, so the counter on the enchanted creature is read."""
+    assert _concepts("Cocoon").count("place_counter") == 2
+    assert ("boosts_others", "you", "counters") in _idents("Cocoon")
+    # "choose that player or a permanent they control, copy that spell, and …"
+    assert ("spell_copy_makers", "you", "") in _idents("Zevlor, Elturel Exile")
+
+
+@pytest.mark.parametrize(
+    ("text", "parts"),
+    [
+        (
+            (
+                "If you can't, sacrifice it, put a +1/+1 counter on enchanted "
+                "creature, and that creature gains flying"
+            ),
+            [
+                "put a +1/+1 counter on enchanted creature, and that creature gains flying"
+            ],
+        ),
+        # no closing ", and" / ", then": no list
+        ("If you do, sacrifice it, put a +1/+1 counter on it", []),
+        # each item names its own player: left as it was
+        (
+            "discard a card, they lose 2 life, you draw a card, then you sacrifice ~",
+            ["sacrifice ~"],
+        ),
+    ],
+)
+def test_serial_comma_grammar(text, parts):
+    from mtg_utils._card_ir.recovery import ALLOWLIST, _later_clauses
+
+    assert [p for _s, p in _later_clauses(text, ALLOWLIST)] == parts
+
+
+@pytest.mark.retirement_canary
+def test_parked_seek_canary():
+    """ "Seek three nonland cards, then …" (Discover the Formula) parks as an
+    ``unparsed_verb_arguments`` residue; the recovery stage's ``seek`` token
+    reads it as phase's ``Seek`` concept (seek is the digital supplement's DD3:
+    a card at random from your library). Fails once phase types the seek."""
+    assert not _raw_effects("Discover the Formula", "Seek"), (
+        "recovery seek token: RETIRE-READY — phase types Discover the Formula's "
+        "seek; drop this case, and the token once no residue holds a seek"
+    )
+    assert "seek" in _concepts("Discover the Formula")
+    assert ("seek_matters", "you", "") in _idents("Discover the Formula")
+
+
+def test_another_players_seek_is_not_yours():
+    # "exile target creature. Its controller seeks a creature card."
+    assert "seek_matters" not in {k for k, _s, _t in _idents("Obscura Polymorphist")}
+
+
+@pytest.mark.parametrize("name", ["Commander Liara Portyr", "Shellfish Scholar"])
+def test_a_class_cost_reduction_is_no_cast_permission(name):
+    """ "spells you cast from exile this turn cost {X} less to cast" is a cost
+    reduction (CR 601.2f), never a permission to cast from that zone."""
+    assert "cast_from_zone" not in _concepts(name)
+    assert ("cost_reduction", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    ("text", "reduces"),
+    [
+        ("Spells you cast from your graveyard this turn cost {2} less to cast", True),
+        (
+            "spells you cast from exile this turn cost {X} less to cast, where X is 2",
+            True,
+        ),
+        ("You may cast spells from your graveyard this turn", False),
+        ("Instant spells you cast cost {1}{U} more to cast", False),
+    ],
+)
+def test_class_cost_reduction_grammar(text, reduces):
+    from mtg_utils._card_ir.clause_grammar import class_cost_reduction
+
+    assert class_cost_reduction(text) is reduces

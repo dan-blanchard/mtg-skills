@@ -2039,8 +2039,10 @@ def _keep_n_wrath(tree: ConceptTree) -> list[Signal]:
     scoped away from you — a You-controller filter under an Opponent
     player_scope (No One Will Hear Your Cries — phase's ScopedPlayer
     mislabel class) or under an OnlyDuringOpponentsTurn trigger (Archfiend
-    of Depravity). The Unimplemented-choose members (Duneblast, Stick
-    Together, Mount Doom, Promise of Loyalty) ride the ledgered
+    of Depravity). A third shape: phase's ``ChooseObjectsIntoTrackedSet``
+    then a ``DestroyAll`` / ``SacrificeAll`` sparing the tracked set
+    (Duneblast, Mount Doom; ``bridge_ledger._keep_n_tracked_rest``). Stick
+    Together's parked choose rides the ledgered
     ``keep_n_wrath_unimplemented_choose`` bridge, "at random" vetoed (Last
     One Standing keeps a random creature — protects nothing). Winnowing's
     tribal-keep (SharesQuality/DoesNotShare sacrifice, n=1 corpus) is a

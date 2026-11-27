@@ -41,6 +41,7 @@ from mtg_utils._card_ir.crosswalk import (
     controller_reach,
     counter_kind,
     counter_raises,
+    earthbend_effects,
     effect_owner_rebinds_kind,
     filter_controller,
     filter_names_creatures,
@@ -227,8 +228,13 @@ def _read_counter_boosts(
     others = False
     targeted: list[tuple[AbilityUnit, object]] = []
     for unit in tree.units:
+        # earthbend's counters are on the land it animates: its own thing, no
+        # boost of another creature (Dan's ruling, 2026-11-27)
+        earthbend = earthbend_effects(unit)
         for c in unit.effects:
             tag = tag_of(c.node)
+            if id(c.node) in earthbend:
+                continue
             if c.concept == "place_counter" and c.recovered_by:
                 if (
                     "+1/+1 counter" in c.subject
@@ -339,14 +345,29 @@ _HOLDER_BOOST_KEYWORDS: frozenset[str] = frozenset(
 #: +1/+1 until end of turn", CR 702.83a): a Clue or an Aura with it boosts your
 #: attacker too (Merchant of Truth, Rashel, Fist of Torm).
 _ATTACKER_BOOST_KEYWORDS: frozenset[str] = frozenset({"exalted"})
-_BOOST_KEYWORDS = _HOLDER_BOOST_KEYWORDS | _ATTACKER_BOOST_KEYWORDS
+#: The keywords whose whole effect is +1/+1 counters, which make the creature
+#: that has them bigger (Dan's ruling, 2026-11-27: granted to your other
+#: creatures, a ``counters`` boost): training ("put a +1/+1 counter on this
+#: creature", CR 702.149a), dethrone (702.105a) and mentor ("put a +1/+1 counter
+#: on target attacking creature with power less than this creature's power",
+#: 702.134a: another creature). A creature that HAS mentor already reads as the
+#: trigger phase builds for it (a targeted counter on another creature), as a
+#: printed battle cry or exalted does; a printed training or dethrone grows the
+#: card itself (``self_boost``).
+_COUNTER_BOOST_KEYWORDS: frozenset[str] = frozenset({"training", "dethrone", "mentor"})
+_BOOST_KEYWORDS = (
+    _HOLDER_BOOST_KEYWORDS | _ATTACKER_BOOST_KEYWORDS | _COUNTER_BOOST_KEYWORDS
+)
 
 
-def _granted_boost_keywords(tree: ConceptTree) -> Iterator[tuple[object, bool]]:
-    """``(affected, standing)`` for each grant of a boost keyword to a group of
+def _granted_boost_keywords(
+    tree: ConceptTree,
+) -> Iterator[tuple[object, bool, str]]:
+    """``(affected, standing, keyword)`` for each grant of a boost keyword to a group of
     your creatures or permanents, or to the creature an Aura or Equipment is
     attached to (:data:`_HOLDER_BOOST_KEYWORDS` to creatures,
-    :data:`_ATTACKER_BOOST_KEYWORDS` to any of your permanents): "Other
+    :data:`_ATTACKER_BOOST_KEYWORDS` to any of your permanents,
+    :data:`_COUNTER_BOOST_KEYWORDS` to creatures): "Other
     creatures you control have prowess" (Bria, Riptide Rogue), "Equipped
     creature has prowess" (Wizard's Staff), "Auras you control have exalted"
     (Rashel, Fist of Torm), "creatures you control with defender gain exalted
@@ -363,7 +384,7 @@ def _granted_boost_keywords(tree: ConceptTree) -> Iterator[tuple[object, bool]]:
             affected = getattr(sdef, "affected", None)
             standing = unit.origin == "static"
             if names_attached_object(affected):
-                yield affected, standing
+                yield affected, standing, kw
                 continue
             if tag_of(affected) not in OBJECT_FILTER_TAGS or tag_of(affected) in (
                 "SelfRef",
@@ -372,21 +393,25 @@ def _granted_boost_keywords(tree: ConceptTree) -> Iterator[tuple[object, bool]]:
                 continue
             if controller_reach(filter_controller(affected)) != "yours":
                 continue
-            if kw in _HOLDER_BOOST_KEYWORDS and not filter_names_creatures(affected):
+            if kw not in _ATTACKER_BOOST_KEYWORDS and not filter_names_creatures(
+                affected
+            ):
                 continue
-            yield affected, standing
+            yield affected, standing, kw
 
 
-def _targeted_boost_keyword_deliveries(tree: ConceptTree) -> set[str]:
+def _targeted_boost_keyword_deliveries(tree: ConceptTree) -> set[tuple[str, bool]]:
     """How each grant of a boost keyword (:data:`_BOOST_KEYWORDS`) to ONE target
     creature that isn't an opponent's reaches it (``crosswalk.boost_delivery``
     over ``reads.unit_keyword_grants``): "another target creature you control
     gains melee" (Fang of the Pack), "Target creature … gains rampage 2" (Rapid
     Fire), "Put a training counter on target creature. That creature gains
     bushido 1" (Sensei Golden-Tail). The coordinator's decision (2026-11-25):
-    it carries the target flag as any other targeted boost does."""
+    it carries the target flag as any other targeted boost does. Each as
+    ``(delivery, counters)``, ``counters`` for a counter keyword
+    (:data:`_COUNTER_BOOST_KEYWORDS`)."""
     return {
-        boost_delivery(unit, tree)
+        (boost_delivery(unit, tree), normalised_keyword(mod) in _COUNTER_BOOST_KEYWORDS)
         for unit in tree.units
         for target, mod in unit_keyword_grants(unit)
         if normalised_keyword(mod) in _BOOST_KEYWORDS
@@ -429,7 +454,8 @@ def boosts_others_signals(tree: ConceptTree, out: Iterable[Signal]) -> list[Sign
       creatures (:func:`_granted_boost_keywords`: Bria, Riptide Rogue's prowess;
       one that lasts a turn is ``effect`` — Vivien's Stampede; Dan's
       ruling, 2026-11-25: prowess, exalted, bushido, rampage, melee, battle
-      cry);
+      cry); a grant of training, dethrone or mentor, however it lands, is
+      ``counters`` (Dan's ruling, 2026-11-27: Marchesa, the Black Rose);
     * ``attached`` — an Aura or Equipment that boosts the creature it is
       attached to (``counters_voltron.gear_pump_subjects``, the read behind
       ``voltron_makers|you|pump`` and ``|power``, a bestow creature's included),
@@ -471,8 +497,13 @@ def boosts_others_signals(tree: ConceptTree, out: Iterable[Signal]) -> list[Sign
     if set(gear_pump_subjects(tree, either_arm=True)) & _ATTACHED_GEAR_SUBJECTS:
         add(signal_keys.BOOST_ATTACHED)
         _attached_delivery(add, aura=aura, equipment="equipment" in subtypes)
-    for affected, standing in _granted_boost_keywords(tree):
-        if names_attached_object(affected):
+    for affected, standing, kw in _granted_boost_keywords(tree):
+        if kw in _COUNTER_BOOST_KEYWORDS:
+            # counters it grows by, wherever the grant lands (Dan's ruling,
+            # 2026-11-27: "Other creatures you control have dethrone" —
+            # Marchesa, the Black Rose)
+            add(signal_keys.BOOST_COUNTERS)
+        elif names_attached_object(affected):
             add(signal_keys.BOOST_ATTACHED)
             _attached_delivery(add, aura=aura, equipment="equipment" in subtypes)
         else:
@@ -481,8 +512,8 @@ def boosts_others_signals(tree: ConceptTree, out: Iterable[Signal]) -> list[Sign
             add(signal_keys.BOOST_ANTHEM if standing else signal_keys.BOOST_EFFECT)
     if _own_battle_cry(tree):
         add(signal_keys.BOOST_EFFECT)
-    for delivery in sorted(_targeted_boost_keyword_deliveries(tree)):
-        add(signal_keys.BOOST_EFFECT)
+    for delivery, counters in sorted(_targeted_boost_keyword_deliveries(tree)):
+        add(signal_keys.BOOST_COUNTERS if counters else signal_keys.BOOST_EFFECT)
         add(_target_subject(delivery))
     if not is_creature_body(tree):
         for affected in _granted_growth(tree):

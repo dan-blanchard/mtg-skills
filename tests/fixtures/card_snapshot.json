@@ -217146,6 +217146,741 @@
     "type_line": "Sorcery — Lesson"
    }
   },
+  "Bumi, Eclectic Earthbender": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Noble",
+       "Ally"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "f324a384-7380-4f6e-bbba-fac1f2a01b5d"
+      ]
+     },
+     "name": "Bumi, Eclectic Earthbender",
+     "non_ability_text": null,
+     "oracle_text": "When Bumi enters, earthbend 1. (Target land you control becomes a 0/0 creature with haste that's still a land. Put a +1/+1 counter on it. When it dies or is exiled, return it to the battlefield tapped.)\nWhenever Bumi attacks, put two +1/+1 counters on each land creature you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "TLE"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-10-02",
+       "text": "\"Earthbend N\" means \"Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped under your control.\""
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Earthbend doesn't give the land you control a color. As most lands are colorless, in most cases the resulting land creature will also be colorless."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "If a land was animated by earthbend and would go to any zone other than the graveyard or exile, it will not be returned to the battlefield by the delayed triggered ability created by earthbend."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "If the targeted land becomes an illegal target before the spell or ability that includes earthbend resolves, earthbend does nothing. If the spell or ability didn't have other targets, it won't resolve."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "The land will retain any other types, subtypes, or supertypes it previously had. It will also retain any mana abilities it had as a result of those subtypes. For example, a Forest that's turned into a creature this way can still be tapped for {G}."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "You may target a land that is already a creature, perhaps because of a previous earthbend ability. The land will get the +1/+1 counters, gain haste, and have its base power and toughness set to 0/0."
+      }
+     ],
+     "scryfall_oracle_id": "301af2b2-e2f7-4220-a3f5-7702fb62664a",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, earthbend 1.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "Permanent",
+        "effect": {
+         "keywords": [
+          "Haste"
+         ],
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Animate",
+         "types": [
+          "Creature"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "condition": {
+            "filter": {
+             "type": "ParentTarget"
+            },
+            "type": "WhenDiesOrExiled"
+           },
+           "effect": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "destination": "Battlefield",
+             "enter_tapped": true,
+             "enter_transformed": false,
+             "enters_attacking": false,
+             "enters_under": "You",
+             "origin": null,
+             "owner_library": false,
+             "target": {
+              "type": "TriggeringSource"
+             },
+             "type": "ChangeZone"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "target_prompt": null
+           },
+           "type": "CreateDelayedTrigger",
+           "uses_tracked_set": false
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "kind": "Earth",
+            "type": "RegisterBending"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, put two +1/+1 counters on each land creature you control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land",
+           "Creature"
+          ]
+         },
+         "type": "PutCounterAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Earthbend"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{G}",
+    "name": "Bumi, Eclectic Earthbender",
+    "oracle_id": "301af2b2-e2f7-4220-a3f5-7702fb62664a",
+    "oracle_text": "When Bumi enters, earthbend 1. (Target land you control becomes a 0/0 creature with haste that's still a land. Put a +1/+1 counter on it. When it dies or is exiled, return it to the battlefield tapped.)\nWhenever Bumi attacks, put two +1/+1 counters on each land creature you control.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human Noble Ally"
+   }
+  },
+  "Bumi, Unleashed": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Noble",
+       "Ally"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": [
+      "Green",
+      "Red"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Trample"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7143a5ba-c597-4f8b-9f39-15849e298a6f",
+       "b20a5185-7e31-4fc9-be11-9423bfc389bf"
+      ]
+     },
+     "name": "Bumi, Unleashed",
+     "non_ability_text": null,
+     "oracle_text": "Trample\nWhen Bumi enters, earthbend 4.\nWhenever Bumi deals combat damage to a player, untap all lands you control. After this phase, there is an additional combat phase. Only land creatures can attack during that combat phase.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "PTLA",
+      "TLA"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-10-02",
+       "text": "\"Earthbend N\" means \"Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped under your control.\""
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Earthbend doesn't give the land you control a color. As most lands are colorless, in most cases the resulting land creature will also be colorless."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "If a land was animated by earthbend and would go to any zone other than the graveyard or exile, it will not be returned to the battlefield by the delayed triggered ability created by earthbend."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "If the targeted land becomes an illegal target before the spell or ability that includes earthbend resolves, earthbend does nothing. If the spell or ability didn't have other targets, it won't resolve."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "The land will retain any other types, subtypes, or supertypes it previously had. It will also retain any mana abilities it had as a result of those subtypes. For example, a Forest that's turned into a creature this way can still be tapped for {G}."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "The restriction that only land creatures can attack applies only to the combat phase created by Bumi, Unleashed, not to any other combat phases that might occur that turn."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "You may target a land that is already a creature, perhaps because of a previous earthbend ability. The land will get the +1/+1 counters, gain haste, and have its base power and toughness set to 0/0."
+      }
+     ],
+     "scryfall_oracle_id": "1fef13d8-5da2-46a6-91ed-7a31bd46e538",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, earthbend 4.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "Permanent",
+        "effect": {
+         "keywords": [
+          "Haste"
+         ],
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Animate",
+         "types": [
+          "Creature"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 4
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "condition": {
+            "filter": {
+             "type": "ParentTarget"
+            },
+            "type": "WhenDiesOrExiled"
+           },
+           "effect": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "destination": "Battlefield",
+             "enter_tapped": true,
+             "enter_transformed": false,
+             "enters_attacking": false,
+             "enters_under": "You",
+             "origin": null,
+             "owner_library": false,
+             "target": {
+              "type": "TriggeringSource"
+             },
+             "type": "ChangeZone"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "target_prompt": null
+           },
+           "type": "CreateDelayedTrigger",
+           "uses_tracked_set": false
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "kind": "Earth",
+            "type": "RegisterBending"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ deals combat damage to a player, untap all lands you control. After this phase, there is an additional combat phase. Only land creatures can attack during that combat phase.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "All"
+         },
+         "state": {
+          "type": "Untap"
+         },
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "after": {
+           "data": {
+            "named": null
+           },
+           "type": "ThisPhase"
+          },
+          "attacker_restriction": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Land",
+            "Creature"
+           ]
+          },
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "followed_by": [],
+          "recipient": {
+           "type": "NoPlayer"
+          },
+          "segment": {
+           "data": "Combat",
+           "type": "Phase"
+          },
+          "type": "AdditionalPhase"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "SelfRef"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Earthbend",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{G}",
+    "name": "Bumi, Unleashed",
+    "oracle_id": "1fef13d8-5da2-46a6-91ed-7a31bd46e538",
+    "oracle_text": "Trample\nWhen Bumi enters, earthbend 4.\nWhenever Bumi deals combat damage to a player, untap all lands you control. After this phase, there is an additional combat phase. Only land creatures can attack during that combat phase.",
+    "power": "5",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human Noble Ally"
+   }
+  },
   "Bump in the Night": {
    "phase_records": [
     {
@@ -281199,6 +281934,305 @@
     "type_line": "Artifact"
    }
   },
+  "Cocoon": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "condition_wrong",
+      "source_printing_ids": [
+       "897de61e-440f-4eaf-aef8-0dd1c6117288",
+       "a82c87b1-de37-4423-a1a4-533a1d8108b2",
+       "b27cfb1f-eb5f-4304-82f3-f844bc26d798"
+      ]
+     },
+     "name": "Cocoon",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature you control\nWhen this Aura enters, tap enchanted creature and put three pupa counters on this Aura.\nEnchanted creature doesn't untap during your untap step if this Aura has a pupa counter on it.\nAt the beginning of your upkeep, remove a pupa counter from this Aura. If you can't, sacrifice it, put a +1/+1 counter on enchanted creature, and that creature gains flying.",
+     "power": null,
+     "printings": [
+      "BCHR",
+      "CHR",
+      "LEG"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Cocoon can be used on a tapped creature."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "The creature can still be untapped using spells and abilities."
+      },
+      {
+       "date": "2005-08-01",
+       "text": "If the Aura is moved to a different creature, the number of counters is unchanged."
+      }
+     ],
+     "scryfall_oracle_id": "9e35d450-00af-4f40-a4ee-bc7844ff5628",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "counters": {
+         "data": "pupa",
+         "type": "OfType"
+        },
+        "minimum": 1,
+        "type": "HasCounters"
+       },
+       "description": "Enchanted creature doesn't untap during your untap step if ~ has a pupa counter on it.",
+       "effect_zone": null,
+       "mode": "CantUntap",
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, tap enchanted creature and put three pupa counters on ~.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "EnchantedBy"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "counter_type": "pupa",
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, remove a pupa counter from ~. If you can't, sacrifice it, put a +1/+1 counter on enchanted creature, and that creature gains flying.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "pupa",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "RemoveCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "description": "If you can't, sacrifice it, put a +1/+1 counter on enchanted creature, and that creature gains flying",
+          "name": "cant_rider_without_zone_change_antecedent",
+          "type": "Unimplemented"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Cocoon",
+    "oracle_id": "9e35d450-00af-4f40-a4ee-bc7844ff5628",
+    "oracle_text": "Enchant creature you control\nWhen this Aura enters, tap enchanted creature and put three pupa counters on this Aura.\nEnchanted creature doesn't untap during your untap step if this Aura has a pupa counter on it.\nAt the beginning of your upkeep, remove a pupa counter from this Aura. If you can't, sacrifice it, put a +1/+1 counter on enchanted creature, and that creature gains flying.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Code of Constraint": {
    "phase_records": [
     {
@@ -307651,6 +308685,367 @@
     "oracle_id": "7d3d1c90-a5fb-44ff-a85b-27c037ca6753",
     "oracle_text": "Enchant creature\n{2}{U}: Untap enchanted creature.\nUmbra armor (If enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura.)",
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Crabomination": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Crab",
+       "Demon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Emerge": {
+        "mana_cost": {
+         "generic": 5,
+         "shards": [
+          "Black",
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "sacrifice_filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Artifact"
+         ]
+        }
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "b6ac511f-6c28-45f9-968b-9ac72872641b",
+       "f328d6e0-d808-4abe-b6a2-cc557b27c329"
+      ]
+     },
+     "name": "Crabomination",
+     "non_ability_text": null,
+     "oracle_text": "Emerge from artifact {5}{B}{B} (You may cast this spell by sacrificing an artifact and paying the emerge cost reduced by that artifact's mana value.)\nWhen this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "MH3",
+      "PMH3"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-06-07",
+       "text": "An artifact's mana value is determined solely by the mana symbols printed in its upper right corner (unless that artifact is the back face of a double-faced card, is a melded permanent, or is copying something else; see below). If the mana cost includes {X}, X is 0. If it's a single-faced card with no mana symbols in its upper right corner (because it's an animated land, for example), its mana value is 0. Ignore any alternative costs or additional costs (such as kicker) that were paid as the artifact was cast."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Colored mana components of emerge costs can't be reduced with emerge."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Crabomination's triggered ability doesn't allow you to play land cards, and as such, any land cards exiled with Crabomination's triggered ability will remain in exile. If you choose not to cast any of the exiled nonland cards (either because you can't or don't want to), those cards will remain in exile as well."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Emerge from artifact is a variant of the emerge ability. It allows you to sacrifice an artifact rather than a creature, but otherwise functions identically to emerge."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If you cast a spell for another cost \"without paying its mana cost,\" you can't choose to cast it for any alternative costs. You can, however, pay additional costs, such as kicker costs. If the spell has any mandatory additional costs, those must be paid to cast it."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Once you begin to cast a spell with emerge, no player may take actions until you're done. Notably, opponents can't try to remove the permanent you wish to sacrifice."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "The artifact chosen to be sacrificed is still on the battlefield up through the time that you activate mana abilities. Its abilities may affect the spell's cost, be activated to generate mana, and so on. However, if it has an ability that triggers when a spell is cast, it will have been sacrificed before that ability can trigger."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "The mana value of a creature spell with emerge isn't affected by whether its emerge cost is paid. For example, if you cast Crabomination for its emerge cost and sacrifice an artifact whose mana value is 3, Crabomination's mana value remains 6."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "The mana value of the back face of a double-faced card is the mana value of its front face. The mana value of a melded permanent is the sum of the mana values of its front faces. An artifact that's a copy of either has a mana value of 0."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "The spell you cast without paying its mana cost is cast during the resolution of Crabomination's triggered ability. Timing restrictions of that spell based on card type are ignored."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "You choose whether or not to cast one of the exiled cards as Crabomination's triggered ability resolves. If you do, you do so as part of the resolution of that ability. You can't wait to cast it later in the turn. Timing restrictions based on the card's type are ignored."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "You may sacrifice an artifact with a mana value of 0, such as a Food token, to cast Crabomination for its emerge cost. You'll just pay the full emerge cost with no reduction."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "You may sacrifice an artifact with mana value greater than or equal to the emerge cost. If you do, you'll pay only the colored mana component of the emerge cost."
+      }
+     ],
+     "scryfall_oracle_id": "5c26c30b-bc4a-4d20-8406-ef9022256e0d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483649,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "type": "TargetOnly"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "candidate_source": "LibraryTop",
+          "chooser": "Controller",
+          "count": 1,
+          "gather_role": "Opens",
+          "type": "ChooseFromZone",
+          "up_to": false,
+          "zone": "Library",
+          "zone_owner": "TargetedPlayer"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "reads_chosen_group": 2147483649,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "candidate_source": "Direct",
+           "chooser": "Controller",
+           "count": 1,
+           "gather_role": "Joins",
+           "random": true,
+           "type": "ChooseFromZone",
+           "up_to": false,
+           "zone": "Graveyard",
+           "zone_owner": "TargetedPlayer"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "reads_chosen_group": 2147483649,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "candidate_source": "Direct",
+            "chooser": "Controller",
+            "count": 1,
+            "gather_role": "Joins",
+            "random": true,
+            "type": "ChooseFromZone",
+            "up_to": false,
+            "zone": "Hand",
+            "zone_owner": "TargetedPlayer"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "reads_chosen_group": 2147483649,
+           "sub_ability": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "actor": {
+              "Player": {
+               "player": {
+                "group": 2147483649,
+                "type": "DeclaredPlayer"
+               }
+              }
+             },
+             "destination": "Exile",
+             "origin": null,
+             "target": {
+              "id": 0,
+              "type": "TrackedSet"
+             },
+             "type": "ChangeZoneAll"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": {
+             "condition": null,
+             "cost": null,
+             "description": null,
+             "duration": null,
+             "effect": {
+              "driver": {
+               "ResolutionWindow": {
+                "bounds": {
+                 "max_casts": 1
+                }
+               }
+              },
+              "mode": "Cast",
+              "target": {
+               "type": "ExiledBySource"
+              },
+              "type": "CastFromZone",
+              "without_paying_mana_cost": true
+             },
+             "forward_result": false,
+             "kind": "Spell",
+             "optional": false,
+             "optional_targeting": false,
+             "sub_ability": null,
+             "sub_link": "SequentialSibling",
+             "target_choice_timing": "Resolution",
+             "target_prompt": null
+            },
+            "target_prompt": null
+           },
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Emerge"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{B}{B}",
+    "name": "Crabomination",
+    "oracle_id": "5c26c30b-bc4a-4d20-8406-ef9022256e0d",
+    "oracle_text": "Emerge from artifact {5}{B}{B} (You may cast this spell by sacrificing an artifact and paying the emerge cost reduced by that artifact's mana value.)\nWhen this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.",
+    "power": "5",
+    "toughness": "5",
+    "type_line": "Creature — Crab Demon"
    }
   },
   "Crackle with Power": {
@@ -372845,6 +374240,116 @@
     "type_line": "Creature — Spirit"
    }
   },
+  "Discover the Formula": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Seek three nonland cards, then nonland cards in your hand perpetually gain \"This spell costs {1} less to cast.\"",
+       "duration": null,
+       "effect": {
+        "description": "Seek three nonland cards, then nonland cards in your hand perpetually gain \"This spell costs {1} less to cast.\"",
+        "name": "unparsed_verb_arguments",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "missing_effect"
+     },
+     "name": "Discover the Formula",
+     "non_ability_text": null,
+     "oracle_text": "Seek three nonland cards, then nonland cards in your hand perpetually gain \"This spell costs {1} less to cast.\"",
+     "power": null,
+     "printings": [
+      "YMID"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4025bdca-9985-4b3b-a440-993d474310e3",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Seek"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{4}{U}{U}",
+    "name": "Discover the Formula",
+    "oracle_id": "4025bdca-9985-4b3b-a440-993d474310e3",
+    "oracle_text": "Seek three nonland cards, then nonland cards in your hand perpetually gain \"This spell costs {1} less to cast.\"",
+    "type_line": "Instant"
+   }
+  },
   "Discreet Retreat": {
    "phase_records": [
     {
@@ -408357,6 +409862,498 @@
     "power": "3",
     "toughness": "1",
     "type_line": "Creature — Human Soldier Rogue"
+   }
+  },
+  "Earthbender Ascension": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "590a58ab-5e98-4031-8aa6-ce396dc1429f",
+       "826b4f26-419a-4d74-8c70-275555092095"
+      ]
+     },
+     "name": "Earthbender Ascension",
+     "non_ability_text": null,
+     "oracle_text": "When this enchantment enters, earthbend 2. Then search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\nLandfall — Whenever a land you control enters, put a quest counter on this enchantment. When you do, if it has four or more quest counters on it, put a +1/+1 counter on target creature you control. It gains trample until end of turn.",
+     "power": null,
+     "printings": [
+      "PTLA",
+      "TLA"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-10-02",
+       "text": "\"Earthbend N\" means \"Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped under your control.\""
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Earthbend doesn't give the land you control a color. As most lands are colorless, in most cases the resulting land creature will also be colorless."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "If a land was animated by earthbend and would go to any zone other than the graveyard or exile, it will not be returned to the battlefield by the delayed triggered ability created by earthbend."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "If the targeted land becomes an illegal target before the spell or ability that includes earthbend resolves, earthbend does nothing. If the spell or ability didn't have other targets, it won't resolve."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "The land that the first ability searches for is not on the battlefield when you select targets for earthbend, so it cannot be the land that you earthbend."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "The land will retain any other types, subtypes, or supertypes it previously had. It will also retain any mana abilities it had as a result of those subtypes. For example, a Forest that's turned into a creature this way can still be tapped for {G}."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "You may target a land that is already a creature, perhaps because of a previous earthbend ability. The land will get the +1/+1 counters, gain haste, and have its base power and toughness set to 0/0."
+      }
+     ],
+     "scryfall_oracle_id": "f8966fd5-2926-4ba0-b7d6-cfea40cd4e05",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, earthbend 2. Then search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "Permanent",
+        "effect": {
+         "keywords": [
+          "Haste"
+         ],
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Animate",
+         "types": [
+          "Creature"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "condition": {
+            "filter": {
+             "type": "ParentTarget"
+            },
+            "type": "WhenDiesOrExiled"
+           },
+           "effect": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "destination": "Battlefield",
+             "enter_tapped": true,
+             "enter_transformed": false,
+             "enters_attacking": false,
+             "enters_under": "You",
+             "origin": null,
+             "owner_library": false,
+             "target": {
+              "type": "TriggeringSource"
+             },
+             "type": "ChangeZone"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "target_prompt": null
+           },
+           "type": "CreateDelayedTrigger",
+           "uses_tracked_set": false
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "kind": "Earth",
+            "type": "RegisterBending"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "count": {
+              "type": "Fixed",
+              "value": 1
+             },
+             "filter": {
+              "controller": null,
+              "properties": [
+               {
+                "type": "HasSupertype",
+                "value": "Basic"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": [
+               "Land"
+              ]
+             },
+             "reveal": false,
+             "type": "SearchLibrary"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": {
+             "condition": null,
+             "cost": null,
+             "description": null,
+             "duration": null,
+             "effect": {
+              "destination": "Battlefield",
+              "enter_tapped": true,
+              "enter_transformed": false,
+              "enters_attacking": false,
+              "origin": "Library",
+              "owner_library": false,
+              "target": {
+               "type": "Any"
+              },
+              "type": "ChangeZone"
+             },
+             "forward_result": false,
+             "kind": "Spell",
+             "optional": false,
+             "optional_targeting": false,
+             "sub_ability": {
+              "condition": null,
+              "cost": null,
+              "description": null,
+              "duration": null,
+              "effect": {
+               "target": {
+                "type": "Controller"
+               },
+               "type": "Shuffle"
+              },
+              "forward_result": false,
+              "kind": "Spell",
+              "optional": false,
+              "optional_targeting": false,
+              "sub_ability": null,
+              "target_prompt": null
+             },
+             "target_prompt": null
+            },
+            "sub_link": "SequentialSibling",
+            "target_prompt": null
+           },
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a land you control enters, put a quest counter on ~. When you do, if it has four or more quest counters on it, put a +1/+1 counter on target creature you control. It gains trample until end of turn.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "quest",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "conditions": [
+           {
+            "type": "WhenYouDo"
+           },
+           {
+            "comparator": "GE",
+            "lhs": {
+             "qty": {
+              "counter_type": "quest",
+              "scope": {
+               "type": "Source"
+              },
+              "type": "CountersOn"
+             },
+             "type": "Ref"
+            },
+            "rhs": {
+             "type": "Fixed",
+             "value": 4
+            },
+            "type": "QuantityCheck"
+           }
+          ],
+          "type": "And"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": "UntilEndOfTurn",
+          "effect": {
+           "duration": "UntilEndOfTurn",
+           "static_abilities": [
+            {
+             "active_zones": [],
+             "affected": {
+              "type": "ParentTarget"
+             },
+             "affected_zone": null,
+             "characteristic_defining": false,
+             "condition": null,
+             "description": "gain trample",
+             "effect_zone": null,
+             "mode": "Continuous",
+             "modifications": [
+              {
+               "keyword": "Trample",
+               "type": "AddKeyword"
+              }
+             ]
+            }
+           ],
+           "target": null,
+           "type": "GenericEffect"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Earthbend",
+     "Landfall"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Earthbender Ascension",
+    "oracle_id": "f8966fd5-2926-4ba0-b7d6-cfea40cd4e05",
+    "oracle_text": "When this enchantment enters, earthbend 2. Then search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\nLandfall — Whenever a land you control enters, put a quest counter on this enchantment. When you do, if it has four or more quest counters on it, put a +1/+1 counter on target creature you control. It gains trample until end of turn.",
+    "type_line": "Enchantment"
    }
   },
   "Earthbending Lesson": {
@@ -794869,6 +796866,214 @@
     "type_line": "Legendary Creature — Human Rogue"
    }
   },
+  "Mammoth Harness": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5be67121-068c-4770-bc42-c081577a442c"
+      ]
+     },
+     "name": "Mammoth Harness",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature loses flying.\nWhenever enchanted creature blocks or becomes blocked by a creature, the other creature gains first strike until end of turn.",
+     "power": null,
+     "printings": [
+      "HML"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "f2e106c6-7666-42cd-9a02-e51327fb80e8",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature loses flying.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Flying",
+         "type": "RemoveKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever enchanted creature blocks or becomes blocked by a creature, the other creature gains first strike until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain first strike",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "FirstStrike",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "BlocksOrBecomesBlocked",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Mammoth Harness",
+    "oracle_id": "f2e106c6-7666-42cd-9a02-e51327fb80e8",
+    "oracle_text": "Enchant creature\nEnchanted creature loses flying.\nWhenever enchanted creature blocks or becomes blocked by a creature, the other creature gains first strike until end of turn.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Man-o'-War": {
    "phase_records": [
     {
@@ -899609,6 +901814,180 @@
     "power": "3",
     "toughness": "5",
     "type_line": "Legendary Creature — Hellion Horror"
+   }
+  },
+  "Obscura Polymorphist": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Octopus",
+       "Wizard"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Obscura Polymorphist",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters the battlefield, exile target creature. Its controller seeks a creature card.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "YSNC"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "7c5df0e0-6836-4513-838d-4b5250985d1d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters the battlefield, exile target creature. Its controller seeks a creature card.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "description": "Its controller seeks a creature card",
+          "name": "unparsed_verb_arguments",
+          "type": "Unimplemented"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Seek"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{W}{U}",
+    "name": "Obscura Polymorphist",
+    "oracle_id": "7c5df0e0-6836-4513-838d-4b5250985d1d",
+    "oracle_text": "When this creature enters the battlefield, exile target creature. Its controller seeks a creature card.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Octopus Wizard"
    }
   },
   "Obsidian Obelisk": {
@@ -1093224,6 +1095603,236 @@
      "U"
     ],
     "type_line": "Land"
+   }
+  },
+  "Shellfish Scholar": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "data": {
+          "condition": {
+           "comparator": "GE",
+           "lhs": {
+            "qty": {
+             "player": {
+              "type": "Controller"
+             },
+             "type": "GraveyardSize"
+            },
+            "type": "Ref"
+           },
+           "rhs": {
+            "type": "Fixed",
+            "value": 7
+           },
+           "type": "QuantityComparison"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "Threshold — {T}: Spells you cast from your graveyard this turn cost {2} less to cast. Activate only if seven or more cards are in your graveyard.",
+       "duration": null,
+       "effect": {
+        "description": "Spells you cast from your graveyard this turn cost {2} less to cast",
+        "name": "unrecognized_clause_head",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Rat",
+       "Wizard"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Shellfish Scholar",
+     "non_ability_text": null,
+     "oracle_text": "Whenever Shellfish Scholar or another Rat you control enters, conjure a card named Think Twice into your graveyard.\nThreshold — {T}: Spells you cast from your graveyard this turn cost {2} less to cast. Activate only if seven or more cards are in your graveyard.",
+     "parse_warnings": [
+      {
+       "description": "Whenever Shellfish Scholar or another Rat you control enters, conjure a card named Think Twice into your graveyard.",
+       "detector": "DynamicQty",
+       "items": [
+        0
+       ],
+       "line_index": 0,
+       "type": "SwallowedClause",
+       "unit_span": {
+        "end_byte": 115,
+        "first_line": 0,
+        "last_line": 0,
+        "ordinal_within_span": 0,
+        "precision": "Exact",
+        "start_byte": 0
+       }
+      }
+     ],
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "YBLB"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "97d573c9-e91d-438e-98e0-e0918f8d430c",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ or another Rat you control enters, conjure a card named Think Twice into your graveyard.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cards": [
+          {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "name": "Think Twice"
+          }
+         ],
+         "destination": "Graveyard",
+         "tapped": false,
+         "type": "Conjure"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "type": "SelfRef"
+         },
+         {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Rat"
+           }
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Conjure",
+     "Threshold"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Shellfish Scholar",
+    "oracle_id": "97d573c9-e91d-438e-98e0-e0918f8d430c",
+    "oracle_text": "Whenever Shellfish Scholar or another Rat you control enters, conjure a card named Think Twice into your graveyard.\nThreshold — {T}: Spells you cast from your graveyard this turn cost {2} less to cast. Activate only if seven or more cards are in your graveyard.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Rat Wizard"
    }
   },
   "Shellshock": {
@@ -1408529,6 +1411138,207 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Soldier"
+   }
+  },
+  "Zevlor, Elturel Exile": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}, {T}: When you next cast an instant or sorcery spell that targets only a single opponent or a single permanent an opponent controls this turn, for each other opponent, choose that player or a permanent they control, copy that spell, and the copy targets the chosen player or permanent.",
+       "duration": null,
+       "effect": {
+        "description": "When you next cast an instant or sorcery spell that targets only a single opponent or a single permanent an opponent controls this turn, for each other opponent, choose that player or a permanent they control, copy that spell, and the copy targets the chosen player or permanent",
+        "name": "unparsed_quantity",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Tiefling",
+       "Warrior"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Red",
+      "Blue"
+     ],
+     "color_override": [
+      "Black",
+      "Red",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Haste"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue",
+       "Black",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6abfec4f-54b8-427e-9abf-6209aa659994",
+       "9e4c302c-47d6-42af-9fdd-e13f11d803a5",
+       "d1e51138-9745-465d-84dd-27605f8a2264"
+      ]
+     },
+     "name": "Zevlor, Elturel Exile",
+     "non_ability_text": null,
+     "oracle_text": "Haste\n{2}, {T}: When you next cast an instant or sorcery spell that targets only a single opponent or a single permanent an opponent controls this turn, for each other opponent, choose that player or a permanent they control, copy that spell, and the copy targets the chosen player or permanent.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "CLB",
+      "PCLB"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-06-10",
+       "text": "As you make your choices for each other opponent, you can choose that opponent or any permanent they control, but if the chosen player or permanent isn't a legal target for the spell, the copy won't be created."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If instant or sorcery spell could have multiple targets but only one target is chosen as it is cast, that spell will cause Zevlor's delayed triggered ability to trigger. The copies will similarly have only one target. For example, if you cast Explosive Entry (“Destroy up to one target artifact. Put a +1/+1 counter on up to one target creature”) targeting only a creature, the copies can each legally target a single creature."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If the spell has an X whose value was determined as it was cast (like Fireball does), the copy has the same value of X."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If the spell is modal (that is, it has a bulleted list of choices), the copies will have the same mode(s). You can't choose different ones."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "Like any spell, each copy will check to see if its target is still legal as it tries to resolve."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "The delayed triggered ability can copy the spell that caused it to trigger even if that spell has been countered by the time that ability resolves."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "When the delayed triggered ability of Zevlor, Elturel Exile resolves, it may create one or more copies of a spell. You control each of the copies. Those copies are created on the stack, so they're not “cast.” Abilities that trigger when a player casts a spell won't trigger. The copies will then resolve like normal spells, after players get a chance to cast spells and activate abilities."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "You can't choose to pay any additional costs for the copies. However, effects based on any additional costs that were paid for the original spell are copied as though those same costs were paid for the copies too. For example, if you sacrifice a 3/3 creature to cast Fling and then copy it, each copy of Fling will also deal 3 damage to its target."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "Zevlor, Elturel Exile has received an update to its Oracle text. The word “only” was inadvertently left off the printed card. The updated text is included above. Notably, an instant or sorcery spell with multiple targets will not cause the delayed triggered ability to trigger, even if only one of those targets is an opponent or an permanent an opponent controls."
+      }
+     ],
+     "scryfall_oracle_id": "0c85a577-db82-4a36-bc42-49644eba1cf2",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "R",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "R",
+     "U"
+    ],
+    "keywords": [
+     "Haste"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}{B}{R}",
+    "name": "Zevlor, Elturel Exile",
+    "oracle_id": "0c85a577-db82-4a36-bc42-49644eba1cf2",
+    "oracle_text": "Haste\n{2}, {T}: When you next cast an instant or sorcery spell that targets only a single opponent or a single permanent an opponent controls this turn, for each other opponent, choose that player or a permanent they control, copy that spell, and the copy targets the chosen player or permanent.",
+    "power": "4",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Tiefling Warrior"
    }
   },
   "Zhang Liao, Hero of Hefei": {
