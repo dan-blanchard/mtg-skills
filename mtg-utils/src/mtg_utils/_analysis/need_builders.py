@@ -36,6 +36,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 
 if TYPE_CHECKING:
+    from mtg_utils._analysis.links.deaths import DeathWait
     from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._analysis.need_model import (
     HIGH_TOUGHNESS,
@@ -69,6 +70,9 @@ from mtg_utils._analysis.need_reads import (
     _supports_attackers,
     _takes_from_your_graveyard,
     _typal_payoff,
+    death_strength,
+    supplies_deaths,
+    supplies_one_death,
     typal_payoff_for,
 )
 
@@ -777,7 +781,56 @@ def _graveyard_take_needs(unit_node: object, desc: str) -> Iterator[Need]:
             yield need
 
 
-def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
+#: A death wait's event as the need's label says it.
+_DEATH_NOUNS = {
+    "dies": "dying",
+    "sacrificed": "being sacrificed",
+    "exploited": "being exploited",
+}
+
+
+def _death_need(event: str, waits: Sequence[DeathWait], desc: str) -> Need:
+    """A commander's wait for a creature dying or being sacrificed, fed by the
+    death links derived from the rules (``_analysis.links.deaths``): the cards
+    that can make a watched creature die again and again supply it; a one-shot
+    cause is listed after them (``Need.weak``). Bodies to kill — the token
+    makers — are still read off their keys, and only where the wait watches
+    creatures of yours: a commander that watches itself, an attached creature
+    or an opponent's creatures is fed nothing by a token of yours."""
+    waits = tuple(waits)
+    # A token is a body for a wait that watches creatures of yours, unless it
+    # watches nontoken ones ("Whenever you sacrifice a nontoken Elemental" —
+    # Ashling, the Limitless: the token makers feed nothing; the links do).
+    fodder: frozenset[str] = frozenset()
+    if any(w.whose in ("yours", "any") and w.tokens is not False for w in waits):
+        fodder = _TYPE_TOKEN_KEYS["creature"]
+    # Whose creature the wait watches is part of the need's name: a commander
+    # with two death triggers (Vincent Valentine: "a creature an opponent
+    # controls dies" on one face, its own death on the other) has two needs,
+    # and needs are told apart by label.
+    whose = {w.whose for w in waits}
+    if whose <= {"theirs"}:
+        label = f"opponents' creatures {_DEATH_NOUNS[event]}"
+    elif whose <= {"self"}:
+        label = f"the commander {_DEATH_NOUNS[event]}"
+    else:
+        label = f"creatures that {event.replace('_', ' ')}"
+    return Need(
+        "event",
+        label,
+        desc,
+        keys=fodder,
+        predicate=partial(supplies_deaths, waits),
+        weak=partial(supplies_one_death, waits),
+        strength=partial(death_strength, waits, fodder),
+    )
+
+
+def _event_need(
+    node: TypedMirrorNode, desc: str, waits: Sequence[DeathWait] = ()
+) -> Need | None:
+    """The need a commander's trigger opens. ``waits`` are the trigger's death
+    waits (``links.deaths.unit_death_waits``), where it has any."""
     event = trigger_def_event(node)
     scope = trigger_scope(node)
     valid = getattr(node, "valid_card", None)
@@ -868,6 +921,12 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
             return Need(
                 "event", "lands you sacrifice", desc, predicate=_sacrifices_lands
             )
+        # A wait that names a creature, or any permanent (a creature is one).
+        watched = [
+            w for w in waits if not w.types or {"Creature", "Permanent"} & set(w.types)
+        ]
+        if watched and event != "leaves":
+            return _death_need(event, watched, desc)
         keys = set(_EVENT_MAKER_KEYS[event])
         if "Token" in preds:
             keys = set(_TYPE_TOKEN_KEYS["creature"]) | {"sacrifice_outlets"}

@@ -9,6 +9,12 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis import signal_keys
+from mtg_utils._analysis.links.deaths import (
+    DeathLink,
+    DeathWait,
+    card_death_links,
+    feeds,
+)
 from mtg_utils._analysis.signal_base import Ident, ident_key
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
@@ -58,6 +64,105 @@ def _sacrifices_artifacts(card: dict) -> bool:
 _DEATH_FEED_KEYS: frozenset[str] = frozenset(
     {"sacrifice_outlets", "edict_makers", TOKEN_MAKER, "mass_token_makers"}
 )
+
+
+#: The waits a creature of yours has to die for.
+_OWN_WAITS = frozenset({"yours", "self"})
+
+
+def _death_rung(
+    link: DeathLink, wait: DeathWait, own_types: Collection[str]
+) -> int | None:
+    """How well ``link`` feeds ``wait``: ``0`` a supplier the plan can run on,
+    ``1`` a repeatable link that is no such supplier, ``2`` a one-shot one,
+    ``None`` no feed at all (``links.deaths.feeds``). Every line is a
+    condition on the link's facts, the lane's own, no rule's:
+
+    * a supplier kills for certain and repeatably. A link that kills only when
+      a number is big enough (a pinger's one damage, CR 704.5g) is not one;
+    * where a creature of yours has to die, a link you would have to aim at
+      your own creature ("destroy target creature", every tap) is not one
+      either. A sacrifice is (CR 701.21a: a player sacrifices what they
+      control), and so is a link that reaches every creature;
+    * a card that kills itself for certain is a body that needs no outlet: one
+      death, like a token maker's token, so it sits with the suppliers where
+      the wait watches your creatures (the old feed table held these cards as
+      sacrifice outlets). One kind of body is still read off a key, the other
+      off a link; both are split by repeatability once bodies are derived.
+      ``own_types`` are the card's own type-line words: the body that dies is
+      the card, so it has to be a creature the wait watches."""
+    if not feeds(link, wait):
+        return None
+    if link.whose == "self":
+        if wait.tokens:
+            # The card dies, and a card is no token (CR 111.1): Grismold, the
+            # Dreadsower's "Whenever a creature token dies" watches no card.
+            return None
+        if wait.subtypes and not {s.lower() for s in wait.subtypes} & set(own_types):
+            # The card dies, and it is not the kind of creature the wait
+            # watches: Sakura-Tribe Elder is no Elemental (Ashling, the
+            # Limitless's "Whenever you sacrifice a nontoken Elemental").
+            return None
+        return 0 if link.certain and wait.whose in ("yours", "any") else 2
+    if not link.repeatable:
+        return 2
+    aimed = (
+        wait.whose in _OWN_WAITS
+        and link.whose == "either"
+        and link.reach == "one"
+        and link.route != "sacrifice"
+    )
+    return 0 if link.certain and not aimed else 1
+
+
+def _death_rungs(waits: Sequence[DeathWait], card: dict) -> list[tuple[int, DeathLink]]:
+    own_types = _type_words(card)
+    return [
+        (rung, link)
+        for link in card_death_links(card)
+        for wait in waits
+        if (rung := _death_rung(link, wait, own_types)) is not None
+    ]
+
+
+def supplies_deaths(waits: Sequence[DeathWait], card: dict) -> bool:
+    """Whether ``card`` supplies the deaths ``waits`` watch for
+    (:func:`_death_rung`'s suppliers; ``_analysis.links.deaths``: every link is
+    a rules step ending in CR 700.4)."""
+    return any(rung == 0 for rung, _link in _death_rungs(waits, card))
+
+
+def supplies_one_death(waits: Sequence[DeathWait], card: dict) -> bool:
+    """Whether ``card`` can make a creature ``waits`` watch die, but not as
+    :func:`supplies_deaths` asks: once (a removal spell, a board wipe), only
+    when a number is big enough, or only by aiming at your own creature."""
+    rungs = _death_rungs(waits, card)
+    return bool(rungs) and all(rung for rung, _link in rungs)
+
+
+#: The mana values a death supplier's cost steps at: cheap, middling, dear.
+_COST_STEPS = (2, 4)
+
+
+def death_strength(
+    waits: Sequence[DeathWait], bodies: Collection[str], card: dict
+) -> tuple[int, ...]:
+    """Where ``card`` sits on a death need's page, lowest first — the stated
+    order over a link's facts (Dan's decision, 2026-11-28): a repeatable link
+    before a one-shot one (:func:`_death_rung`), a link that reaches every
+    creature before one that reaches one, a cheaper card before a dearer one.
+    A body to kill (a card emitting one of the ``bodies`` keys: a token maker)
+    sits with the suppliers that reach one creature, whatever weaker link it
+    also has: Broken Visage's Spirit token is a body, and its one destroy is a
+    weak link."""
+    cost = sum(float(card.get("cmc") or 0) > step for step in _COST_STEPS)
+    places = [
+        (rung, 0 if link.reach == "all" else 1)
+        for rung, link in _death_rungs(waits, card)
+    ]
+    if bodies and any(ident_key(i) in bodies for i in _card_idents(card)):
+        places.append((0, 1))
+    return (*min(places, default=(0, 1)), cost)
 
 
 #: Keys whose emitters let your creatures connect — what a "deals combat damage

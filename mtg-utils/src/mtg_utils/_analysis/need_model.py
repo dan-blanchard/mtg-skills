@@ -61,6 +61,17 @@ class Need:
     #: Bumbleflower it put Forget and Martyr's Cry over the group-hug payoffs
     #: (2026-11-01).
     leads: bool = True
+    #: Cards that supply the need once or weakly (a one-shot link of
+    #: ``_analysis.links``): listed on the need's page after its suppliers and
+    #: never counted as supplying it (:func:`satisfies` stays the plan's test).
+    weak: Callable[[dict], bool] | None = field(default=None, compare=False)
+    #: The need page's own order over its cards, lowest first, ahead of
+    #: play-rate (``swaps``' ``_lead``): the stated order read off a link's
+    #: facts — repeatable before one-shot, every creature before one, cheaper
+    #: before dearer (Dan's decision, 2026-11-28).
+    strength: Callable[[dict], tuple[int, ...]] | None = field(
+        default=None, compare=False
+    )
 
     @property
     def empty(self) -> bool:

@@ -6289,11 +6289,24 @@ def effect_owner_is_friend(root: object, effect_node: object) -> bool:
     """Whether ``effect_node`` is a friend-or-foe outcome labelled friend — the
     controller's side (:func:`_friend_or_foe_actor`): Pir's Whim's "each friend
     searches their library for a land card"."""
+    return (
+        effect_owner_voted_for(root, effect_node)
+        and _owner_index(root).owners[id(effect_node)][1] == "You"
+    )
+
+
+def effect_owner_voted_for(root: object, effect_node: object) -> bool:
+    """Whether ``effect_node`` is carried out by the players a vote or a
+    friend-or-foe label picked (its owning wrapper's ``player_scope`` is
+    ``VotedFor``): any player, its controller included — "You make this choice
+    for yourself as well as each other player" (Virtus's Maneuver's ruling), so
+    a foe can be you. :func:`effect_owner_player_scope` reads the label's side
+    (:func:`_friend_or_foe_actor`); this read is the label itself."""
     found = _owner_index(root).owners.get(id(effect_node))
-    if found is None:
-        return False
-    owner, actor = found
-    return actor == "You" and tag_of(getattr(owner, "player_scope", None)) == "VotedFor"
+    return (
+        found is not None
+        and tag_of(getattr(found[0], "player_scope", None)) == "VotedFor"
+    )
 
 
 def effect_facing_player(root: object, node: object) -> str | None:
@@ -6369,6 +6382,56 @@ def effect_conditional(root: object, effect_node: object) -> bool:
     return any(
         _present(c := getattr(node, "condition", MISSING)) and c is not None
         for node in (owner, root)
+    )
+
+
+def effect_offered_to(root: object, effect_node: object) -> str | None:
+    """The actor of the choice ``effect_node``'s wrapper offers players other
+    than its controller (``optional_for``, :data:`_OPTION_ACTORS`): "any player
+    may sacrifice a creature" (Brain Gorgers) → :data:`ANY_PLAYER_SCOPE`, "any
+    opponent may …" → ``"Opponent"``; ``None`` for the controller's own "may" or
+    no choice."""
+    owner = _find_owner_wrapper(root, effect_node)
+    option = getattr(owner, "optional_for", None)
+    return _OPTION_ACTORS.get(option) if isinstance(option, str) else None
+
+
+#: The ``unless_pay`` payers that are the ability's controller: an "unless you
+#: pay" its controller decides.
+_CONTROLLER_PAYERS: frozenset[str] = frozenset({"Controller", "You"})
+
+
+def effect_decided_by_another(root: object, effect_node: object) -> bool:
+    """Whether ``effect_node`` happens only as another player than the
+    ability's controller decides: an "unless [that player] pays" on its wrapper
+    or its ability whose payer isn't the controller (Aether Barrier's "that
+    player sacrifices a permanent … unless they pay {1}"), a choice its wrapper
+    offers another player (``optional_for``: "any opponent may …"), or a step
+    that follows one only if that choice was taken (Vexing Devil's "any
+    opponent may have it deal 4 damage to them. If a player does, sacrifice
+    this creature"). A condition the controller decides (evoke's "if its evoke
+    cost was paid", an "unless you pay") is not another's."""
+    owner = _find_owner_wrapper(root, effect_node)
+    for holder in (owner, root):
+        tax = getattr(holder, "unless_pay", None)
+        if isinstance(tax, TypedMirrorNode) and (
+            tag_of(getattr(tax, "payer", None)) not in _CONTROLLER_PAYERS
+        ):
+            return True
+    if owner is None:
+        return False
+    if effect_offered_to(root, effect_node) is not None:
+        return True
+    cond = getattr(owner, "condition", None)
+    if not (
+        tag_of(cond) == "EffectOutcome"
+        and getattr(cond, "signal", None) == "OptionalEffectPerformed"
+    ):
+        return False
+    return any(
+        getattr(w, "sub_ability", None) is owner
+        and getattr(w, "optional_for", None) in _OPTION_ACTORS
+        for w in iter_typed_nodes(root)
     )
 
 
@@ -7332,7 +7395,9 @@ def is_self_leaves_trigger(unit: AbilityUnit) -> bool:
     return tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
 
 
-def unit_repeats(unit: AbilityUnit, tree: ConceptTree) -> bool:
+def unit_repeats(
+    unit: AbilityUnit, tree: ConceptTree, *, attacks_again: bool = False
+) -> bool:
     """Whether the ability can go off again while its source stays on the
     battlefield -- what tells a repeatable token maker (Bitterblossom's upkeep
     Faerie, Loyal Apprentice's combat Thopter, Kher Keep's Kobold) from a
@@ -7341,8 +7406,11 @@ def unit_repeats(unit: AbilityUnit, tree: ConceptTree) -> bool:
 
     A triggered ability repeats unless it is the source's own enters
     (:func:`is_self_enters_trigger`) or leaves (:func:`is_self_leaves_trigger`)
-    trigger, or a Saga's chapter (CR 714.2b: it triggers as the lore counters
-    reach its number, so each chapter fires once). An activated ability repeats
+    trigger, or a Saga's chapter (CR 715.2b: it triggers as the lore counters
+    reach its number, so each chapter fires once). The source's own "enters or
+    attacks" trigger (``entersorattacks``) reads as its enters unless
+    ``attacks_again``: then it repeats, firing on each attack. An activated
+    ability repeats
     unless its activation cost sacrifices the source (CR 602.2b: the cost is
     paid as a spell's is; CR 601.2f: a cost may include sacrificing permanents).
     An instant's or sorcery's own effect never does (CR 608.2n: the spell goes
@@ -7351,7 +7419,10 @@ def unit_repeats(unit: AbilityUnit, tree: ConceptTree) -> bool:
     body repeats with the grant; a replacement or keyword payload is not read.
     """
     if unit.origin == "trigger":
-        if is_self_enters_trigger(unit) or is_self_leaves_trigger(unit):
+        attacks = attacks_again and unit.trigger_event == "entersorattacks"
+        if (is_self_enters_trigger(unit) and not attacks) or is_self_leaves_trigger(
+            unit
+        ):
             return False
         return not (
             unit.trigger_event == "counter_added"
@@ -10641,6 +10712,84 @@ def filter_names_creatures(filt: object) -> bool:
     if any(s.lower() in CREATURE_TYPES for s in filter_subtypes(filt)):
         return True
     return bool(_COMBAT_CREATURE_PREDICATES & set(filter_predicates(filt)))
+
+
+#: The core types a filter can name that are no creature by themselves: an
+#: object filter naming only these ("target artifact", "a land") is read as no
+#: creature, the noncreature permanents and spells.
+NONCREATURE_CORE_TYPES: frozenset[str] = frozenset(
+    {
+        "Artifact",
+        "Enchantment",
+        "Land",
+        "Planeswalker",
+        "Battle",
+        "Instant",
+        "Sorcery",
+        "Kindred",
+    }
+)
+
+#: The filter tags that name a player, never an object on the battlefield.
+_PLAYER_FILTER_TAGS: frozenset[str] = frozenset(
+    {
+        "Player",
+        "Controller",
+        "Opponent",
+        "EachPlayer",
+        "EachOpponent",
+        "TargetPlayer",
+        "DefendingPlayer",
+        "Owner",
+        "ScopedPlayer",
+    }
+)
+
+
+def filter_can_name_creature(filt: object, *, self_is_creature: bool) -> bool | None:
+    """Whether an object filter can name a creature on the battlefield: ``True``
+    for the Creature or Permanent type, a creature type (CR 205.3m), a filter
+    with properties and no type, or any target; ``False`` for a "non-creature",
+    a filter naming only :data:`NONCREATURE_CORE_TYPES`, only other subtypes
+    ("a Swamp"), or a player; ``None`` when the filter alone can't say (a
+    back-reference such as "it", or a filter phase left empty), for the caller
+    to read off its own context. ``SelfRef`` is the card itself, a creature
+    when ``self_is_creature``. ``Or`` names one when any arm does, ``And`` when
+    no arm rules it out."""
+    tag = tag_of(filt)
+    if tag == "Typed":
+        if "Creature" in filter_non_types(filt):
+            return False
+        cores = filter_core_types(filt)
+        if "Creature" in cores or "Permanent" in cores:
+            return True
+        if any(c in NONCREATURE_CORE_TYPES for c in cores):
+            return False
+        if filter_subtypes(filt):
+            # a creature type, or a combat status only a creature has
+            return filter_names_creatures(filt)
+        if not list_field(filt, "type_filters") and not list_field(filt, "properties"):
+            return None
+        return True
+    if tag in ("Or", "And"):
+        parts = [
+            filter_can_name_creature(f, self_is_creature=self_is_creature)
+            for f in list_field(filt, "filters")
+        ]
+        if tag == "Or":
+            if any(parts):
+                return True
+            return None if None in parts else False
+        if False in parts:
+            return False
+        return None if None in parts else True
+    if tag == "SelfRef":
+        return self_is_creature
+    if tag in ("Any", "AnyTarget"):
+        return True
+    if tag in _PLAYER_FILTER_TAGS:
+        return False
+    return None
 
 
 def attacks_your_opponents(filt: object) -> bool:

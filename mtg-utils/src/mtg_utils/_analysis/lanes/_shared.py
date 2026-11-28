@@ -35,7 +35,12 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_subject_scope,
 )
-from mtg_utils._card_ir.crosswalk.reads import chooses
+from mtg_utils._card_ir.crosswalk.reads import (
+    ANY_PLAYER_SCOPE,
+    chooses,
+    effect_offered_to,
+    effect_owner_voted_for,
+)
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     MirrorVariant,
@@ -416,7 +421,7 @@ def _edict_scope(owner_tag: str | None) -> str:
 
 
 def _sac_actor_scope(
-    node: TypedMirrorNode, unit: AbilityUnit | None = None
+    node: TypedMirrorNode, unit: AbilityUnit | None = None, *, rules: bool = False
 ) -> str | None:
     """The edict scope of a ``Sacrifice`` effect from its sacrificed filter's
     CONTROLLER (CR 701.21a — a player only sacrifices a permanent THEY control, so the
@@ -444,10 +449,19 @@ def _sac_actor_scope(
         facing = effect_facing_player(getattr(unit, "node", None), node)
         if facing is not None:
             return _edict_scope(facing)
+        if rules:
+            if unit is None or unit.origin != "trigger":
+                return _targeted_players(unit)
+            if trigger_scope(unit.node) == "opponents":
+                # "Whenever an opponent searches their library, that player
+                # sacrifices …" (Ob Nixilis, Unshackled)
+                return "opponents"
         return scoped_player_scope(unit)
     # phase v0.86.0: "target opponent" is its own ``TargetOpponent`` tag (283 → 285
     # TargetPlayer, 38 → 83 TargetOpponent across the card-data) — the same forced
     # actor as before, one tag narrower.
+    if rules and ctrl == "TargetPlayer":
+        return TARGETED_PLAYERS  # a target player can be you
     if ctrl in (
         "Opponent",
         "Opponents",
@@ -477,8 +491,32 @@ def _sac_actor_scope(
         if effect_owner_optional(unit.node, node):
             return None
         loops = getattr(unit.node, "repeat_for", MISSING) not in (MISSING, None)
-        return "each" if loops else "opponents"
+        if loops:
+            return "each"
+        # the controller of what it acted on, who can be you (Liliana of the
+        # Veil's "Separate all permanents target player controls")
+        return TARGETED_PLAYERS if rules else "opponents"
     return None
+
+
+#: :func:`sacrificing_side`'s actor for a player the ability targets or picks
+#: who can be you: "target player sacrifices", "any number of target players
+#: each … sacrifice", the controller of a permanent the ability targeted.
+TARGETED_PLAYERS = "targeted"
+
+
+def _targeted_players(unit: AbilityUnit | None) -> str:
+    """Who a spell's or activated ability's "that player" is: the players it
+    targets. Only opponents when every player head it chooses is an opponent
+    ("Any number of target opponents each sacrifice …" — Will of the Abzan),
+    else :data:`TARGETED_PLAYERS` ("Any number of target players each lose 2
+    life and sacrifice …" — Priest of Forgotten Gods)."""
+    chosen = {
+        filter_controller(getattr(c.node, "target", None), unit)
+        for c in (unit.effects if unit is not None else ())
+        if tag_of(c.node) == "TargetOnly"
+    }
+    return "opponents" if chosen == {"Opponent"} else TARGETED_PLAYERS
 
 
 def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:
@@ -493,6 +531,39 @@ def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | Non
     (:func:`_sac_actor_scope`). The one actor read ``edict_makers`` scopes by and
     the forced-only edict walk (``removal_tutors.removal_edict_answers``) gates on.
     """
+    return _sacrifice_actor(unit, node, rules=False)
+
+
+def sacrificing_side(unit: AbilityUnit | None, node: TypedMirrorNode) -> str:
+    """Whose permanents a ``Sacrifice`` effect puts into a graveyard, by the
+    rules alone (CR 701.21a: "A player can't sacrifice … a permanent they don't
+    control"): ``"yours"``, ``"theirs"`` or ``"either"``. The same read as
+    :func:`sacrifice_actor_scope` without the edict lanes' own calls: a target
+    player can be you, and so can the controller of a permanent the ability
+    targeted (Liliana of the Veil's piles) or the players it targets (Priest of
+    Forgotten Gods); a friend-or-foe foe can be you ("You make this choice for
+    yourself as well as each other player" — Virtus's Maneuver's ruling); "you
+    and that player each sacrifice" is both of you; a sacrifice the player may
+    decline (Braids, Arisen Nightmare's "each opponent may sacrifice") is still
+    theirs; and the "that player" of a trigger watching an opponent is that
+    opponent. With no ``unit`` (an ability a static grants), the sacrificed
+    filter's controller alone."""
+    actor = (
+        _sac_actor_scope(node, None, rules=True)
+        if unit is None
+        else _sacrifice_actor(unit, node, rules=True)
+    )
+    if actor == "opponents":
+        return "theirs"
+    return "yours" if actor is None else "either"
+
+
+def _sacrifice_actor(
+    unit: AbilityUnit, node: TypedMirrorNode, *, rules: bool
+) -> str | None:
+    """:func:`sacrifice_actor_scope`'s read; ``rules`` makes it
+    :func:`sacrificing_side`'s (``"opponents"``, ``"each"``,
+    :data:`TARGETED_PLAYERS` or ``None``)."""
     # A sacrifice phase parks, recovered by the seam, is another player's when its
     # clause names them ("Each opponent who lost life this turn sacrifices a
     # creature …" — Papalymo Totolymo); any other reads as below.
@@ -504,12 +575,21 @@ def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | Non
         # trigger, parked whole as ``enters_with_clause``) — every player.
         if recovered.scope == "each" and IMPERATIVE not in recovered.reading:
             return "each"
-    if _punisher_choice(unit, node):
+    if not rules and _punisher_choice(unit, node):
         return None
     looped = _looped_object_controller(unit, node)
     if looped is not None:
         return looped
+    if rules and effect_owner_voted_for(unit.node, node):
+        return "each"
     owner = effect_owner_player_scope(getattr(unit, "node", None), node)
+    if rules:
+        offered = effect_offered_to(unit.node, node)
+        if offered == ANY_PLAYER_SCOPE or owner == YOU_AND_OPPONENT_SCOPE:
+            # any player may, you among them; you and that player both
+            return "each"
+        if offered is not None:
+            return "opponents"  # "any opponent may sacrifice …"
     if owner in _EDICT_ACTORS:
         return _edict_scope(owner)
     if owner == "ControlsCount":
@@ -517,7 +597,7 @@ def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | Non
         # Hellion's ruling: "If everyone controls the same number of lands,
         # everyone sacrifices two lands") — you can be among them.
         return "each"
-    return _sac_actor_scope(node, unit)
+    return _sac_actor_scope(node, unit, rules=rules)
 
 
 def _punisher_choice(unit: AbilityUnit, node: TypedMirrorNode) -> bool:

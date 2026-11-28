@@ -379,7 +379,8 @@ def need_avenues(
     ``BROAD_SHARE`` of the identity's nonland pool supplies, an avenue — its
     label, its depth (what the deck still owes toward ``_NEED_TARGET``) and a
     spec carrying the page (``_page``: the pool's suppliers in the pool's own
-    order, play-rate) and the need's serve. A broad need (every instant under a
+    order, play-rate, then its weak suppliers; ``_lead``: the need's own order,
+    where it has one) and the need's serve. A broad need (every instant under a
     spellslinger) opens no page: the mains hold those."""
     # The pool's idents from the persisted signals index (a no-op without a
     # bulk: a small test pool reads them live).
@@ -395,12 +396,18 @@ def need_avenues(
     # One pass over the pool, every need per card (the idents and type words
     # are read once per card inside ``satisfies``' memos).
     pages: list[list[dict]] = [[] for _ in needs]
+    # A need's weak suppliers (``Need.weak``: a one-shot death link), listed
+    # after its suppliers and counted nowhere: not in the broad line, not in
+    # what the deck has.
+    tails: list[list[dict]] = [[] for _ in needs]
     for card in nonland_pool:
         for i, need in enumerate(needs):
             if satisfies(card, need):
                 pages[i].append(card)
+            elif need.weak is not None and need.weak(card):
+                tails[i].append(card)
     out: list[tuple[str, int, dict]] = []
-    for need, page in zip(needs, pages, strict=True):
+    for need, page, tail in zip(needs, pages, tails, strict=True):
         if not page or is_broad(need, len(page) / max(1, len(nonland_pool))):
             continue
         have = sum(satisfies(r, need) for r in deck_nonland)
@@ -408,10 +415,16 @@ def need_avenues(
         spec = {
             "_serve": need_serve(need),
             "_avenue": label,
-            "_page": page,
+            "_page": page + tail,
+            # The suppliers alone: what a cut that supplies the need is upgraded
+            # from (a one-shot card is no upgrade of a supplier).
+            "_suppliers": page,
             "_need": need,
             "_cap": _NEED_CAP,
         }
+        if need.strength is not None:
+            # The need's own order leads the page (``_ranked_pool``'s ``_lead``).
+            spec["_lead"] = need.strength
         # Deep as a main is deep (the deck's commitment to the need), and never
         # shallower than what the deck still owes toward the target: a thin
         # need asks early, a built one keeps asking.
@@ -1131,7 +1144,11 @@ def propose_swaps(
         # A need page rides in ``_page`` (a list, keyed by identity: one list per
         # need per call).
         key = (
-            tuple(sorted((k, v) for k, v in spec.items() if k != "_page")),
+            tuple(
+                sorted(
+                    (k, v) for k, v in spec.items() if k not in ("_page", "_suppliers")
+                )
+            ),
             id(spec.get("_page")),
             synergy_first,
             nonland_only,
@@ -2121,7 +2138,10 @@ def propose_swaps(
                         # 2026-11-02). A flip's slot stays a flip's.
                         fallbacks = [sourcing.theme() or {}]
                         fallbacks += [
-                            {k: v for k, v in nspec.items() if k != "_cap"}
+                            {
+                                **{k: v for k, v in nspec.items() if k != "_cap"},
+                                "_page": nspec.get("_suppliers", nspec["_page"]),
+                            }
                             for _l, _d, nspec in ctx.need_avenues
                             if nspec.get("_need") is not None
                             and satisfies(cut.record, nspec["_need"])

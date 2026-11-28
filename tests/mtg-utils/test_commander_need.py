@@ -553,7 +553,6 @@ def test_a_nontoken_sacrifice_trigger_is_not_fed_by_token_makers():
     # Ashling's "Whenever you sacrifice a nontoken Elemental": a token is no
     # nontoken creature, so the outlets feed it and the token makers do not.
     need = _need("Ashling, the Limitless", "creatures that sacrificed")
-    assert "sacrifice_outlets" in need.keys
     assert not need.keys & {"token_maker", "mass_token_makers"}
     assert satisfies(test_card("Viscera Seer"), need)
     assert not satisfies(test_card("Raise the Alarm"), need)
@@ -898,3 +897,216 @@ def test_an_outlaw_combat_trigger_wants_outlaws_to_connect():
     assert not satisfies(test_card("Hangarback Walker"), need)
     assert satisfies(test_card("Dauthi Voidwalker"), need)
     assert satisfies(test_card("Changeling Outcast"), need)
+
+
+# --- Death needs are fed by derived links (``_analysis.links.deaths``) -----------------
+
+
+def _supply(need, name: str) -> str:
+    card = test_card(name)
+    if satisfies(card, need):
+        return "supplies"
+    return "weak" if need.weak is not None and need.weak(card) else "nothing"
+
+
+def test_a_death_watcher_is_fed_by_repeatable_certain_links_and_bodies():
+    # Meren: "Whenever another creature you control dies". A sacrifice cost
+    # you can pay again and again supplies it (CR 701.21a: the creature is put
+    # into its owner's graveyard; CR 700.4: that is dying), and so does a body
+    # to kill. A one-shot destroy is a weak supplier: it is on the page, after
+    # the suppliers, and counts toward nothing.
+    need = _need("Meren of Clan Nel Toth", "creatures that dies")
+    assert need.keys == {"token_maker", "mass_token_makers"}
+    assert _supply(need, "Viscera Seer") == "supplies"
+    assert _supply(need, "Ashnod's Altar") == "supplies"
+    assert _supply(need, "Raise the Alarm") == "supplies"
+    assert _supply(need, "Murder") == "weak"
+    assert _supply(need, "Wrath of God") == "weak"
+    # A repeatable link that kills only when a number is big enough (CR
+    # 704.5g) is weak too: Prodigal Sorcerer's one damage.
+    assert _supply(need, "Prodigal Sorcerer") == "weak"
+    # And so is a destroy you would have to aim at your own creature every
+    # time: Visara the Dreadful's "{T}: Destroy target creature."
+    assert _supply(need, "Visara the Dreadful") == "weak"
+    assert _supply(need, "Serra Angel") == "nothing"
+
+
+def test_a_creature_that_sacrifices_itself_is_a_body_that_needs_no_outlet():
+    # Sakura-Tribe Elder's "Sacrifice this creature: ..." is one death of a
+    # creature you control: it feeds Meren like a token maker's token does. It
+    # is not Kokusho, so it feeds "When Kokusho dies" nothing.
+    meren = _need("Meren of Clan Nel Toth", "creatures that dies")
+    assert _supply(meren, "Sakura-Tribe Elder") == "supplies"
+    kokusho = _need("Kokusho, the Evening Star", "the commander dying")
+    assert _supply(kokusho, "Sakura-Tribe Elder") == "nothing"
+    # Nor is it an Elemental: Ashling's "Whenever you sacrifice a nontoken
+    # Elemental" is fed by an Elemental that sacrifices itself (Mulldrifter's
+    # evoke, CR 702.74a: "its controller sacrifices it"), not by the Elder.
+    ashling = _need("Ashling, the Limitless", "creatures that sacrificed")
+    assert _supply(ashling, "Sakura-Tribe Elder") == "nothing"
+    assert _supply(ashling, "Mulldrifter") == "supplies"
+
+
+def test_a_death_needs_page_order_is_read_off_the_links_facts():
+    # Repeatable before one-shot, every creature before one, cheaper before
+    # dearer (Dan's decision, 2026-11-28).
+    need = _need("Meren of Clan Nel Toth", "creatures that dies")
+    assert need.strength is not None
+    order = sorted(
+        [
+            "Murder",
+            "Wrath of God",
+            "Prodigal Sorcerer",
+            "Ashnod's Altar",
+            "Viscera Seer",
+        ],
+        key=lambda name: need.strength(test_card(name)),
+    )
+    assert order == [
+        "Viscera Seer",
+        "Ashnod's Altar",
+        "Prodigal Sorcerer",
+        "Wrath of God",
+        "Murder",
+    ]
+    # A body to kill sits with the cheap repeatable links, whatever weaker
+    # link its card also has: Broken Visage's "Destroy target nonartifact
+    # attacking creature" is a one-shot link, and it creates a Spirit token.
+    assert need.strength(test_card("Raise the Alarm")) == need.strength(
+        test_card("Viscera Seer")
+    )
+    assert _supply(need, "Broken Visage") == "supplies"
+    assert need.strength(test_card("Broken Visage"))[:2] == (0, 1)
+
+
+def test_an_opponents_creature_dying_is_fed_by_no_body_of_yours():
+    # Toxrill: "Whenever a creature you don't control with a slime counter on
+    # it dies". Sacrificing your own creature and making a token feed nothing;
+    # a repeatable destroy does, and a one-shot one weakly.
+    need = _need("Toxrill, the Corrosive", "opponents' creatures dying")
+    assert not need.keys
+    assert _supply(need, "Viscera Seer") == "nothing"
+    assert _supply(need, "Raise the Alarm") == "nothing"
+    assert _supply(need, "Visara the Dreadful") == "supplies"
+    assert _supply(need, "Murder") == "weak"
+
+
+def test_a_sacrifice_watcher_is_not_fed_by_a_destroy():
+    # Legate Lanius: "Whenever an opponent sacrifices a creature". CR 701.21a:
+    # sacrificing a permanent doesn't destroy it, and a destroyed creature was
+    # not sacrificed. An edict feeds it; a destroy and your own outlet do not.
+    need = _need("Legate Lanius, Caesar's Ace", "opponents' creatures being sacrificed")
+    assert _supply(need, "Diabolic Edict") == "weak"
+    assert _supply(need, "Murder") == "nothing"
+    assert _supply(need, "Wrath of God") == "nothing"
+    assert _supply(need, "Viscera Seer") == "nothing"
+
+
+def test_a_commanders_own_death_is_fed_by_an_outlet_and_not_by_a_token():
+    # Kokusho: "When Kokusho dies". An outlet can sacrifice it; a token is not
+    # Kokusho.
+    need = _need("Kokusho, the Evening Star", "the commander dying")
+    assert _supply(need, "Viscera Seer") == "supplies"
+    assert _supply(need, "Raise the Alarm") == "nothing"
+
+
+def test_a_token_only_wait_is_not_fed_by_a_card_that_sacrifices_itself():
+    # Grismold, the Dreadsower: "Whenever a creature token dies". A card is
+    # no token (CR 111.1: a token represents a permanent that isn't
+    # represented by a card), so Sakura-Tribe Elder's own death feeds nothing;
+    # a token maker and an outlet do.
+    need = _need("Grismold, the Dreadsower", "creatures that dies")
+    assert _supply(need, "Sakura-Tribe Elder") == "nothing"
+    assert _supply(need, "Raise the Alarm") == "supplies"
+    assert _supply(need, "Viscera Seer") == "supplies"
+
+
+def test_an_edict_feeds_the_side_that_sacrifices():
+    # Cruel Edict: "Target opponent sacrifices a creature of their choice."
+    # CR 701.21a: a player can't sacrifice a permanent they don't control, so
+    # it is an opponent's creature that dies. It feeds Legate Lanius's
+    # "Whenever an opponent sacrifices a creature" once, and Meren's "another
+    # creature you control dies" never.
+    lanius = _need(
+        "Legate Lanius, Caesar's Ace", "opponents' creatures being sacrificed"
+    )
+    assert _supply(lanius, "Cruel Edict") == "weak"
+    meren = _need("Meren of Clan Nel Toth", "creatures that dies")
+    assert _supply(meren, "Cruel Edict") == "nothing"
+
+
+def test_two_death_triggers_of_one_commander_are_two_needs():
+    # The Scorpion God watches "a creature with a -1/-1 counter on it dies"
+    # and its own death. Needs are told apart by label, so each wait keeps its
+    # own: a token of yours is a body for the first and nothing to the second.
+    labels = _labels(_needs("The Scorpion God"))
+    assert {"creatures that dies", "the commander dying"} <= set(labels)
+    assert _supply(
+        _need("The Scorpion God", "creatures that dies"), "Raise the Alarm"
+    ) == ("supplies")
+    assert _supply(
+        _need("The Scorpion God", "the commander dying"), "Raise the Alarm"
+    ) == ("nothing")
+
+
+#: Cards that feed a death need nothing: the rest of a pool.
+_NO_DEATHS = (
+    "Serra Angel",
+    "Sol Ring",
+    "Arcane Signet",
+    "Counterspell",
+    "Cultivate",
+    "Rampant Growth",
+    "Llanowar Elves",
+    "Birds of Paradise",
+    "Divination",
+    "Opt",
+    "Ponder",
+    "Brainstorm",
+    "Negate",
+    "Explore",
+    "Swiftfoot Boots",
+    "Lightning Greaves",
+    "Commander's Sphere",
+    "Mind Stone",
+    "Kodama's Reach",
+    "Farseek",
+    "Preordain",
+    "Grizzly Bears",
+    "Giant Growth",
+    "Naturalize",
+    "Duress",
+    "Dark Ritual",
+    "Sign in Blood",
+    "Night's Whisper",
+    "Reanimate",
+    "Animate Dead",
+)
+
+
+def test_a_death_needs_page_lists_its_weak_suppliers_after_its_suppliers():
+    from mtg_utils._tuner.swaps import need_avenues
+
+    need = _need("Meren of Clan Nel Toth", "creatures that dies")
+    # The pool's own order (play-rate, in a tune) puts the one-shot causes first.
+    pool = [
+        test_card(name)
+        for name in ("Wrath of God", "Murder", "Viscera Seer", "Raise the Alarm")
+    ] + [test_card(name) for name in _NO_DEATHS]
+    ((label, _depth, spec),) = need_avenues([need], [], pool)
+    assert label == "creatures that dies (commander need)"
+    assert [c["name"] for c in spec["_page"]] == [
+        "Viscera Seer",
+        "Raise the Alarm",
+        "Wrath of God",
+        "Murder",
+    ]
+    # The need's own order leads the page's ranking, ahead of play-rate.
+    assert spec["_lead"] is need.strength
+    # The broad line and the deck's count read the suppliers alone: with the
+    # weak ones counted, 4 of 34 cards would be over the tenth that closes a page.
+    assert len(pool) == 34
+    deck = [test_card("Murder"), test_card("Viscera Seer")]
+    ((_label, depth, _spec),) = need_avenues([need], deck, pool)
+    ((_label, empty_depth, _spec),) = need_avenues([need], [test_card("Murder")], pool)
+    assert depth == empty_depth - 1

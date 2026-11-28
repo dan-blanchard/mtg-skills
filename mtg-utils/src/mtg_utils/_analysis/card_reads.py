@@ -54,6 +54,7 @@ _READERS = (
     "mtg_utils._analysis.roles",
     "mtg_utils._analysis.signals",
     "mtg_utils._analysis.lanes.card_advantage",
+    "mtg_utils._analysis.links.deaths",
 )
 
 #: ``<bulk>.card-reads.pkl``: one namespace per read.

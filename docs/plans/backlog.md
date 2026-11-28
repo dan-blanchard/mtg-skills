@@ -24,6 +24,41 @@ phase-rs issue.
   score with every set held out; the engine's version test on Competitive Brawl; derived
   links shipped family by family ("a creature dies" first); the plan measure. Delete this
   entry when the block closes.
+- **Derived links: what is left of "a creature dies"** (ADR-0070; step 1, the commander's
+  death need, shipped).
+  - *Step 2.* The family's lanes (`sacrifice_outlets`, `edict_makers`, the removal and
+    board-wipe lanes) become labels over the links, with their hand code deleted in the
+    same commit. `sacrifice_outlets` holds cards that only reward a sacrifice (Dragon
+    Appeasement, Mortician Beetle), and about 180 of its and `edict_makers`' cards never
+    sacrifice a creature: the label has to say which of those it keeps.
+  - *Bodies.* Token makers still feed a death need by key, every one a supplier, while a
+    card that kills itself is split by its link. A card that makes the objects another
+    card's cost or filter needs is the second kind of link; build it, then split bodies by
+    repeatability like the causes.
+  - *Read gaps* (each a generic shape, about fifteen cards among the old table's): a
+    sacrifice paid as an alternative cost ("rather than pay"), "its controller sacrifices
+    it" back-references, emblems, unparsed nodes; 22 effects that can kill by a route not
+    read (`UNREAD_DEATH_EFFECTS`: counter changes, toughness switches, containers).
+  - *Waits.* One clause of a multi-clause trigger (Syr Konrad, the Grim) opens no death
+    need; a "leaves the battlefield" wait keeps its hand table; a condition or count ("if
+    a creature died this turn") is not read as a wait.
+  - *Found beside it.* `reads.unit_repeats` treats "Whenever ~ enters or attacks" as firing
+    once (`ENTERS_EVENTS` holds `entersorattacks`), and its docstring cites CR 714.2b for
+    Saga chapters where the chapter rule is 715.2b. An artifact or enchantment creature is
+    not counted by "destroy target artifact". Living Death's "sacrifices all creatures" and
+    devour's "any number" read as reaching one creature. Reported by the port, not
+    re-checked.
+- **The Commander template's ceilings cost Competitive Brawl lists win rate** (the Brawl
+  yardstick's first run, 2026-11-28, `~/mtg/tuner-work/brawl-yardstick/README.md`). On the
+  most-played list of each of the 20 most-played commanders, ten tuner swaps score -0.99 ±
+  0.36 points of win rate by Untapped's per-commander card results (meta read off; -0.84 ±
+  0.38 with it on), against -0.18 for a random swap. Two thirds of the swaps are
+  `role_over` trims (94 cite interaction over its band, 48 ramp) and those lose a quarter
+  of a point each: Force Spike and Daze cut from Emry for Swiftfoot Boots and Ashnod's
+  Altar. A two-player ladder list holds more interaction and ramp than the Commander bands
+  allow. Under half the swaps can be priced. Tool:
+  `docs/plans/precon-audit/brawl_yardstick.py`. A policy call for Dan: the bands
+  Competitive Brawl is measured against.
 - **A failed `playtest-install-phase` leaves the shared install unusable.** It checks out the
   new tag and copies the new card-data in before the patch and the build, and the old binaries
   cannot read it ("unknown variant"). Copy card-data only after the build succeeds. (The
@@ -58,9 +93,6 @@ phase-rs issue.
 - **`ai-duel` at v0.133.0 can run for 20 minutes on ten games.** 17 of 1,152 jobs timed out in
   E3's run; 16 were in the five decks holding Krenko, Mob Boss. Likely the boards its ability
   builds. Not confirmed, not reported upstream.
-- **`sacrifice_outlets` holds cards that only reward a sacrifice** (Dragon Appeasement,
-  Mortician Beetle, Jenny Flint), and `kill_engine` is a payoff key. Found by the E1 census;
-  the dies-family lane step of the block settles it.
 - **Parked ideas, each with its result.** (1) Land counts from the solo simulation: within one
   land of the measured best in limited once mana is weighted by its measured per-turn worth
   (`e5-land-count.md`); the model lacks holding back and late-game sinks; the Commander land

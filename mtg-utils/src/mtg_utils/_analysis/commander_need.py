@@ -70,6 +70,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping, Sequence
 from typing import TYPE_CHECKING
 
+from mtg_utils._analysis.links.deaths import unit_death_waits
 from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
 from mtg_utils._analysis.signal_base import ident_key
 from mtg_utils._card_ir.crosswalk.reads import (
@@ -275,7 +276,7 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
                 desc = str(getattr(node, "description", "") or "")
                 cast_trigger = False
                 if unit.origin == "trigger" and isinstance(node, TypedMirrorNode):
-                    add(_event_need(node, desc))
+                    add(_event_need(node, desc, unit_death_waits(tree, unit)))
                     cast_trigger = trigger_def_event(node) == "cast_spell"
                 if unit.origin == "static":
                     for need in _static_needs(node, desc):
