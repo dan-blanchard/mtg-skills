@@ -146,6 +146,18 @@ def build_report(
             # phase's alternatives Arena never offered while it offered the
             # card's cast: counted, never a finding (``costs``)
             "costs_never_offered": dict(sorted((never_offered or {}).items())),
+            # findings on cards phase's own census already flags, by section
+            "phase_flagged": {
+                section: n
+                for section, rows in (
+                    ("resolutions", resolutions),
+                    ("triggers", triggers),
+                    ("expected", expected),
+                    ("watched", watched),
+                    ("costs", costs),
+                )
+                if (n := sum(1 for r in rows if r.get("phase_flagged")))
+            },
             "checks": {
                 k: {"pass": v[0], "fail": v[1]} for k, v in sorted(checks.items())
             },
@@ -158,8 +170,29 @@ def build_report(
     }
 
 
-def _findings(report: dict) -> list[str]:
-    lines = []
+def is_finding(section: str, row: dict) -> bool:
+    """Whether a row is a finding to look at (what the markdown lists)."""
+    status = row.get("status")
+    if section == "resolutions":
+        failed = any(not c["ok"] for c in row.get("checks", ()))
+        return status != "ignored" and (status in RESOLUTION_FINDINGS or failed)
+    if section == "triggers":
+        return status in TRIGGER_FINDINGS
+    if section in ("expected", "watched"):
+        return status in EXPECTED_FINDINGS
+    if section == "costs":
+        return status in COST_FINDINGS
+    return False
+
+
+def _findings(report: dict) -> list[tuple[str, str | None]]:
+    """Each finding's markdown line, with the census class phase flags its card
+    with (``phase_flagged``), if any."""
+    lines: list[tuple[str, str | None]] = []
+
+    def add(row: dict, text: str) -> None:
+        lines.append((text, row.get("phase_flagged")))
+
     for r in report["resolutions"]:
         if r["status"] == "ignored":
             continue
@@ -176,36 +209,41 @@ def _findings(report: dict) -> list[str]:
                 f"{c['check']}: phase {c['expected']}, Arena {c['observed']}"
                 for c in failed
             )
-            lines.append(
+            add(
+                r,
                 f"- **{r['card']}** ({r['kind']}): {r.get('arena_text') or '(spell)'} "
-                f"— {'; '.join(x for x in (what, fails) if x)}"
+                f"— {'; '.join(x for x in (what, fails) if x)}",
             )
     for t in report["triggers"]:
         if t["status"] in TRIGGER_FINDINGS:
-            lines.append(
+            add(
+                t,
                 f"- **{t['card']}** trigger: {t['arena_text']} — phase watches "
-                f"`{t['phase_event']}`, Arena logged {t['events']}"
+                f"`{t['phase_event']}`, Arena logged {t['events']}",
             )
     for w in report.get("watched", ()):
         if w["status"] in EXPECTED_FINDINGS:
-            lines.append(
+            add(
+                w,
                 f"- **{w['card']}** never fired for {w.get('watched')}'s "
                 f"`{w['event']}` (turn {w['turn']}): phase's `{w['phase_text']}`; "
-                f"Arena lists it as {w.get('arena_category')} `{w.get('arena_text')}`"
+                f"Arena lists it as {w.get('arena_category')} `{w.get('arena_text')}`",
             )
     for c in report.get("costs", ()):
         if c["status"] in COST_FINDINGS:
-            lines.append(
+            add(
+                c,
                 f"- **{c['card']}** {c['kind']}: Arena offers "
                 f"{c.get('arena_text') or ''} {c.get('arena_cost')}, phase "
-                f"{c.get('phase_cost') or c['status']}"
+                f"{c.get('phase_cost') or c['status']}",
             )
     for e in report.get("expected", ()):
         if e["status"] in EXPECTED_FINDINGS:
-            lines.append(
+            add(
+                e,
                 f"- **{e['card']}** never fired: phase's `{e['phase_text']}` "
                 f"watches its `{e['event']}` (turn {e['turn']}); Arena lists it as "
-                f"{e.get('arena_category')} `{e.get('arena_text')}`"
+                f"{e.get('arena_category')} `{e.get('arena_text')}`",
             )
     return lines
 
@@ -216,6 +254,7 @@ def _counts(counts: dict[str, int]) -> list[str]:
 
 def render_markdown(report: dict) -> str:
     s = report["summary"]
+    findings = _findings(report)
     out = [
         f"# Arena crosscheck — phase {report['phase_tag']}, {report['games']} games",
         "",
@@ -247,7 +286,16 @@ def render_markdown(report: dict) -> str:
         ),
         "",
         "## Findings (check each with /rules-lawyer before calling it a misparse)",
-        *(_findings(report) or ["- none"]),
+        "",
+        "### New",
+        *([line for line, flag in findings if not flag] or ["- none"]),
+        "",
+        (
+            "### On cards phase's census flags (its records' "
+            "`metadata.confirmed_misparse`; class shown, the flagged clause may "
+            "be another)"
+        ),
+        *([f"{line} [{flag}]" for line, flag in findings if flag] or ["- none"]),
     ]
     rows = (*report["resolutions"], *report["triggers"])
     unsure = [r for r in rows if r["status"] == "unsure-pairing"]

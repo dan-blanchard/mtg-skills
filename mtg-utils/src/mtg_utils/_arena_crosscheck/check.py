@@ -94,7 +94,7 @@ from mtg_utils._arena_crosscheck.log import (
     TriggerFired,
     read_logs,
 )
-from mtg_utils._arena_crosscheck.report import build_report
+from mtg_utils._arena_crosscheck.report import build_report, is_finding
 from mtg_utils._card_ir.crosswalk import (
     PERMANENT_CARD_TYPES,
     AbilityUnit,
@@ -302,6 +302,7 @@ class Checker:
         #: Per card name, phase's parse; ``None`` for a card phase has no tree for.
         self._parsed: dict[str, _Parsed | None] = {}
         self._suppression: dict[str, tuple[TriggerSuppression, ...]] = {}
+        self._flags: dict[str, str | None] = {}
 
     def _keyword(self, ability: ArenaAbility) -> str | None:
         """The keyword an Arena ability is an instance of: its ``BaseId``'s
@@ -749,6 +750,37 @@ class Checker:
                 for s in trigger_suppressions(tree)
             )
         return self._suppression[name]
+
+    # -- phase's own census -------------------------------------------------
+    def phase_flag(self, row: dict) -> str | None:
+        """The class phase's own known-misparse census gives a card the row
+        rests on (its face records' ``metadata.confirmed_misparse``:
+        ``cost_wrong``, ``missing_effect`` …), or ``None``: the row's card, or
+        a card whose parse changed its expected cost (``changed_by``: Bilbo,
+        Thief in the Night's reduction on another spell), named beside the
+        class. A finding on such a card is one phase already knows of; it
+        stays a finding. The census names a class per card, not the clause:
+        the flagged clause may be another than the finding's."""
+        names = [row.get("card"), *row.get("changed_by", ())]
+        for n, name in enumerate(dict.fromkeys(x for x in names if x)):
+            flag = self._flag(name)
+            if flag:
+                own = n == 0 and name == row.get("card")
+                return flag if own else f"{flag} ({name})"
+        return None
+
+    def _flag(self, name: str) -> str | None:
+        if name not in self._flags:
+            from mtg_utils._card_ir.trees import phase_records_for
+
+            record = self._card_of(name)
+            oid = (record or {}).get("oracle_id")
+            flags = [
+                (rec.get("metadata") or {}).get("confirmed_misparse")
+                for rec in (phase_records_for(oid) if oid else ())
+            ]
+            self._flags[name] = next((f for f in flags if isinstance(f, str)), None)
+        return self._flags[name]
 
     # -- costs in the legal-action lists -------------------------------------
     def costs(self, logs: Logs) -> list[dict]:
@@ -1299,13 +1331,27 @@ def crosscheck(paths: Iterable[Path], checker: Checker, phase_tag: str) -> dict:
     """Read the logs at ``paths`` and score every resolution and trigger: the
     report (``report.build_report``)."""
     logs = read_logs(paths)
+    sections = {
+        "resolutions": [checker.resolution(r) for r in logs.resolutions],
+        "triggers": [
+            row for t in logs.triggers if (row := checker.trigger(t)) is not None
+        ],
+        "expected": checker.expected(logs.events),
+        "watched": checker.watched(logs.events, logs.instances),
+        "costs": checker.costs(logs),
+    }
+    for section, rows in sections.items():
+        for row in rows:
+            if is_finding(section, row) and (flag := checker.phase_flag(row)):
+                row.setdefault("warnings", []).append("phase-flagged-card")
+                row["phase_flagged"] = flag
     return build_report(
-        [checker.resolution(r) for r in logs.resolutions],
-        [row for t in logs.triggers if (row := checker.trigger(t)) is not None],
+        sections["resolutions"],
+        sections["triggers"],
         logs.games,
         phase_tag,
-        expected=checker.expected(logs.events),
-        watched=checker.watched(logs.events, logs.instances),
-        costs=checker.costs(logs),
+        expected=sections["expected"],
+        watched=sections["watched"],
+        costs=sections["costs"],
         never_offered=dict(checker.never_offered),
     )

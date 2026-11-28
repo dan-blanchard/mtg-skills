@@ -4201,3 +4201,53 @@ def test_an_ability_reduction_with_a_condition(card_db, tmp_path):
     )
     (row,) = _costs(card_db, tmp_path, game)
     assert row["status"] == "cost-modified"
+
+
+# -- findings phase already flags -------------------------------------------------
+def test_a_finding_on_a_card_phase_already_flags(card_db, tmp_path):
+    """Addle carries phase's own known-misparse class (its face record's
+    ``metadata.confirmed_misparse``): a finding on it is marked, not hidden;
+    Lightning Bolt's stays new."""
+    game = _cost_game(card_db, "Addle", _mana("2", "B"), types=("Sorcery",))
+    report = _run(card_db, _write_offers(tmp_path / "a.log", game))
+    (row,) = report["costs"]
+    assert (row["status"], row["phase_flagged"]) == ("cost-mismatch", "missing_effect")
+    assert "phase-flagged-card" in row["warnings"]
+    assert report["summary"]["phase_flagged"] == {"costs": 1}
+    markdown = render_markdown(report)
+    new, flagged = markdown.split("### On cards phase's census flags")
+    assert "**Addle**" in flagged
+    assert "[missing_effect]" in flagged
+    assert "**Addle**" not in new.split("### New")[1]
+    game = _cost_game(card_db, "Addle", _mana("1", "B"), types=("Sorcery",))
+    (row,) = _run(card_db, _write_offers(tmp_path / "b.log", game))["costs"]
+    assert "phase_flagged" not in row  # an agree is no finding
+    game = _cost_game(card_db, "Lightning Bolt", _mana("1", "R"))
+    (row,) = _run(card_db, _write_offers(tmp_path / "c.log", game))["costs"]
+    assert (row["status"], row.get("phase_flagged")) == ("cost-mismatch", None)
+
+
+@pytest.mark.parametrize(("affector", "reason"), [(999, ["other-effect"]), (100, None)])
+def test_an_ability_another_object_adds_in_the_message(
+    card_db, tmp_path, affector, reason
+):
+    """Arena may log another object's added ability only as a new persistent
+    ``AddAbility`` (no other annotation): the resolution's own is evidence."""
+    game = _continuous_game(card_db, "Jump", {300: (FLYING,)})
+    game[1]["persistentAnnotations"] = [_ann(80, "AddAbility", affector, [301])]
+    row = _continuous(card_db, tmp_path, game)
+    assert row.get("continuous_unchecked") == reason
+
+
+def test_a_cost_finding_flagged_through_the_card_that_changed_it(card_db, monkeypatch):
+    """A cost finding rests on the card whose parse changed the expected cost
+    too: flagged by that card's class, named."""
+    checker = Checker(CardText(card_db), _card_of, trees_for, [])
+    monkeypatch.setattr(
+        checker,
+        "_flag",
+        lambda n: "missing_effect" if n == "Thalia, Guardian of Thraben" else None,
+    )
+    row = {"card": "Lightning Bolt", "changed_by": ["Thalia, Guardian of Thraben"]}
+    assert checker.phase_flag(row) == "missing_effect (Thalia, Guardian of Thraben)"
+    assert checker.phase_flag({"card": "Lightning Bolt"}) is None

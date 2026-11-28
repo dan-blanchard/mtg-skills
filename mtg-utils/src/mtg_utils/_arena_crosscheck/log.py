@@ -203,6 +203,10 @@ class Resolution:
     #: Whether its message changed the battlefield after it completed: then
     #: :attr:`after` may not be the board it left.
     changed_after: bool = False
+    #: Whether its message begins to show an ability another object added or
+    #: removed (a new persistent ``AddAbility`` / ``RemoveAbility``, which
+    #: Arena may log with no other annotation).
+    other_abilities: bool = False
 
 
 @dataclass(frozen=True)
@@ -709,6 +713,7 @@ class _Reader:
         self.before_objs: dict[int, dict] = {}
         self.before_zones: dict[int, list[int]] = {}
         self.board_changes: list[int] = []
+        self.ability_changes: list[int | None] = []
         #: the legal actions recorded this game (:meth:`_offers`)
         self.offered: set[tuple] = set()
         #: the persistent annotations in force, by id
@@ -792,6 +797,14 @@ class _Reader:
         turn_number = (state.get("turnInfo") or {}).get("turnNumber")
         if turn_number is not None:
             self.first_turns.setdefault(game, turn_number)
+        #: (affector, id) of each ability added or removed that this message
+        #: begins to show (``AddAbility`` / ``RemoveAbility`` are persistent)
+        self.ability_changes = [
+            ann.get("affectorId")
+            for ann in state.get("persistentAnnotations", [])
+            if ann.get("id", 0) not in self.persistent
+            and {"AddAbility", "RemoveAbility"} & set(_types(ann))
+        ]
         for ann in state.get("persistentAnnotations", []):
             self.persistent[ann.get("id", 0)] = ann
             if "TriggeringObject" in _types(ann) and ann.get("affectedIds"):
@@ -864,6 +877,10 @@ class _Reader:
                     _permanent(i, self.objs[i]) for i in seen if i in self.objs
                 )
                 open_["changed_after"] = any(i > end for i in self.board_changes)
+                own = {open_["instance"], open_["parent"]}
+                open_["other_abilities"] = any(
+                    a not in own for a in self.ability_changes
+                )
                 open_["effects"] += [
                     self._effect(p)
                     for p in state.get("persistentAnnotations", [])

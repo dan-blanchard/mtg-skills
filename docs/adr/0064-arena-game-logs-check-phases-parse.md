@@ -70,6 +70,20 @@ Arena created.
   names no other player: "its controller draws a card" (a recipient read through
   another object) can be either side. An object's type is not checked when one of
   the effects that could have moved or damaged it takes an object of any type.
+- **Findings on cards phase's census flags** (added 2026-11-27). Phase stamps a
+  card's face records with its own known-misparse census
+  (`metadata.confirmed_misparse`: a class such as `missing_effect`,
+  `cost_wrong`, `wrong_object`), which the tool already loads
+  (`trees.phase_records_for`). The records carry the class only, not the
+  clause it is about, so the mark is the card's: a finding row (a resolution's
+  `arena-extra` / `phase-extra` or failed check, a trigger `mismatch`, an
+  `unfired` own-event or watched row, a cost finding) on such a card gets a
+  `phase-flagged-card` warning and the class (`phase_flagged`; for a cost, also
+  through a card whose parse changed the expected cost, named: Bilbo, Thief in
+  the Night's reduction on Emeritus of Ideation), and the markdown lists the
+  findings as new or on cards phase's census flags (class shown; the flagged
+  clause may be another than the finding's). No status changes and no finding
+  is hidden (`summary.phase_flagged` counts them by section).
 - **Costs in Arena's legal-action lists** (`_arena_crosscheck.costs`; added
   2026-11-27). The log's shape, from both sets: each game state carries
   `actions`, a list of `{seatId, action}`; an action has `actionType`
@@ -185,7 +199,10 @@ Arena created.
     (Stolen Vitality's "If it's your turn, … trample. Otherwise, … first
     strike", both unconditional in phase's parse): its keywords only rule out
     an extra, none is reported missing, and the row is `partly read` when Arena
-    added none of them;
+    added none of them. The switch is ability-wide on purpose: Stolen Vitality's
+    typed trample is the conditional branch phase lost, so narrowing it to the
+    pump's own keywords would read every opponent's-turn cast as a missing
+    trample;
   - **base power and toughness** (layer 7b, CR 613.4b, then 7c, 613.4c): the
     logged power and toughness after against the base phase sets plus the fixed
     changes beside it, only where the object's logged values before were its
@@ -206,8 +223,10 @@ Arena created.
   board before or after the resolution (`board-changed`; an effect ending,
   `LayeredEffectDestroyed`, is in the board-change set, since it ends a pump as
   well as an anthem's keyword; Arena's `AddAbility` / `RemoveAbility` are
-  persistent annotations that come and go with a layered effect's creation and
-  end, so another source's change shows through those), another source's
+  persistent annotations that mostly come and go with a layered effect's
+  creation and end, but 17 of 252 newly appearing ones over the corpus came in
+  a message with no other board change, so a new one from another object in
+  the resolution's message is `other-effect` too, another source's
   effect inside it (`other-effect`), an object not on the battlefield before and
   after (a graveyard card granted flashback: Snapcaster Mage), a filter or an
   object this read can't place (`filter`, `object:LastCreated`,

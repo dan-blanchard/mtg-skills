@@ -381,7 +381,7 @@ def _checks(
         return [], sorted(set(unchecked))
     if res.changed_before or res.changed_after:
         return [], sorted({*unchecked, "board-changed"})
-    if _other_effect(res):
+    if _other_effect(res) or res.other_abilities:
         return [], sorted({*unchecked, "other-effect"})
     assert board is not None
     out: list[Check] = []
