@@ -339,8 +339,8 @@ phase-rs issue.
     Galvus), but the choice itself ("As ~ enters, choose another creature you
     control") is parked too, and no boost read has a recipient for
     `ChosenCard`; writing the choice's own filter would read as a team anthem.
-    It needs the owner's pick of key (see the 2026-11-27 reply: a static boost
-    to one other creature of yours). The Muckslinger Gang's cards outside the
+    Left unread, all three, as recorded limits (Dan, 2026-11-27: three
+    unsupported cards, low tuner reach; no key is added for one card). The Muckslinger Gang's cards outside the
     battlefield: a static, not a perpetual change, so it ends as the card
     enters, where its battlefield anthem (read) takes over; `card_boost` is for
     perpetual changes only. (Death's Approach's and Disturbing Conversion's "-X/-X"
@@ -364,46 +364,6 @@ phase-rs issue.
 
 **From comparing Arena game logs with phase (2026-11-09)**
 
-- **What `arena-crosscheck` doesn't check yet (ADR-0064).** Since 2026-11-27 a
-  trigger is checked both ways: each fired trigger against the event before it,
-  each trigger phase expects on an object's own event against the instances
-  Arena created (`expected` rows), and each trigger of a permanent watching
-  another object's enter, death, leave, attack, block or cast (`watched` rows).
-  Not checked: a trigger that a card grants another object (Nadu, Winged
-  Wisdom's granted "becomes the target" trigger, whose "only twice each turn"
-  phase leaves `Unimplemented`); a watcher's trigger in another zone, on a
-  `changes_zone` or sacrifice event, or on a player's event with no object
-  filter ("Whenever you attack"); and every row either check counts but doesn't
-  score (a condition, limit, filter the log can't show or parked clause; a
-  target; a copy, a face-down object, a token's own printing, a rebalanced card,
-  a rolled-back cast; the last turn of a game; a watcher that moved in the
-  event's message; a suppressing static on the battlefield; an unsure or
-  unpaired ability, or one Arena files as no trigger), as well as damage,
-  counter, tap and targeting events. A phased-out permanent (CR 702.26b)
-  would be read as present: no log yet shows how Arena logs phasing.
-  Amounts phase writes as a count are checked since 2026-11-27 where the log
-  shows them exactly (`amounts`); still not: a count of cards in another zone,
-  a mana value, mana spent, counters on an object, an event's amount, a group
-  phase tracks, a named card ("named Hare Apparent": the log's objects carry no
-  name the filter read takes), an object the log can't place ("that creature"),
-  and damage another object deals for the resolution (a bite: that object's in
-  the log, so the own-effects rule sets it aside). A continuous effect's keyword
-  grants, base power and toughness, types and colors are checked since
-  2026-11-27 (`continuous`); still not: an ability removed ("loses all
-  abilities") or a quoted ability granted, a dynamic amount beside a grant
-  (Tyvar's Stand's "+X/+X"), a switch of power and toughness, a base set on an
-  object already modified or no creature before, an effect on a group the
-  strict filter can't read or on an object phase tracks (a token it just made),
-  when it ends, and an anthem's static effect. The costs in Arena's legal-action
-  lists are checked since 2026-11-27 (`costs`: spell, ability and keyed
-  alternative costs); still not: a cost change with a condition or a count
-  phase types on a spell (Ghalta's "{X} less"), a cost keyword (affinity,
-  convoke, delve, …), an additional cost or kicker (Arena asks those as a
-  casting-time option, not an action), a "you may … rather than pay"
-  alternative by no keyword, land plays and special actions (morph, plot,
-  foretell's exile), an opponent's actions, and whether phase's alternative
-  that Arena never offered could have been (counted only). (The modal and
-  "enters or dies" pairings this entry listed pair since 2026-11-26.)
 - **What a corpus of other players' logs showed (2026-11-26).** Run over the public
   manasight corpus (38 sessions, 95 games; `~/mtg/arena-log-corpus/`, triage in
   `triage/triage.md`), `arena-crosscheck` reported 50 trigger mismatches and 4
@@ -856,6 +816,52 @@ headroom and parked items.
 
 ## Settled: don't re-suggest
 
+- **What `arena-crosscheck` doesn't check: recorded limits of the tool** (Dan,
+  2026-11-27, after the five pieces he asked for landed: the reverse check, watched
+  triggers, counted amounts, continuous effects, costs; ADR-0064). Since 2026-11-27 a
+  trigger is checked both ways: each fired trigger against the event before it,
+  each trigger phase expects on an object's own event against the instances
+  Arena created (`expected` rows), and each trigger of a permanent watching
+  another object's enter, death, leave, attack, block or cast (`watched` rows).
+  Not checked: a trigger that a card grants another object (Nadu, Winged
+  Wisdom's granted "becomes the target" trigger, whose "only twice each turn"
+  phase leaves `Unimplemented`); a watcher's trigger in another zone, on a
+  `changes_zone` or sacrifice event, or on a player's event with no object
+  filter ("Whenever you attack"); and every row either check counts but doesn't
+  score (a condition, limit, filter the log can't show or parked clause; a
+  target; a copy, a face-down object, a token's own printing, a rebalanced card,
+  a rolled-back cast; the last turn of a game; a watcher that moved in the
+  event's message; a suppressing static on the battlefield; an unsure or
+  unpaired ability, or one Arena files as no trigger), as well as damage,
+  counter, tap and targeting events. A phased-out permanent (CR 702.26b)
+  would be read as present: no log yet shows how Arena logs phasing.
+  Amounts phase writes as a count are checked since 2026-11-27 where the log
+  shows them exactly (`amounts`); still not: a count of cards in another zone,
+  a mana value, mana spent, counters on an object, an event's amount, a group
+  phase tracks, a named card ("named Hare Apparent": the log's objects carry no
+  name the filter read takes), an object the log can't place ("that creature"),
+  and damage another object deals for the resolution (a bite: that object's in
+  the log, so the own-effects rule sets it aside). A continuous effect's keyword
+  grants, base power and toughness, types and colors are checked since
+  2026-11-27 (`continuous`); still not: an ability removed ("loses all
+  abilities") or a quoted ability granted, a dynamic amount beside a grant
+  (Tyvar's Stand's "+X/+X"), a switch of power and toughness, a base set on an
+  object already modified or no creature before, an effect on a group the
+  strict filter can't read or on an object phase tracks (a token it just made),
+  when it ends, and an anthem's static effect. The costs in Arena's legal-action
+  lists are checked since 2026-11-27 (`costs`: spell, ability and keyed
+  alternative costs); still not: a cost change with a condition or a count
+  phase types on a spell (Ghalta's "{X} less"), a cost keyword (affinity,
+  convoke, delve, …), an additional cost or kicker (Arena asks those as a
+  casting-time option, not an action), a "you may … rather than pay"
+  alternative by no keyword, land plays and special actions (morph, plot,
+  foretell's exile), an opponent's actions, and whether phase's alternative
+  that Arena never offered could have been (counted only). (The modal and
+  "enters or dies" pairings this entry listed pair since 2026-11-26.)
+- **Static-line pumps stay unread** (Dan, 2026-11-27): Archangel of Strife's
+  war / peace pumps, Tyrannical Pitlord's "the chosen creature gets +3/+3 and
+  has flying" and the Muckslinger Gang's off-battlefield half. The reasons are
+  under "Left parked, and why" (*A static line*).
 - **A near tie at a theme page's head still flips the promoted card** (traced
   2026-11-26, `~/mtg/tuner-work/w-2026-11-26/rift/`). `_theme_ties` now anchors
   an exact tie at the head on the best read among the tied cards (2026-11-27).
