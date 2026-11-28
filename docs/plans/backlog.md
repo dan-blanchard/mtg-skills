@@ -18,6 +18,58 @@ as posted is in `docs/plans/phase-upstream-issues/filed/`). Every other draft an
 already in phase's confirmed-misparse census, ours, or a duplicate of an open
 phase-rs issue.
 
+**From the cause-graph exploration (2026-11-27, grilled 2026-11-28; `docs/plans/cause-graph-exploration-2026-11-27.md`, results in `~/mtg/tuner-work/cause-graph/`)**
+
+- **The overhaul block, in flight.** Four tracks, in the findings' "Next steps": the fitted
+  score with every set held out; the engine's version test on Competitive Brawl; derived
+  links shipped family by family ("a creature dies" first); the plan measure. Delete this
+  entry when the block closes.
+- **A failed `playtest-install-phase` leaves the shared install unusable.** It checks out the
+  new tag and copies the new card-data in before the patch and the build, and the old binaries
+  cannot read it ("unknown variant"). Copy card-data only after the build succeeds. (The
+  patch itself fits v0.133.0 since b02fa9eb; the install was rebuilt on 2026-11-28.)
+- **The playtest coverage gate checks names, not support.** `_phase.coverage_report` counts a
+  card as supported when its name is in card-data. Phase's own coverage export says 85.8% of
+  Commander-legal cards are supported. Read `coverage-data.json`'s `supported` flag instead.
+  Reported with it on 2026-11-28 and not re-checked: the gate counts an `A // B` name as
+  missing, while phase resolves it through the front face.
+- **`playtest-match` plays a Commander or Brawl deck under two-player Standard rules.**
+  `_phase.to_phase_deck` puts the commander in `main`, and the `--matchup-files` graft builds
+  its game with `GameState::new_two_player` (20 life, no command zone), so the commander is a
+  library card. Phase v0.133.0 has what a fix needs: `ai-duel --commander-1v1` (two seats,
+  Commander rules, picks decks by commander name from a feed) and
+  `ai-commander --players 2 --deck-p0 A --deck-p1 B --games-file seeds` (a seeded batch).
+  `FormatConfig::brawl()` / `historic_brawl()` exist in the engine and no binary uses them.
+  `_phase.run_commander` requires exactly four decks and nothing calls it.
+- **Improve the pilot (parked; Dan's decision).** Measured on 72 real FDN draft decks, 11,350
+  games (`e3-engine-as-judge.md`): the engine's ranking of DIFFERENT decks is repeatable (two
+  halves of the field agree, 0.79) and follows creature count (+0.49), not real results
+  (groups 12.5 real points apart came out 2.2 ± 3.5 apart and out of order). Its worst deck
+  was a top-tenth deck with nine instants, three of them counterspells. Phase's AI searches
+  2-3 plies with at most 5 branches. Not planned; recorded so it is not rediscovered.
+- **The engine can rank versions of one deck (measured in limited only).** 16 FDN decks, five
+  builds each by like-for-like swaps of cards with better or worse measured results, 240 games
+  a build against a fixed field of twelve with shared seeds (`e7-deck-versions.md`): right
+  order, best minus worst the right way in 16 of 16 decks, a real 3-point difference separable
+  in 7 to 29 minutes. ADR-0043 set playtest win-rate deltas aside as the primary yardstick;
+  this does not reopen that for Commander, where nothing is measured yet (the block's Brawl
+  test). Known hazard: swapping three noncreature spells for no-better creatures gained 17
+  and 18 engine points in two decks of sixteen, so never search against it.
+- **`ai-duel` at v0.133.0 can run for 20 minutes on ten games.** 17 of 1,152 jobs timed out in
+  E3's run; 16 were in the five decks holding Krenko, Mob Boss. Likely the boards its ability
+  builds. Not confirmed, not reported upstream.
+- **`sacrifice_outlets` holds cards that only reward a sacrifice** (Dragon Appeasement,
+  Mortician Beetle, Jenny Flint), and `kill_engine` is a payoff key. Found by the E1 census;
+  the dies-family lane step of the block settles it.
+- **Parked ideas, each with its result.** (1) Land counts from the solo simulation: within one
+  land of the measured best in limited once mana is weighted by its measured per-turn worth
+  (`e5-land-count.md`); the model lacks holding back and late-game sinks; the Commander land
+  band is untouched. (2) An optimizer that searches for the best deck: waits on a score that
+  can be searched; never the engine. (3) Card vectors built from mechanics: no signal for
+  card pairs on six sets (`e6-card-vectors.md`); not before there are thirty sets.
+- **Show Untapped's per-commander card results in deck-forge's Meta panel.** The block adds
+  them to `arena-meta`'s output only.
+
 **From the closing precon scoreboard (2026-11-26, N18 at e25fb0d3 against N17 at 2720444a; `~/mtg/tuner-work/w-2026-11-25/`)**
 
 - **A reanimation bound phase drops whole is read as none** (ADR-0066).
