@@ -49,6 +49,14 @@ phase-rs issue.
     sacrifice paid as an alternative cost ("rather than pay"), "its controller sacrifices
     it" back-references, emblems, unparsed nodes; 22 effects that can kill by a route not
     read (`UNREAD_DEATH_EFFECTS`: counter changes, toughness switches, containers).
+  - *A route the table lacks, and no gate on the rules side* (found 2026-11-28 answering
+    Dan's "how do we know they cover everything"). The legend rule puts a legendary
+    permanent into its owner's graveyard (CR 704.5j), which for a creature is dying (CR
+    700.4); `ROUTES` has no row for it, and `CopyTokenOf` / `BecomeCopy` sit in
+    `NO_DEATH_EFFECTS`. The roster gate proves every phase effect was classified, not that
+    the routes are every rule that moves a creature from the battlefield to a graveyard.
+    A matching gate: a saved `rules-lookup --grep` for those rules, each hit classified,
+    re-run when the rules file changes.
   - *Waits.* One clause of a multi-clause trigger (Syr Konrad, the Grim) opens no death
     need; a "leaves the battlefield" wait keeps its hand table; a condition or count ("if
     a creature died this turn") is not read as a wait.
