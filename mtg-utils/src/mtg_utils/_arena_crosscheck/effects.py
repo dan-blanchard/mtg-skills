@@ -422,6 +422,11 @@ _MAY_LOG_NOTHING = frozenset({"class_level"})
 _Eff = tuple[PhaseAbility, ConceptNode, bool]
 
 
+def effect_rows(chosen: Sequence[PhaseAbility], x: ChosenX = NO_X) -> list[_Eff]:
+    """:func:`_effects`, for another module's checks (``continuous``)."""
+    return _effects(chosen, x)
+
+
 def _effects(chosen: Sequence[PhaseAbility], x: ChosenX = NO_X) -> list[_Eff]:
     """Each effect of the chosen abilities, with whether it may not happen: any
     effect of one of several modes may not, nor any that follows one that may

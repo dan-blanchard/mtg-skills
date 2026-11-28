@@ -387,11 +387,15 @@ phase-rs issue.
   phase tracks, a named card ("named Hare Apparent": the log's objects carry no
   name the filter read takes), an object the log can't place ("that creature"),
   and damage another object deals for the resolution (a bite: that object's in
-  the log, so the own-effects rule sets it aside). Also not checked yet:
-  continuous effects other than a pump's size (an object's abilities before
-  and after its resolution; a pump beside a base-P/T set or a keyword grant:
-  Tyvar's Stand), and the costs and alternative costs in Arena's legal-action
-  lists. (The modal and "enters or dies" pairings this entry listed pair since
+  the log, so the own-effects rule sets it aside). A continuous effect's keyword
+  grants, base power and toughness, types and colors are checked since
+  2026-11-27 (`continuous`); still not: an ability removed ("loses all
+  abilities") or a quoted ability granted, a dynamic amount beside a grant
+  (Tyvar's Stand's "+X/+X"), a switch of power and toughness, a base set on an
+  object already modified or no creature before, an effect on a group the
+  strict filter can't read or on an object phase tracks (a token it just made),
+  when it ends, and an anthem's static effect. Also not checked yet: the costs
+  and alternative costs in Arena's legal-action lists. (The modal and "enters or dies" pairings this entry listed pair since
   2026-11-26.)
 - **What a corpus of other players' logs showed (2026-11-26).** Run over the public
   manasight corpus (38 sessions, 95 games; `~/mtg/arena-log-corpus/`, triage in

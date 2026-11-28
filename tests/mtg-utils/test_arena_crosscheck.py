@@ -3302,3 +3302,423 @@ def test_a_count_of_other_permanents():
     from mtg_utils._arena_crosscheck.amounts import _matching
 
     assert [p.id for p in _matching(another, board)] == [300]
+
+
+# -- what a continuous effect did ------------------------------------------------
+FLYING, TRAMPLE, INDESTRUCTIBLE, VIGILANCE, HASTE, PROTECTION = (
+    4701,
+    4702,
+    4703,
+    4704,
+    4705,
+    4706,
+)
+CONTINUOUS_SPELL, BEARS = 3981, 3982
+
+
+def _keyword_abilities(card_db: Path) -> None:
+    for aid, text in (
+        (FLYING, "Flying"),
+        (TRAMPLE, "Trample"),
+        (INDESTRUCTIBLE, "Indestructible"),
+        (VIGILANCE, "Vigilance"),
+        (HASTE, "Haste"),
+        (PROTECTION, "Protection from blue"),
+    ):
+        _add_ability(card_db, aid, text, category=3)
+
+
+def _continuous_game(
+    card_db: Path,
+    spell: str,
+    gained: dict[int, tuple[int, ...]],
+    *,
+    target: int | None = 300,
+    before: dict[int, tuple[int, ...]] | None = None,
+    pt: dict[int, tuple[tuple[int, int], tuple[int, int]]] | None = None,
+    extra=(),
+    after_anns=(),
+    colors: dict[int, list[str]] | None = None,
+    name: str | None = None,
+) -> list[dict]:
+    """``spell`` (a real card's) resolving at ``target`` with Grizzly Bears 300
+    and 301 (seat 1) and 302 (seat 2) on the battlefield; each object's listed
+    abilities ``before`` and ``gained`` across it, and its power and toughness
+    before and after (``pt``)."""
+    _keyword_abilities(card_db)
+    _add_card(card_db, CONTINUOUS_SPELL, name or test_card(spell)["name"])
+    _add_card(card_db, BEARS, test_card("Grizzly Bears")["name"])
+    before = before or {}
+    pt = pt or {}
+
+    def bear(i: int, *, after: bool) -> dict:
+        abilities = before.get(i, ()) + (gained.get(i, ()) if after else ())
+        p, t = pt.get(i, ((2, 2), (2, 2)))[1 if after else 0]
+        extra_colors = (colors or {}).get(i, []) if after else []
+        return _listing(
+            _obj(
+                i,
+                BEARS,
+                types=("Creature",),
+                controller=2 if i == 302 else 1,
+                power={"value": p},
+                toughness={"value": t},
+                color=[f"CardColor_{c}" for c in extra_colors] or ["CardColor_Green"],
+            ),
+            *abilities,
+        )
+
+    first = _state(
+        "k9",
+        [_obj(100, CONTINUOUS_SPELL), *(bear(i, after=False) for i in (300, 301, 302))],
+        first=True,
+    )
+    first["zones"] = _zones(stack=[100], battlefield=[300, 301, 302])
+    if target is not None:
+        first["persistentAnnotations"] = [_ann(40, "TargetSpec", 100, [target])]
+    resolving = _state(
+        "k9",
+        [bear(i, after=True) for i in (300, 301, 302)],
+        [
+            _ann(1, "ResolutionStart", 100, [100], grpid=CONTINUOUS_SPELL),
+            _ann(2, "LayeredEffectCreated", 100, [7001]),
+            *extra,
+            _ann(20, "ResolutionComplete", 100, [100], grpid=CONTINUOUS_SPELL),
+            *after_anns,
+        ],
+    )
+    return [first, resolving]
+
+
+def _continuous(card_db, tmp_path, game, checker=None) -> dict:
+    checker = checker or Checker(CardText(card_db), _card_of, trees_for, [])
+    (row,) = crosscheck([_write(tmp_path / "a.log", game)], checker, "vtest")[
+        "resolutions"
+    ]
+    return row
+
+
+def _check(row: dict, name: str) -> list[dict]:
+    return [c for c in row["checks"] if c["check"] == name]
+
+
+@pytest.mark.parametrize(
+    ("gained", "before", "ok"),
+    [
+        ({300: (FLYING,)}, {}, True),
+        # nothing added
+        ({}, {}, False),
+        # an evergreen keyword phase doesn't grant
+        ({300: (FLYING, TRAMPLE)}, {}, False),
+        # granted again: Arena lists it again
+        ({300: (FLYING,)}, {300: (FLYING,)}, True),
+    ],
+)
+def test_a_keyword_grant_to_a_target(card_db, tmp_path, gained, before, ok):
+    """Jump: "Target creature gains flying until end of turn"."""
+    game = _continuous_game(card_db, "Jump", gained, before=before)
+    (check,) = _check(_continuous(card_db, tmp_path, game), "keyword grant")
+    assert (check["expected"], check["ok"]) == (["flying"], ok)
+
+
+def test_a_parameterized_keyword(card_db, tmp_path):
+    """Gods Willing's protection from a chosen color: Arena's "Protection from
+    blue" is protection."""
+    game = _continuous_game(card_db, "Gods Willing", {300: (PROTECTION,)})
+    (check,) = _check(_continuous(card_db, tmp_path, game), "keyword grant")
+    assert check["ok"]
+
+
+def test_a_keyword_grant_to_a_group(card_db, tmp_path):
+    """Flawless Maneuver: "Creatures you control gain indestructible": the
+    two of seat 1, not seat 2's."""
+    gained = {300: (INDESTRUCTIBLE,), 301: (INDESTRUCTIBLE,)}
+    game = _continuous_game(card_db, "Flawless Maneuver", gained, target=None)
+    checks = _check(_continuous(card_db, tmp_path, game), "keyword grant")
+    assert [c["ok"] for c in checks] == [True, True]
+    game = _continuous_game(
+        card_db, "Flawless Maneuver", {300: (INDESTRUCTIBLE,)}, target=None
+    )
+    checks = _check(_continuous(card_db, tmp_path, game), "keyword grant")
+    assert sorted(c["ok"] for c in checks) == [False, True]
+
+
+def test_a_pumps_own_keyword(card_db, tmp_path):
+    """Tromp the Domains: phase reads the trample beside its pump off its
+    text (``ConceptNode.body_keywords``); the pump's size is the strict
+    checks'."""
+    gained = {300: (TRAMPLE,), 301: (TRAMPLE,)}
+    game = _continuous_game(card_db, "Tromp the Domains", gained, target=None)
+    checks = _check(_continuous(card_db, tmp_path, game), "keyword grant")
+    assert [(c["expected"], c["ok"]) for c in checks] == [(["trample"], True)] * 2
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        # the message changed the board after the resolution
+        ("after", "board-changed"),
+        # another source's effect landed inside it
+        ("other", "other-effect"),
+        # an effect ended in the message (an anthem's keyword, a pump)
+        ("ended", "board-changed"),
+    ],
+)
+def test_a_continuous_effect_the_log_cannot_isolate(card_db, tmp_path, change, reason):
+    move = _ann(
+        30,
+        "ZoneTransfer",
+        None,
+        [301],
+        zone_src=BATTLEFIELD,
+        zone_dest=GRAVEYARD,
+        category="SBA_Damage",
+    )
+    other = _ann(3, "LayeredEffectCreated", 999, [7002])
+    ended = _ann(25, "LayeredEffectDestroyed", 999, [7009])
+    game = _continuous_game(
+        card_db,
+        "Jump",
+        {300: (FLYING,)},
+        after_anns=[move]
+        if change == "after"
+        else [ended]
+        if change == "ended"
+        else (),
+        extra=[other] if change == "other" else (),
+    )
+    row = _continuous(card_db, tmp_path, game)
+    assert _check(row, "keyword grant") == []
+    assert row["continuous_unchecked"] == [reason]
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "result"),
+    [
+        ((2, 2), (1, 1), True),
+        ((2, 2), (2, 2), False),
+        # already modified: its base isn't knowable from the log
+        ((3, 3), (1, 1), "base: modified before"),
+    ],
+)
+def test_a_base_power_and_toughness(card_db, tmp_path, before, after, result):
+    """Diminish: "Target creature has base power and toughness 1/1" (layer
+    7b, CR 613.4b) on Grizzly Bears, printed 2/2."""
+    game = _continuous_game(card_db, "Diminish", {}, pt={300: (before, after)})
+    row = _continuous(card_db, tmp_path, game)
+    if isinstance(result, str):
+        assert _check(row, "base P/T") == []
+        assert row["continuous_unchecked"] == [result]
+    else:
+        (check,) = _check(row, "base P/T")
+        assert (check["expected"], check["ok"]) == ([1, 1], result)
+
+
+@pytest.mark.parametrize(("color", "ok"), [("Red", True), ("Blue", False)])
+def test_a_color_change(card_db, tmp_path, color, ok):
+    """Crimson Wisps: "Target creature becomes red and gains haste"."""
+    game = _continuous_game(
+        card_db, "Crimson Wisps", {300: (HASTE,)}, colors={300: [color]}
+    )
+    (check,) = _check(_continuous(card_db, tmp_path, game), "color change")
+    assert (check["expected"], check["ok"]) == (["R"], ok)
+
+
+def test_a_dynamic_amount_beside_a_grant(card_db, tmp_path):
+    """Appeal's "+X/+X, where X is …" beside its trample: not read here."""
+    game = _continuous_game(
+        card_db, "Appeal // Authority", {300: (TRAMPLE,)}, name="Appeal"
+    )
+    checker = Checker(
+        CardText(card_db),
+        lambda n: _card_of("Appeal // Authority" if n == "Appeal" else n),
+        trees_for,
+        [],
+    )
+    row = _continuous(card_db, tmp_path, game, checker)
+    assert row["continuous_unchecked"] == ["dynamic"]
+
+
+def test_only_the_half_arena_resolved(card_db, tmp_path):
+    """Release, Catch // Release's other half: Catch's haste grant is no
+    effect of it (a split card's halves, CR 709.3)."""
+    game = _continuous_game(
+        card_db, "Catch // Release", {}, target=None, name="Release"
+    )
+    checker = Checker(
+        CardText(card_db),
+        lambda n: _card_of("Catch // Release" if n == "Release" else n),
+        trees_for,
+        [],
+    )
+    row = _continuous(card_db, tmp_path, game, checker)
+    assert "continuous_unchecked" not in row
+    assert _check(row, "keyword grant") == []
+
+
+@pytest.mark.parametrize(
+    ("gained", "pt", "result"),
+    [
+        # Conceal: a 1/1 Citizen with hexproof
+        ({300: ()}, ((2, 2), (1, 1)), "pass"),
+        # neither mode as logged: which Arena chose the log can't say
+        ({300: (FLYING,)}, ((2, 2), (2, 2)), "modes"),
+    ],
+)
+def test_a_modal_spells_modes(card_db, tmp_path, gained, pt, result):
+    """Secret Identity: phase writes Conceal and Reveal as two abilities;
+    the resolution is the one that holds."""
+    hexproof = 4707
+    _add_ability(card_db, hexproof, "Hexproof", category=3)
+    if result == "pass":
+        gained = {300: (hexproof,)}
+    game = _continuous_game(card_db, "Secret Identity", gained, pt={300: pt})
+    game[1]["gameObjects"][0]["subtypes"] = ["SubType_Citizen"]
+    row = _continuous(card_db, tmp_path, game)
+    if result == "pass":
+        names = {c["check"] for c in row["checks"] if c["ok"]}
+        assert {"keyword grant", "base P/T", "type change"} <= names
+    else:
+        assert "modes" in row["continuous_unchecked"]
+
+
+def test_a_grant_to_a_card_off_the_battlefield(card_db, tmp_path):
+    """Snapcaster Mage-like: a target that is no permanent has no listed
+    abilities to compare (Jump at a card in a graveyard)."""
+    game = _continuous_game(card_db, "Jump", {}, target=400)
+    game[0]["gameObjects"].append(_obj(400, BOLT))
+    row = _continuous(card_db, tmp_path, game)
+    assert row["continuous_unchecked"] == ["object not on the battlefield"]
+
+
+def test_an_arena_ability_read_as_a_keyword():
+    from mtg_utils._arena_crosscheck.continuous import keyword_of
+
+    assert keyword_of("First strike") == "firststrike"
+    assert keyword_of("Protection from red") == "protection"
+    assert keyword_of("Hexproof from black") == "hexproof"
+    assert keyword_of("Ward {o2}") == "ward"
+    assert keyword_of("{oT}: Add {oG}.") is None
+    assert keyword_of("anything", "Flying") == "flying"
+    # a BaseId naming a parameterized keyword (Figure of Fable's protection)
+    assert keyword_of("Protection from each of your opponents", "Protection From") == (
+        "protection"
+    )
+    from mtg_utils._arena_crosscheck.continuous import phase_keyword
+
+    # Veil of Summer's "hexproof from blue": a hexproof ability (CR 702.11d)
+    assert phase_keyword("HexproofFrom") == "hexproof"
+    assert phase_keyword("FirstStrike") == "firststrike"
+
+
+def test_a_base_beside_a_change():
+    """A base set (layer 7b) and a change beside it (7c, CR 613.4c): the
+    change applies on top of the base."""
+    from mtg_utils._arena_crosscheck.continuous import _base_check
+    from mtg_utils._arena_crosscheck.log import Permanent
+
+    def bear(p: int, t: int) -> Permanent:
+        return Permanent(300, BEARS, 1, 1, "Card", ("Creature",), (), (), (), p, t)
+
+    wanted = {"set": [1, 1], "add": [2, 0]}
+    check = _base_check(
+        wanted, bear(2, 2), bear(3, 1), lambda _g: test_card("Grizzly Bears")
+    )
+    assert (check.expected, check.ok) == ([3, 1], True)
+
+
+@pytest.mark.parametrize(
+    ("gained", "result"),
+    [
+        # your turn: trample; an opponent's: first strike; either is the play
+        ((TRAMPLE,), True),
+        ((4708,), True),
+        # neither: the branch phase didn't type leaves it unread
+        ((), "partly read"),
+        # an evergreen keyword it grants in neither branch is still an extra
+        ((TRAMPLE, FLYING), False),
+    ],
+)
+def test_a_grant_on_a_branch_phase_did_not_type(card_db, tmp_path, gained, result):
+    """Stolen Vitality: "If it's your turn, that creature gains trample until
+    end of turn. Otherwise, it gains first strike": phase types the trample,
+    reads the first strike off the pump's text, and keeps no condition."""
+    _add_ability(card_db, 4708, "First strike", category=3)
+    game = _continuous_game(
+        card_db, "Stolen Vitality", {300: gained}, pt={300: ((2, 2), (5, 3))}
+    )
+    row = _continuous(card_db, tmp_path, game)
+    checks = _check(row, "keyword grant")
+    if isinstance(result, str):
+        assert checks == []
+        assert row["continuous_unchecked"] == [result]
+    else:
+        (check,) = checks
+        assert check["ok"] is result
+
+
+def test_a_keyword_counter_is_no_extra_keyword(card_db, tmp_path):
+    """Arwen, Mortal Queen: "Another target creature gains indestructible …
+    Put a +1/+1 counter and a lifelink counter on that creature": the
+    lifelink is the counter's (a keyword counter gives its keyword, CR
+    122.1b), not an ungranted keyword."""
+    arwen, ability, lifelink = 3991, 4991, 4709
+    _add_card(card_db, arwen, test_card("Arwen, Mortal Queen")["name"])
+    _add_ability(
+        card_db,
+        ability,
+        _arena_text("Arwen, Mortal Queen").splitlines()[1],
+        category=ACTIVATED,
+    )
+    _add_ability(card_db, lifelink, "Lifelink", category=3)
+    _add_counter_type(card_db, 61, "Lifelink")
+    game = _continuous_game(card_db, "Jump", {300: (INDESTRUCTIBLE, lifelink)})
+    game[0]["gameObjects"][0] = _obj(500, arwen, types=("Creature",))
+    game[0]["gameObjects"].append(_ability_obj(100, ability, arwen, 500))
+    game[0]["zones"] = _zones(stack=[100], battlefield=[500, 300, 301, 302])
+    game[1]["zones"] = _zones(battlefield=[500, 300, 301, 302])
+    game[1]["annotations"][0]["details"] = [{"key": "grpid", "valueInt32": [ability]}]
+    game[1]["annotations"].insert(
+        2, _ann(3, "CounterAdded", 100, [300], counter_type=61, transaction_amount=1)
+    )
+    (check,) = _check(_continuous(card_db, tmp_path, game), "keyword grant")
+    assert (check["expected"], check["ok"]) == (["indestructible"], True)
+
+
+def test_a_base_beside_another_change_is_unread(card_db, tmp_path):
+    """Diminish's base 1/1 with a +1/+1 counter put on the creature in the
+    same resolution (layer 7c holds counters too, CR 613.4c)."""
+    counter = _ann(3, "CounterAdded", 100, [300], counter_type=1, transaction_amount=1)
+    game = _continuous_game(
+        card_db, "Diminish", {}, pt={300: ((2, 2), (2, 2))}, extra=[counter]
+    )
+    row = _continuous(card_db, tmp_path, game)
+    assert _check(row, "base P/T") == []
+    assert row["continuous_unchecked"] == ["base: other change"]
+
+
+def test_a_mode_asking_less_than_a_failing_one(monkeypatch):
+    """Arena logs no mode choice: a mode that passes asking only what a
+    failing mode also asks (flying, beside flying and trample) could hide the
+    failing one chosen and gone wrong."""
+    from mtg_utils._arena_crosscheck import continuous
+    from mtg_utils._arena_crosscheck.effects import Check
+
+    flying = Check("keyword grant", ["flying"], ["flying"], ok=True)
+    both = Check("keyword grant", ["flying", "trample"], ["flying"], ok=False)
+    other = Check("keyword grant", ["haste"], ["flying"], ok=False)
+    for failing, result in ((both, ([], ["modes"])), (other, ([flying], []))):
+        answers = iter([([flying], []), ([failing], [])])
+        monkeypatch.setattr(continuous, "_checks", lambda *_a, it=answers: next(it))
+        effects = [(object(), None, False), (object(), None, False)]
+        assert continuous.continuous_checks(effects, None, None, None) == result
+
+
+def test_a_granted_keyword_arriving_as_a_counter(card_db, tmp_path):
+    """Jump's flying, logged as a flying counter on the creature (CR 122.1b):
+    the keyword is there, not missing."""
+    _add_counter_type(card_db, 62, "Flying")
+    counter = _ann(3, "CounterAdded", 100, [300], counter_type=62, transaction_amount=1)
+    game = _continuous_game(card_db, "Jump", {300: (FLYING,)}, extra=[counter])
+    (check,) = _check(_continuous(card_db, tmp_path, game), "keyword grant")
+    assert check["ok"]

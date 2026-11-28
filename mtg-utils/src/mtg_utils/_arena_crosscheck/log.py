@@ -146,6 +146,8 @@ class Permanent(NamedTuple):
     colors: tuple[str, ...]
     power: int | None
     toughness: int | None
+    #: The ability ids Arena lists on it (``uniqueAbilities``).
+    abilities: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -187,6 +189,14 @@ class Resolution:
     #: place, power or counters) before it began: then :attr:`permanents`,
     #: the board as the message began, may not be the board it began with.
     changed_before: bool = False
+    #: Every card and token on the battlefield as its message left it (a
+    #: resolution begins and completes in one message), and the ability's own
+    #: permanent and its targets as last logged then.
+    after: tuple[Permanent, ...] = ()
+    after_lki: tuple[Permanent, ...] = ()
+    #: Whether its message changed the battlefield after it completed: then
+    #: :attr:`after` may not be the board it left.
+    changed_after: bool = False
 
 
 @dataclass(frozen=True)
@@ -502,6 +512,8 @@ BOARD_ANNOTATIONS = frozenset(
         "CopiedObject",
         "PowerToughnessModCreated",
         "LayeredEffectCreated",
+        # an effect ending: a pump's, an anthem's keyword's (CR 613)
+        "LayeredEffectDestroyed",
         "CounterAdded",
         "CounterRemoved",
         "ControllerChanged",
@@ -533,6 +545,7 @@ def _permanent(i: int, o: dict) -> Permanent:
         tuple(o.get("colors", ())),
         o.get("power"),
         o.get("toughness"),
+        tuple(o.get("abilities", ())),
     )
 
 
@@ -748,6 +761,18 @@ class _Reader:
                 # a designation it marked an object with (a Case's solved, CR
                 # 719.3b) is a persistent annotation numbered inside it
                 start, end = open_.pop("start_id"), ann.get("id", 0)
+                open_["after"] = tuple(
+                    _permanent(i, self.objs[i])
+                    for z, ids in self.zone_ids.items()
+                    if self.zones.get(z, ("",))[0] == "Battlefield"
+                    for i in ids
+                    if i in self.objs and self.objs[i]["type"] in ("Card", "Token")
+                )
+                seen = {open_["parent"], *open_["targets"]} - {None}
+                open_["after_lki"] = tuple(
+                    _permanent(i, self.objs[i]) for i in seen if i in self.objs
+                )
+                open_["changed_after"] = any(i > end for i in self.board_changes)
                 open_["effects"] += [
                     self._effect(p)
                     for p in state.get("persistentAnnotations", [])

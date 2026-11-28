@@ -70,6 +70,74 @@ Arena created.
   names no other player: "its controller draws a card" (a recipient read through
   another object) can be either side. An object's type is not checked when one of
   the effects that could have moved or damaged it takes an object of any type.
+- **What a continuous effect did** (`_arena_crosscheck.continuous`; added
+  2026-11-27). A resolution begins and completes in one message, and the reader
+  keeps each object as the message found it and as it left it
+  (`Resolution.lki` / `permanents`, `after_lki` / `after`, each with the
+  abilities Arena lists on it). For the objects phase says a continuous effect
+  affects (the ability's own permanent, its targets, a group the strict filter
+  matches on the board), on the battlefield before and after:
+  - **keyword grants** (layer 6, CR 613.1f): the abilities Arena added across the
+    resolution (`uniqueAbilities`, a multiset: Arena lists a keyword granted
+    again a second time), read as keywords off their `BaseId` or text (an
+    evergreen keyword; "Protection from red", "Ward {o2}", "Hexproof from black"
+    as their keyword; phase's `HexproofFrom` is hexproof, CR 702.11d), against
+    the keywords phase grants (an `AddKeyword` among the effect's modifications,
+    or a pump's own keyword phase reads off its text, `ConceptNode.
+    body_keywords`). A keyword phase grants that Arena didn't add fails, as does
+    an evergreen keyword Arena added that phase doesn't grant; an effect that
+    may not happen and added nothing is no check. A parameterized keyword is
+    checked by its kind only: protection's quality and ward's cost are not
+    compared. A keyword counter the resolution put on the object gives its
+    keyword (CR 122.1b), which Arena lists: it is set apart, neither an extra
+    nor missing (Arwen, Mortal Queen's lifelink counter). An ability with a
+    keyword phase read off a pump's text may hold a branch phase didn't type
+    (Stolen Vitality's "If it's your turn, … trample. Otherwise, … first
+    strike", both unconditional in phase's parse): its keywords only rule out
+    an extra, none is reported missing, and the row is `partly read` when Arena
+    added none of them;
+  - **base power and toughness** (layer 7b, CR 613.4b, then 7c, 613.4c): the
+    logged power and toughness after against the base phase sets plus the fixed
+    changes beside it, only where the object's logged values before were its
+    card's printed ones (nothing modified it) and it was a creature, and never
+    beside another change of power and toughness in the resolution (a pump, a
+    counter: layer 7c holds counters too, CR 613.4c; `base: other change`);
+  - **types and colors** (layers 4 and 5, CR 613.1d-e): added card types and
+    subtypes among its logged ones after; its colors after equal to those phase
+    sets.
+  Several chosen abilities are alternatives (a modal spell's modes, phase's one
+  ability per mode: Secret Identity). Arena logs no mode choice (no annotation
+  of a modal spell's cast or resolution names its mode, over both sets), so the
+  one whose checks all pass is the resolution, and when none or several do, or
+  the one that passes asks for no more than one that fails (it could hide
+  that one chosen and gone wrong), it is `modes`, never a guess; a card
+  with faces is checked by the face Arena resolved (Catch // Release). Not
+  checked, listed on the row (`continuous_unchecked`): the message changed the
+  board before or after the resolution (`board-changed`; an effect ending,
+  `LayeredEffectDestroyed`, is in the board-change set, since it ends a pump as
+  well as an anthem's keyword; Arena's `AddAbility` / `RemoveAbility` are
+  persistent annotations that come and go with a layered effect's creation and
+  end, so another source's change shows through those), another source's
+  effect inside it (`other-effect`), an object not on the battlefield before and
+  after (a graveyard card granted flashback: Snapcaster Mage), a filter or an
+  object this read can't place (`filter`, `object:LastCreated`,
+  `object:TrackedSet`, `no object`), a dynamic amount (Tyvar's Stand's
+  "+X/+X"), a switch of power and toughness, an ability removed or a quoted
+  ability granted, a base set on an object already modified or with no
+  printed power and toughness. When the effect ends ("until end of turn") is
+  not checked, and an anthem's static effect, which applies with no resolution,
+  is out of scope; control changes stay `_control`'s. Measured on 2026-11-27:
+  archive and live logs (47 games) 29 resolutions with a check (27 with a
+  keyword grant check, 2 type, 2 color), 51 checks passed, 0 failed, 25 rows
+  left unchecked; the corpus (95 games) 97 resolutions (87 keyword grant, 14
+  type, 8 base, 2 color), 201 passed, 3 failed, 33 rows unchecked. The 3 failures are one real
+  difference: Mutavault's "becomes a 2/2 creature with all creature types"
+  phase parses as a grant of the changeling keyword, and its ruling
+  (2008-04-01) says "it does not have the changeling keyword ability". Tool
+  faults fixed before it settled: a modal spell's modes merged, a split card's
+  other half read, a graveyard card read as a permanent, and Arena's
+  "Protection From" `BaseId` read as its own keyword. No status moved, and no
+  existing check.
 - **Counted amounts** (`_arena_crosscheck.amounts`; added 2026-11-27). An amount
   phase writes as a count is evaluated on the board the log shows and checked like
   a fixed one, under the same check name with " (counted)" (its `checks` row,

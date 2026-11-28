@@ -8,7 +8,9 @@ Arena mistake goes to the ignore list (``data/arena_crosscheck_ignore.toml``) wi
 its reason.
 
 Rows, one per resolution, fired trigger or expected trigger, each with a
-``status``:
+``status``. A resolution's strict checks include its counted amounts
+(``amounts``) and what its continuous effects did (``continuous``), with the
+reasons any went unchecked (``count_unchecked``, ``continuous_unchecked``):
 
 * resolutions: ``agree`` / ``conditional`` (an effect that may not happen didn't) /
   ``phase-extra`` / ``arena-extra`` (see ``effects``), or why it wasn't scored:
@@ -70,10 +72,12 @@ from mtg_utils._arena_crosscheck.align import (
     pair,
 )
 from mtg_utils._arena_crosscheck.amounts import CountBoard
+from mtg_utils._arena_crosscheck.continuous import continuous_checks
 from mtg_utils._arena_crosscheck.effects import (
     Board,
     arena_kinds,
     compare_kinds,
+    effect_rows,
     explain_excess,
     own_effects,
     strict_checks,
@@ -432,6 +436,20 @@ class Checker:
         if counts.unchecked:
             # a count amount the log can't show, by reason (``amounts``)
             row["count_unchecked"] = sorted(set(counts.unchecked))
+        # a card with faces: only the face Arena resolved (Life // Death)
+        faces = {a.face for a in chosen}
+        rows = [
+            e
+            for e in effect_rows(chosen, res.x)
+            if len(faces) < 2 or (e[0].face == row["card"])
+        ]
+        more, unread = continuous_checks(
+            rows, res, self.text.ability, self._record_of, self.text.counter
+        )
+        checks += more
+        if unread:
+            # a continuous effect the log can't show, by reason (``continuous``)
+            row["continuous_unchecked"] = unread
         explain_excess(checks, self._replacements(res.battlefield, res.controller))
         row.update(
             phase_text=" / ".join(a.desc for a in chosen),
