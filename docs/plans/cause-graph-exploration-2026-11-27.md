@@ -3,7 +3,7 @@
 The experiments ran on the local branch `explore/cause-graph` and changed nothing in the
 shipping tuner. The plan and Dan's eleven decisions are in the plan file named at the end;
 per-experiment result files sit in `~/mtg/tuner-work/cause-graph/`. What follows from it is
-under "Next steps".
+under "Next steps", and what the block that followed found is under "Results of the block".
 
 ## The question
 
@@ -280,12 +280,53 @@ commanders, with Dan's own decks on a separate line. The tuner never reads these
 from mechanics. Still not recommended: engine comparisons between different decks before the
 pilot changes, and any search that optimises against the engine.
 
+## Results of the block (2026-11-28)
+
+Each track's result file is in `~/mtg/tuner-work/cause-graph/`; the yardstick's is
+`~/mtg/tuner-work/brawl-yardstick/README.md`.
+
+| Track | Result |
+|---|---|
+| 1. The fitted score, every set held out (E8) | **Holds.** Right order on all six sets, 6.3 points between its top and bottom tenth of decks on average, 54% of what each set's own card results give. Fitted together with those results it adds 0 to 1.7 points |
+| 1. Untapped as truth for limited (E9) | Untapped's Foundations card lifts agree with 17Lands' (0.81 raw, about 0.98 allowing for sampling). E7's exchange rate re-estimated: 0.81 ± 0.08 engine points per real point |
+| 1. A Brawl deck score (E13) | **Points the right way, weakly.** Within a commander, the higher-scoring half of its published lists won 2.2 ± 0.7 points more (58 commanders, 250 lists). One point of the score is about a quarter of a point of real win rate |
+| The Brawl yardstick | **The tuner's swaps measure worse than random.** -0.99 ± 0.36 points per ten swaps on 20 ladder lists (random: -0.18). 145 of 209 swaps trim a list to a Commander template ceiling, and those carry the loss. By E13 the size is overstated about fourfold; the sign stands |
+| 2. The engine on Competitive Brawl builds (E10) | **Partly.** Right order over five builds of ten lists; best minus worst 6.4 ± 1.2 engine points, 9 of 10 lists. 0.28 ± 0.06 engine points per point of card results (limited: 0.77), so a 3-point gap takes six hours as the bar was written, and about 25 minutes if card results are scaled by E13. Swaps that measure level are not level to the engine: spells for creatures +3.7 ± 1.7, creatures for spells -6.9 ± 2.2 |
+| 3. Derived links, "a creature dies" | **Step 1 on main** (ADR-0070): the commander's death need reads the links. 53 of 55 precon tunes unchanged; no difference from the old table was a definition dispute. **Step 2 stopped**: the family's lanes are wider than the event |
+| 4. The plan measure (E11) | **Weak.** On the E10 builds, the commander's abilities resolve 0.58 to 0.72 times a turn from the worst build to the best, in order (+0.058 ± 0.042 per ten points); the commander is cast earlier in 9 lists of 10; mana spent does not move |
+| The trial: tuned precons against the precons as printed (E12) | **Says nothing a tune can be judged by.** 17 held-out precons, four-player games, 1,360 games: the tuned decks won 2.9 ± 2.5 points less. One deck's result is 5 to 11 points noisy. The tuner cuts 2.6 creatures a deck on net, and E10's creature taste predicts about 2 of the 2.9. No relation to the guide score. The commander's abilities resolve more often after the tune (+0.13 ± 0.07 a turn), with no relation to winning |
+
+**What the engine result means.** The published lists win from 7% (Teferi, Time Raveler) to
+87% (Fynn, the Fangbearer) against one field, so the pilot's skill with a style still swamps
+the deck. Inside a style it prices a card against a like card correctly on average. Across
+card types it has a taste for creatures larger than the best real upgrade. "Tuned against the
+starting deck" is therefore at most a one-off check, read beside the change in creature count,
+and never a search target.
+
+**What stopped step 2.** `sacrifice_outlets` and `edict_makers` hold about 180 cards that
+never sacrifice a creature, and the removal lanes hold exile, bounce and noncreature targets.
+The family that covers them is "a permanent leaves the battlefield" (any type, any
+destination, a fact for each), with "a creature dies" as one slice. The same family is what
+feeds the largest group of commanders the need read offers nothing for: 605 with an enters
+trigger, mostly their own, fed by blink and bounce. (Then attacks 541, the beginning of a step
+472, a spell cast 229. A step needs no cause, and what feeds an attack trigger is a different
+kind of link.)
+
+**Open with Dan.** The bands Competitive Brawl is measured against (recommended: the format's
+own, measured from ladder lists); "a permanent leaves the battlefield" as the next family in
+place of step 2; the three conditions written on death links (ADR-0070); whether "tuned
+against the starting deck" becomes a standing reported line (recommended: no; it took 23
+processor-hours and cannot see one deck's tune).
+
 ## Limits
 
 - Phase is not a near-perfect model: about 14% of Commander-legal cards are knowingly
   unsupported and 2,772 faces are on its misparse list. A derived graph inherits each one.
-- Every measured result here is limited (40 cards, two players, one set at a time). Nothing
-  was measured for Commander.
+- The first day's measured results are limited (40 cards, two players, one set at a time).
+  The block added Competitive Brawl (two players, 100 cards). Nothing measures four-player
+  Commander but the engine's own games.
+- The Brawl truth is a sum of per-commander card results, which E13 found about four times
+  too long as a ruler. Every Brawl figure stated in "points of card results" carries that.
 - The fitted score reflects decks people chose to build and how people play them.
 - E6's second run and E3's fallback were designed after seeing earlier results. Small gains
   from them are leads.
@@ -306,10 +347,12 @@ pilot changes, and any search that optimises against the engine.
 
 - Plan and decisions: `~/.claude/plans/i-have-been-thinking-sleepy-lightning-of-29002e84-99e7-402e-8340-3866a5170457.md`
 - Result files: `~/mtg/tuner-work/cause-graph/` (`e1-dies-family.md`, `e2-phase-analysis.md`,
-  `e3-engine-as-judge.md`, `e5-land-count.md`, `e6-card-vectors.md`, `e7-deck-versions.md`, and
-  the data beside them)
+  `e3-engine-as-judge.md`, `e5-land-count.md`, `e6-card-vectors.md`, `e7-deck-versions.md`,
+  `e8-fitted-score-six-sets.md`, `e9-untapped-truth.md`, `e10-brawl-versions.md`,
+  `e11-plan-measure.md`, `e12-precon-trial.md`, `e13-brawl-list-score.md`, and the data beside
+  them)
 - Code: `experiments/cause_graph/` on the local branch `explore/cause-graph` (worktree
   `../mtg-skills-cause-graph`; `cause_graph.py` is the dies-family read)
 - Isolated phase v0.133.0 build: `~/mtg/tuner-work/cause-graph/cache/phase`
-- The ADR draft: `docs/plans/cause-graph-drafts/` on that branch; it lands with the first
-  shipped family
+- The decision record: `docs/adr/0070-card-fit-is-derived-from-causes-and-waits.md` (its
+  draft was `docs/plans/cause-graph-drafts/` on that branch)

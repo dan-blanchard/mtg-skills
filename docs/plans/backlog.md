@@ -20,17 +20,27 @@ phase-rs issue.
 
 **From the cause-graph exploration (2026-11-27, grilled 2026-11-28; `docs/plans/cause-graph-exploration-2026-11-27.md`, results in `~/mtg/tuner-work/cause-graph/`)**
 
-- **The overhaul block, in flight.** Four tracks, in the findings' "Next steps": the fitted
-  score with every set held out; the engine's version test on Competitive Brawl; derived
-  links shipped family by family ("a creature dies" first); the plan measure. Delete this
-  entry when the block closes.
+- **The overhaul block: run, with four calls open with Dan** (results in the findings'
+  "Results of the block"). (1) The bands Competitive Brawl is measured against (next entry
+  but one). (2) "A permanent leaves the battlefield" as the next derived family, in place of
+  step 2 below. (3) The three conditions written on death links (ADR-0070). (4) Whether
+  "tuned against the starting deck" becomes a standing reported line; recommended no.
 - **Derived links: what is left of "a creature dies"** (ADR-0070; step 1, the commander's
   death need, shipped).
-  - *Step 2.* The family's lanes (`sacrifice_outlets`, `edict_makers`, the removal and
-    board-wipe lanes) become labels over the links, with their hand code deleted in the
-    same commit. `sacrifice_outlets` holds cards that only reward a sacrifice (Dragon
-    Appeasement, Mortician Beetle), and about 180 of its and `edict_makers`' cards never
-    sacrifice a creature: the label has to say which of those it keeps.
+  - *Step 2, stopped for Dan.* The family's lanes (`sacrifice_outlets`, `edict_makers`, the
+    removal and board-wipe lanes) were to become labels over the links, with their hand
+    code deleted in the same commit. They are wider than the event: `sacrifice_outlets`
+    holds cards that only reward a sacrifice (Dragon Appeasement, Mortician Beetle), about
+    180 of its and `edict_makers`' cards never sacrifice a creature, and the removal lanes
+    hold exile, bounce and noncreature targets. The family that covers them is "a permanent
+    leaves the battlefield" (any type, any destination, a fact for each), with "a creature
+    dies" as one slice.
+  - *The next families, by commanders the need read offers nothing for* (census of 4,485
+    commander-eligible cards, `~/mtg/tuner-work/cause-graph/families/`): a permanent
+    enters 605 (mostly the commander's own enters trigger, fed by blink and bounce, which
+    are "leaves the battlefield" links), a creature attacks 541, the beginning of a step
+    472, a spell is cast 229, enters-or-attacks 83. A step needs no cause; what feeds an
+    attack trigger (extra combats, haste, evasion) is a different kind of link.
   - *Bodies.* Token makers still feed a death need by key, every one a supplier, while a
     card that kills itself is split by its link. A card that makes the objects another
     card's cost or filter needs is the second kind of link; build it, then split bodies by
@@ -58,7 +68,10 @@ phase-rs issue.
   Altar. A two-player ladder list holds more interaction and ramp than the Commander bands
   allow. Under half the swaps can be priced. Tool:
   `docs/plans/precon-audit/brawl_yardstick.py`. A policy call for Dan: the bands
-  Competitive Brawl is measured against.
+  Competitive Brawl is measured against (recommended: the format's own, measured from the
+  ladder's published lists). The ruler's size is overstated about fourfold
+  (`e13-brawl-list-score.md`: within a commander, a point of summed card results is about
+  a quarter of a point of real win rate over 250 published lists); its sign held.
 - **A failed `playtest-install-phase` leaves the shared install unusable.** It checks out the
   new tag and copies the new card-data in before the patch and the build, and the old binaries
   cannot read it ("unknown variant"). Copy card-data only after the build succeeds. (The
@@ -87,9 +100,36 @@ phase-rs issue.
   a build against a fixed field of twelve with shared seeds (`e7-deck-versions.md`): right
   order, best minus worst the right way in 16 of 16 decks, a real 3-point difference separable
   in 7 to 29 minutes. ADR-0043 set playtest win-rate deltas aside as the primary yardstick;
-  this does not reopen that for Commander, where nothing is measured yet (the block's Brawl
-  test). Known hazard: swapping three noncreature spells for no-better creatures gained 17
-  and 18 engine points in two decks of sixteen, so never search against it.
+  this does not reopen that for Commander. Known hazard: swapping three noncreature spells
+  for no-better creatures gained 17 and 18 engine points in two decks of sixteen, so never
+  search against it.
+- **On Competitive Brawl lists the engine ranks versions faintly and favours creatures**
+  (`e10-brawl-versions.md`: ten lists, five builds each from the commander's own card
+  results on Untapped, 240 games a build). Right order; best minus worst 6.4 ± 1.2 engine
+  points, 9 of 10 lists; 0.28 ± 0.06 engine points per point of card results, so a 3-point
+  gap needs 6,600 games a build (about 25 minutes instead if card results are scaled by
+  E13's quarter). Five swaps that measure level: spells for creatures +3.7 ± 1.7, creatures
+  for spells -6.9 ± 2.2 (down in all ten lists), one job for another +0.4 ± 1.3. The
+  published lists win 7% (Teferi, Time Raveler) to 87% (Fynn, the Fangbearer) against one
+  field. Use: a one-off check of a tune that keeps its creature count, read beside the
+  creature count. The games ran on the isolated build's two switches (`PHASE_AI_FORMAT`,
+  `PHASE_NO_FREE_MULLIGAN`), which are not in the repo's phase patch.
+- **"Tuned against the starting deck" on precons says nothing a tune can be judged by**
+  (`e12-precon-trial.md`: 17 held-out precons, four-player games, 40 a version, 23
+  processor-hours). Tuned minus printed: -2.9 ± 2.5 points over all decks, 5 to 11 points
+  of noise on one deck. The tuner cuts 2.6 creatures a deck on net, which with the entry
+  above predicts about 2 of the 2.9. No relation to the guide score. Printed precons win 2%
+  to 67% against each other; the last seat wins 26.9% and the first 18.8% (not reported
+  upstream). Don't re-suggest as a standing scoreboard line before the pilot changes.
+- **The plan measure from phase's game log is cheap and weak** (`e11-plan-measure.md`,
+  `e11_plan_measure.py` on the explore branch; `PHASE_DUMP_LOG`, no engine change). On the
+  Brawl builds the commander's abilities resolve 0.58 to 0.72 times a turn from the worst
+  build to the best, in order, 1.4 standard errors from flat; the commander is cast earlier
+  in 9 lists of 10; mana spent does not move (the pilot spends 2.5 mana a turn). On the
+  precon trial it rose after the tune and did not go with winning. Not built: the fuller
+  measure, counts of the events each commander need waits for. The log names the object
+  whose ability resolves and not the event that set it off, so that needs the engine's
+  event stream.
 - **`ai-duel` at v0.133.0 can run for 20 minutes on ten games.** 17 of 1,152 jobs timed out in
   E3's run; 16 were in the five decks holding Krenko, Mob Boss. Likely the boards its ability
   builds. Not confirmed, not reported upstream.
