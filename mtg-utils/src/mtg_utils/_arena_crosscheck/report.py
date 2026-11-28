@@ -36,7 +36,8 @@ RESOLUTION_FINDINGS = ("arena-extra", "phase-extra")
 TRIGGER_FINDINGS = ("mismatch",)
 EXPECTED_FINDINGS = ("unfired",)
 #: The report's row sections, each keyed on its own.
-SECTIONS = ("resolutions", "triggers", "expected", "watched")
+SECTIONS = ("resolutions", "triggers", "expected", "watched", "costs")
+COST_FINDINGS = ("cost-mismatch", "alternative-unknown")
 
 
 def _keyed(rows: Sequence[dict]) -> list[dict]:
@@ -80,6 +81,22 @@ def _keyed_watched(rows: Sequence[dict]) -> list[dict]:
     return out
 
 
+def _keyed_costs(rows: Sequence[dict]) -> list[dict]:
+    """A cost row's key is the game, the kind, the card, Arena's ability
+    text and Arena's cost: what the log offered, the same whatever parses it."""
+    seen: collections.Counter = collections.Counter()
+    out = []
+    for row in rows:
+        game = tuple(row["game"])
+        base = (
+            f"{game[0]}#{game[1]}#{row['kind']}#{row.get('card')}"
+            f"#{row.get('arena_text') or ''}#{row.get('arena_cost')}"
+        )
+        out.append({**row, "key": base + (f"#{seen[base]}" if seen[base] else "")})
+        seen[base] += 1
+    return out
+
+
 def build_report(
     resolutions: Sequence[dict],
     triggers: Sequence[dict],
@@ -88,6 +105,8 @@ def build_report(
     *,
     expected: Sequence[dict] = (),
     watched: Sequence[dict] = (),
+    costs: Sequence[dict] = (),
+    never_offered: dict[str, int] | None = None,
 ) -> dict:
     """``expected`` holds the reverse check's rows: a trigger phase expects on
     an object's own event, fired or not (``check.Checker.expected``);
@@ -96,6 +115,12 @@ def build_report(
     resolutions, triggers = _keyed(resolutions), _keyed(triggers)
     expected = _keyed_expected(expected)
     watched = _keyed_watched(watched)
+    costs = _keyed_costs(costs)
+    by_kind: dict[str, collections.Counter] = collections.defaultdict(
+        collections.Counter
+    )
+    for c in costs:
+        by_kind[c["kind"]][c["status"]] += 1
     by_event: dict[str, collections.Counter] = collections.defaultdict(
         collections.Counter
     )
@@ -117,6 +142,10 @@ def build_report(
             "expected": dict(collections.Counter(e["status"] for e in expected)),
             "watched": dict(collections.Counter(w["status"] for w in watched)),
             "watched_by_event": {k: dict(v) for k, v in sorted(by_event.items())},
+            "costs": {k: dict(v) for k, v in sorted(by_kind.items())},
+            # phase's alternatives Arena never offered while it offered the
+            # card's cast: counted, never a finding (``costs``)
+            "costs_never_offered": dict(sorted((never_offered or {}).items())),
             "checks": {
                 k: {"pass": v[0], "fail": v[1]} for k, v in sorted(checks.items())
             },
@@ -125,6 +154,7 @@ def build_report(
         "triggers": triggers,
         "expected": expected,
         "watched": watched,
+        "costs": costs,
     }
 
 
@@ -163,6 +193,13 @@ def _findings(report: dict) -> list[str]:
                 f"`{w['event']}` (turn {w['turn']}): phase's `{w['phase_text']}`; "
                 f"Arena lists it as {w.get('arena_category')} `{w.get('arena_text')}`"
             )
+    for c in report.get("costs", ()):
+        if c["status"] in COST_FINDINGS:
+            lines.append(
+                f"- **{c['card']}** {c['kind']}: Arena offers "
+                f"{c.get('arena_text') or ''} {c.get('arena_cost')}, phase "
+                f"{c.get('phase_cost') or c['status']}"
+            )
     for e in report.get("expected", ()):
         if e["status"] in EXPECTED_FINDINGS:
             lines.append(
@@ -193,6 +230,13 @@ def render_markdown(report: dict) -> str:
         "",
         "## Own-event triggers phase expects",
         *_counts(s.get("expected", {})),
+        "",
+        "## Costs in Arena's legal actions",
+        *(
+            f"- {kind}: "
+            + ", ".join(f"{k} {v}" for k, v in sorted(c.items(), key=lambda kv: -kv[1]))
+            for kind, c in s.get("costs", {}).items()
+        ),
         "",
         "## Triggers watching other objects",
         *_counts(s.get("watched", {})),

@@ -11865,6 +11865,19 @@ def trigger_suppressions(tree: ConceptTree) -> tuple[TriggerSuppression, ...]:
     return tuple(out)
 
 
+def next_spell_discount(node: object) -> str | None:
+    """Whether an ability makes a one-shot discount on a later spell ("the
+    next spell you cast this turn costs {N} less": Invasion of the Giants'
+    chapter III, Peerless Samurai), CR 601.2f: ``"typed"`` for phase's
+    ``ReduceNextSpellCost`` anywhere under ``node``, ``"parked"`` when phase
+    parked a clause of it (an ``Unimplemented`` node: Will Kenrith,
+    Elminster, Ral, Monsoon Mage park theirs), else ``None``."""
+    tags = {tag_of(n) for n in _typed_nodes(node)}
+    if "ReduceNextSpellCost" in tags:
+        return "typed"
+    return "parked" if "Unimplemented" in tags else None
+
+
 def silences_own_enter_triggers(tree: ConceptTree) -> bool:
     """Whether a static stops creatures entering the battlefield from triggering
     YOUR permanents' abilities (:func:`trigger_suppressions`): one over the

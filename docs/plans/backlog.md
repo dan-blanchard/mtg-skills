@@ -394,9 +394,16 @@ phase-rs issue.
   (Tyvar's Stand's "+X/+X"), a switch of power and toughness, a base set on an
   object already modified or no creature before, an effect on a group the
   strict filter can't read or on an object phase tracks (a token it just made),
-  when it ends, and an anthem's static effect. Also not checked yet: the costs
-  and alternative costs in Arena's legal-action lists. (The modal and "enters or dies" pairings this entry listed pair since
-  2026-11-26.)
+  when it ends, and an anthem's static effect. The costs in Arena's legal-action
+  lists are checked since 2026-11-27 (`costs`: spell, ability and keyed
+  alternative costs); still not: a cost change with a condition or a count
+  phase types on a spell (Ghalta's "{X} less"), a cost keyword (affinity,
+  convoke, delve, …), an additional cost or kicker (Arena asks those as a
+  casting-time option, not an action), a "you may … rather than pay"
+  alternative by no keyword, land plays and special actions (morph, plot,
+  foretell's exile), an opponent's actions, and whether phase's alternative
+  that Arena never offered could have been (counted only). (The modal and
+  "enters or dies" pairings this entry listed pair since 2026-11-26.)
 - **What a corpus of other players' logs showed (2026-11-26).** Run over the public
   manasight corpus (38 sessions, 95 games; `~/mtg/arena-log-corpus/`, triage in
   `triage/triage.md`), `arena-crosscheck` reported 50 trigger mismatches and 4

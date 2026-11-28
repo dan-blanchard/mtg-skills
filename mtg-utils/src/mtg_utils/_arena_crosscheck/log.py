@@ -19,7 +19,10 @@ event streams, one game at a time:
   permanent on the battlefield at it (:class:`BoardObject`, a watcher of it):
   what the reverse checks read for a trigger that never fired;
 * an :class:`InstanceLog` for each ability instance Arena created, with the
-  objects it came from and the one Arena says set it off.
+  objects it came from and the one Arena says set it off;
+* an :class:`Offer` for each legal action a game state lists (``actions``),
+  once per game and cost, and the seats Arena asks for actions (the log's own
+  player, :attr:`Logs.local`).
 
 An annotation a full resync repeats (the same id, the same content) is read once
 by all three, and an event a rollback undoes (an id reused for another
@@ -55,6 +58,7 @@ __all__ = [
     "InstanceLog",
     "Logs",
     "ObjectEvent",
+    "Offer",
     "Permanent",
     "Resolution",
     "TriggerFired",
@@ -179,6 +183,8 @@ class Resolution:
     #: ``"Emblem"`` / ``"TriggerHolder"`` for an ability that sits on one (module
     #: docstring), else ``None``.
     holder: str | None = None
+    #: The message it is in: its place among the game's messages.
+    message: int = 0
     #: Every card and token on the battlefield as it began.
     permanents: tuple[Permanent, ...] = ()
     #: The ability's own permanent (``parent``) and the objects it targets as
@@ -340,6 +346,46 @@ class ObjectEvent:
         return frozenset(out)
 
 
+#: The legal actions recorded (``Offer.kind``): a cast, an activation, an
+#: Adventure's cast or a modal double-faced card's back face's play. Not mana
+#: abilities, land plays or special actions.
+_OFFER_KINDS = frozenset({"Cast", "Activate", "CastAdventure", "PlayMDFC"})
+
+
+class Offer(NamedTuple):
+    """A legal action Arena listed for a player (a game state's ``actions``),
+    the first time it listed it with that cost: an action is listed again at
+    every priority."""
+
+    game: tuple[str, int]
+    turn: int | None
+    message: int
+    seat: int | None
+    #: ``Cast`` / ``Activate`` / ``CastAdventure`` / ``PlayMDFC``.
+    kind: str
+    instance: int | None
+    #: The object's card as logged then.
+    grpid: int | None
+    object_kind: str
+    #: The object's zone (Arena's ``ZoneType`` name).
+    zone: str | None
+    #: ``abilityGrpId``: the ability activated, or the one a cast is by.
+    ability: int | None
+    #: ``alternativeGrpId``: the ability an alternative cast is (flashback's).
+    alternative: int | None
+    #: ``sourceId``: the object whose ability offers the alternative.
+    source: int | None
+    #: ``manaCost``: each entry's colors (``Generic``, ``White``, ``X``, two for
+    #: a hybrid) and count.
+    mana: tuple[tuple[tuple[str, ...], int], ...]
+    #: The object as logged then, and the battlefield then.
+    facts: Permanent | None
+    permanents: tuple[Permanent, ...]
+    #: Whether Arena marks the object's cost modified then (a persistent
+    #: ``ModifiedCost`` annotation names it).
+    modified_cost: bool = False
+
+
 class Logs(NamedTuple):
     """Everything :func:`read_logs` reads, each game once."""
 
@@ -348,6 +394,11 @@ class Logs(NamedTuple):
     games: list[tuple[str, int]]
     events: list[ObjectEvent]
     instances: tuple[InstanceLog, ...] = ()
+    offers: tuple[Offer, ...] = ()
+    #: game → the seats Arena asked for actions in its log: the log's player
+    local: dict[tuple[str, int], frozenset[int]] = {}  # noqa: RUF012
+    #: game → the first turn its log shows
+    first_turns: dict[tuple[str, int], int] = {}  # noqa: RUF012
 
 
 def num(details: dict, key: str, default: int | None = 0) -> int | None:
@@ -447,8 +498,12 @@ def _lines(path: Path) -> Iterator[str]:
         yield from handle
 
 
-def _messages(lines: Iterable[str]) -> Iterator[dict]:
-    """Each ``gameStateMessage`` in the log, in order."""
+def _messages(
+    lines: Iterable[str], local: Callable[[Iterable[int]], None] | None = None
+) -> Iterator[dict]:
+    """Each ``gameStateMessage`` in the log, in order. ``local`` is told the
+    seats Arena asks for an action (``ActionsAvailableReq``'s
+    ``systemSeatIds``, sent only to that player): the log's own player's."""
     for line in lines:
         if "greToClientEvent" not in line:
             continue
@@ -457,9 +512,15 @@ def _messages(lines: Iterable[str]) -> Iterator[dict]:
         except ValueError:
             continue
         for msg in (event.get("greToClientEvent") or {}).get("greToClientMessages", []):
+            if local is not None and msg.get("type") == _ASKS_FOR_ACTION:
+                local(msg.get("systemSeatIds") or ())
             state = msg.get("gameStateMessage")
             if state:
                 yield state
+
+
+#: The message Arena asks a player to act with: sent only to that player.
+_ASKS_FOR_ACTION = "GREMessageType_ActionsAvailableReq"
 
 
 def read_logs(paths: Iterable[Path]) -> Logs:
@@ -475,6 +536,9 @@ def read_logs(paths: Iterable[Path]) -> Logs:
         list(seen),
         reader.events,
         tuple(reader.instances),
+        tuple(reader.offers),
+        dict(reader.local),
+        dict(reader.first_turns),
     )
 
 
@@ -532,6 +596,10 @@ def _changes_board(ann: dict, zones: dict) -> bool:
     return bool(BOARD_ANNOTATIONS & set(types))
 
 
+def _mana_colors(colors: Iterable[str]) -> tuple[str, ...]:
+    return tuple(sorted(c.removeprefix("ManaColor_") for c in colors))
+
+
 def _permanent(i: int, o: dict) -> Permanent:
     return Permanent(
         i,
@@ -577,6 +645,11 @@ class _Reader:
         self.holder_grps: dict[int, str] = {}
         self.events: list[ObjectEvent] = []
         self.instances: list[InstanceLog] = []
+        self.offers: list[Offer] = []
+        #: game → the seats Arena asked for actions in its log (the local player)
+        self.local: dict[tuple[str, int], frozenset[int]] = {}
+        #: game → the first turn its log shows (a log can begin mid-game)
+        self.first_turns: dict[tuple[str, int], int] = {}
         #: The object events whose turn hasn't ended.
         self.open_events: list[_OpenEvent] = []
 
@@ -585,7 +658,14 @@ class _Reader:
         skip = False
         self._reset()
         self.seats: set[int] = set()
-        for state in _messages(_lines(path)):
+
+        def asked(seats: Iterable[int]) -> None:
+            if self.game is not None and not skip:
+                self.local[self.game] = self.local.get(self.game, frozenset()) | set(
+                    seats
+                )
+
+        for state in _messages(_lines(path), asked):
             info = state.get("gameInfo") or {}
             if info.get("matchID"):
                 key = (info["matchID"], info.get("gameNumber", 1))
@@ -629,6 +709,10 @@ class _Reader:
         self.before_objs: dict[int, dict] = {}
         self.before_zones: dict[int, list[int]] = {}
         self.board_changes: list[int] = []
+        #: the legal actions recorded this game (:meth:`_offers`)
+        self.offered: set[tuple] = set()
+        #: the persistent annotations in force, by id
+        self.persistent: dict[int, dict] = {}
         self.recent: collections.deque[list[dict]] = collections.deque(maxlen=_LOOKBACK)
         self.turn: int | None = None
 
@@ -703,7 +787,13 @@ class _Reader:
             if self.combat[o["instanceId"]][0] not in _ATTACKING:
                 self.entered_attacking.discard(o["instanceId"])
             declared += _declarations(o, before, self.combat[o["instanceId"]])
+        for gone in state.get("diffDeletedPersistentAnnotationIds") or ():
+            self.persistent.pop(gone, None)
+        turn_number = (state.get("turnInfo") or {}).get("turnNumber")
+        if turn_number is not None:
+            self.first_turns.setdefault(game, turn_number)
         for ann in state.get("persistentAnnotations", []):
+            self.persistent[ann.get("id", 0)] = ann
             if "TriggeringObject" in _types(ann) and ann.get("affectedIds"):
                 self.triggered_by[ann.get("affectorId")] = ann["affectedIds"][0]
             if "TargetSpec" in _types(ann):
@@ -748,6 +838,7 @@ class _Reader:
         # a resync's repeats are read once (the move and resolution records)
         fresh = self._fresh(anns)
         self._object_events(fresh, declared, turn, game)
+        self._offers(state.get("actions") or (), turn, game)
         open_: dict | None = None
         #: the ids of this message's annotations that change the battlefield
         self.board_changes = [
@@ -830,6 +921,74 @@ class _Reader:
             for i in ids
             if (o := self.objs.get(i)) and o["type"] == "Card"
         ]
+
+    def _offers(
+        self, actions: Iterable[dict], turn: int | None, game: tuple[str, int]
+    ) -> None:
+        """Record each legal action Arena lists (``actions``) the first time
+        it is listed in the game with that cost: an action is listed again at
+        every priority, so a row per (seat, action, object's card, ability,
+        alternative, cost) is enough."""
+        for entry in actions:
+            act = entry.get("action") or {}
+            kind = str(act.get("actionType", "")).removeprefix("ActionType_")
+            if kind not in _OFFER_KINDS:
+                continue
+            obj = self.objs.get(act.get("instanceId")) or {}
+            mana = tuple(
+                (_mana_colors(m.get("color", ())), m.get("count", 1))
+                for m in act.get("manaCost") or ()
+            )
+            key = (
+                game,
+                entry.get("seatId"),
+                kind,
+                obj.get("grpId"),
+                act.get("abilityGrpId"),
+                act.get("alternativeGrpId"),
+                mana,
+            )
+            if key in self.offered:
+                continue
+            self.offered.add(key)
+            zone = next(
+                (
+                    self.zones.get(z, ("",))[0]
+                    for z, ids in self.zone_ids.items()
+                    if act.get("instanceId") in ids
+                ),
+                None,
+            )
+            self.offers.append(
+                Offer(
+                    game=game,
+                    turn=turn,
+                    message=self.message_count,
+                    seat=entry.get("seatId"),
+                    kind=kind,
+                    instance=act.get("instanceId"),
+                    grpid=obj.get("grpId"),
+                    object_kind=obj.get("type", ""),
+                    zone=zone,
+                    ability=act.get("abilityGrpId"),
+                    alternative=act.get("alternativeGrpId"),
+                    source=act.get("sourceId"),
+                    mana=mana,
+                    facts=_permanent(act.get("instanceId") or 0, obj) if obj else None,
+                    permanents=tuple(
+                        _permanent(i, self.objs[i])
+                        for z, ids in self.zone_ids.items()
+                        if self.zones.get(z, ("",))[0] == "Battlefield"
+                        for i in ids
+                        if i in self.objs and self.objs[i]["type"] in ("Card", "Token")
+                    ),
+                    modified_cost=any(
+                        act.get("instanceId") in a.get("affectedIds", ())
+                        for a in self.persistent.values()
+                        if "ModifiedCost" in _types(a)
+                    ),
+                )
+            )
 
     def _object_events(
         self,
@@ -1079,6 +1238,7 @@ class _Reader:
         ]
         start = ann.get("id", 0)
         return {
+            "message": self.message_count,
             "start_id": ann.get("id", 0),
             "instance": inst,
             "grpid": num(_details(ann), "grpid", None),

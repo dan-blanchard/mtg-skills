@@ -10,7 +10,8 @@ its reason.
 Rows, one per resolution, fired trigger or expected trigger, each with a
 ``status``. A resolution's strict checks include its counted amounts
 (``amounts``) and what its continuous effects did (``continuous``), with the
-reasons any went unchecked (``count_unchecked``, ``continuous_unchecked``):
+reasons any went unchecked (``count_unchecked``, ``continuous_unchecked``).
+The legal actions Arena listed are a section of their own (``costs``):
 
 * resolutions: ``agree`` / ``conditional`` (an effect that may not happen didn't) /
   ``phase-extra`` / ``arena-extra`` (see ``effects``), or why it wasn't scored:
@@ -73,6 +74,7 @@ from mtg_utils._arena_crosscheck.align import (
 )
 from mtg_utils._arena_crosscheck.amounts import CountBoard
 from mtg_utils._arena_crosscheck.continuous import continuous_checks
+from mtg_utils._arena_crosscheck.costs import CostChecker
 from mtg_utils._arena_crosscheck.effects import (
     Board,
     arena_kinds,
@@ -86,6 +88,7 @@ from mtg_utils._arena_crosscheck.log import (
     BoardObject,
     Instance,
     InstanceLog,
+    Logs,
     ObjectEvent,
     Resolution,
     TriggerFired,
@@ -747,6 +750,36 @@ class Checker:
             )
         return self._suppression[name]
 
+    # -- costs in the legal-action lists -------------------------------------
+    def costs(self, logs: Logs) -> list[dict]:
+        """The costs check's rows (``costs.CostChecker``)."""
+        checker = CostChecker(self.text, self._card_of, self._trees_of, self._named)
+        rows = checker.rows(
+            logs.offers, logs.local, logs.events, logs.resolutions, logs.first_turns
+        )
+        self.never_offered = checker.never_offered
+        return rows
+
+    def _named(self, name: str) -> Sequence[PhaseAbility] | None:
+        """Phase's abilities of the card ``name`` (``None`` with no parse)."""
+        if name not in self._parsed:
+            record = self._card_of(name)
+            trees = self._trees_of(record) if record else ()
+            self._parsed[name] = (
+                _Parsed(
+                    tuple(abilities_of(trees)),
+                    frozenset(kw.lower() for t in trees for kw in t.card_keywords)
+                    | frozenset().union(*(own_keyword_bodies(t) for t in trees)),
+                    frozenset(
+                        kw.lower() for kw in (record or {}).get("keywords") or ()
+                    ),
+                )
+                if trees
+                else None
+            )
+        found = self._parsed[name]
+        return found.abilities if found else None
+
     # -- triggers watching other objects ------------------------------------
     def watched(
         self, events: Sequence[ObjectEvent], instances: Sequence[InstanceLog]
@@ -1273,4 +1306,6 @@ def crosscheck(paths: Iterable[Path], checker: Checker, phase_tag: str) -> dict:
         phase_tag,
         expected=checker.expected(logs.events),
         watched=checker.watched(logs.events, logs.instances),
+        costs=checker.costs(logs),
+        never_offered=dict(checker.never_offered),
     )

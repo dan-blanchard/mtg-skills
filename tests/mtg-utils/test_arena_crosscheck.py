@@ -3722,3 +3722,482 @@ def test_a_granted_keyword_arriving_as_a_counter(card_db, tmp_path):
     game = _continuous_game(card_db, "Jump", {300: (FLYING,)}, extra=[counter])
     (check,) = _check(_continuous(card_db, tmp_path, game), "keyword grant")
     assert check["ok"]
+
+
+# -- costs in Arena's legal-action lists -----------------------------------------
+COMMAND = 26
+
+
+def _mana(*symbols: str) -> list[dict]:
+    """Arena's ``manaCost`` for ``"2"``, ``"R"`` … (one entry per symbol)."""
+    colors = {"W": "White", "U": "Blue", "B": "Black", "R": "Red", "G": "Green"}
+    out = []
+    for sym in symbols:
+        if sym.isdigit():
+            out.append({"color": ["ManaColor_Generic"], "count": int(sym)})
+        else:
+            out.append({"color": [f"ManaColor_{colors[sym]}"], "count": 1})
+    return out
+
+
+def _offer(instance: int, kind: str = "Cast", seat: int = 1, **action) -> dict:
+    return {
+        "seatId": seat,
+        "action": {
+            "actionType": f"ActionType_{kind}",
+            "instanceId": instance,
+            **action,
+        },
+    }
+
+
+def _write_offers(path: Path, states: list[dict], local: int = 1) -> Path:
+    """``states`` with an ``ActionsAvailableReq`` to seat ``local`` after the
+    first: the log's own player."""
+    lines = []
+    for n, s in enumerate(states):
+        msgs = [{"type": "GREMessageType_GameStateMessage", "gameStateMessage": s}]
+        if n == 0:
+            msgs.append(
+                {
+                    "type": "GREMessageType_ActionsAvailableReq",
+                    "systemSeatIds": [local],
+                    "actionsAvailableReq": {"actions": []},
+                }
+            )
+        lines.append(
+            "[UnityCrossThreadLogger]"
+            + json.dumps({"greToClientEvent": {"greToClientMessages": msgs}})
+        )
+    path.write_text("\n".join(["Initialize engine", *lines]) + "\n")
+    return path
+
+
+def _cost_game(
+    card_db: Path,
+    name: str,
+    cost: list[dict],
+    *,
+    zone: int = HAND,
+    board: tuple[tuple[str, int], ...] = (),
+    types=("Instant",),
+    seat: int = 1,
+    repeat: bool = False,
+    **action,
+) -> list[dict]:
+    """``name`` (object 150, in ``zone``) offered to cast for ``cost``, with
+    ``board`` (card name, seat) on the battlefield."""
+    grp = 4101 + 0
+    _add_card(card_db, 3990, test_card(name)["name"])
+    objs = [_obj(150, 3990, types=types)]
+    ids = []
+    for n, (other, controller) in enumerate(board):
+        _add_card(card_db, 3992 + n, test_card(other)["name"])
+        objs.append(_obj(400 + n, 3992 + n, types=("Creature",), controller=controller))
+        ids.append(400 + n)
+    first = _state("x1", objs, first=True)
+    zones = _zones(battlefield=ids)
+    for z in zones:
+        if z["zoneId"] == zone:
+            z["objectInstanceIds"] = [150]
+    if zone == COMMAND:
+        zones.append(
+            {"zoneId": COMMAND, "type": "ZoneType_Command", "objectInstanceIds": [150]}
+        )
+    first["zones"] = zones
+    first["actions"] = [_offer(150, manaCost=cost, seat=seat, **action)]
+    states = [first]
+    if repeat:
+        again = _state("x1")
+        again["actions"] = first["actions"]
+        states.append(again)
+    del grp
+    return states
+
+
+def _costs(
+    card_db: Path, tmp_path: Path, states: list[dict], name="a.log"
+) -> list[dict]:
+    return _run(card_db, _write_offers(tmp_path / name, states))["costs"]
+
+
+@pytest.mark.parametrize(
+    ("cost", "status"), [(("R",), "agree"), (("1", "R"), "cost-mismatch")]
+)
+def test_a_spell_cost_against_the_printed_one(card_db, tmp_path, cost, status):
+    (row,) = _costs(
+        card_db, tmp_path, _cost_game(card_db, "Lightning Bolt", _mana(*cost))
+    )
+    assert (row["kind"], row["status"], row["phase_cost"]) == (
+        "spell cost",
+        status,
+        "{R}",
+    )
+
+
+def test_an_action_listed_again_is_one_row(card_db, tmp_path):
+    game = _cost_game(card_db, "Lightning Bolt", _mana("R"), repeat=True)
+    assert len(_costs(card_db, tmp_path, game)) == 1
+
+
+def test_another_players_actions_are_not_scored(card_db, tmp_path):
+    game = _cost_game(card_db, "Lightning Bolt", _mana("R"), seat=2)
+    assert _costs(card_db, tmp_path, game) == []
+
+
+@pytest.mark.parametrize(
+    ("board", "cost", "status"),
+    [
+        # Thalia, Guardian of Thraben: "Noncreature spells cost {1} more"
+        ((("Thalia, Guardian of Thraben", 2),), ("1", "R"), "agree"),
+        # Goblin Electromancer's "Instant and sorcery spells you cast cost {1}
+        # less": only its controller's; no generic in {R} to take
+        ((("Goblin Electromancer", 2),), ("R",), "agree"),
+    ],
+)
+def test_a_cost_change_of_a_permanent(card_db, tmp_path, board, cost, status):
+    game = _cost_game(card_db, "Lightning Bolt", _mana(*cost), board=board)
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == status
+
+
+def test_a_cost_change_whose_spell_filter_rules_it_out(card_db, tmp_path):
+    """Thalia raises noncreature spells only: Grizzly Bears costs {1}{G}."""
+    game = _cost_game(
+        card_db,
+        "Grizzly Bears",
+        _mana("1", "G"),
+        board=(("Thalia, Guardian of Thraben", 2),),
+        types=("Creature",),
+    )
+    (row,) = _costs(card_db, tmp_path, game)
+    assert (row["status"], row["changed_by"]) == ("agree", [])
+    # and a {1} more is then no change Thalia explains
+    game = _cost_game(
+        card_db,
+        "Grizzly Bears",
+        _mana("2", "G"),
+        board=(("Thalia, Guardian of Thraben", 2),),
+        types=("Creature",),
+    )
+    (row,) = _costs(card_db, tmp_path, game, "b.log")
+    assert row["status"] == "cost-mismatch"
+
+
+def test_a_reduction_for_a_spell_you_cast_only(card_db, tmp_path):
+    """Goblin Electromancer's reduction is its controller's: Divination cast
+    by seat 1 beside seat 1's Electromancer costs {1}{U}, beside seat 2's
+    {2}{U}."""
+    for log, controller, cost in (("a.log", 1, ("1", "U")), ("b.log", 2, ("2", "U"))):
+        game = _cost_game(
+            card_db,
+            "Divination",
+            _mana(*cost),
+            board=(("Goblin Electromancer", controller),),
+            types=("Sorcery",),
+        )
+        (row,) = _costs(card_db, tmp_path, game, log)
+        assert row["status"] == "agree", row
+
+
+def test_commander_tax(card_db, tmp_path):
+    """A commander cast from the command zone costs {2} more for each earlier
+    cast from there (CR 903.8)."""
+    game = _cost_game(
+        card_db, "Grizzly Bears", _mana("3", "G"), zone=COMMAND, types=("Creature",)
+    )
+    (row,) = _costs(card_db, tmp_path, game, "c.log")
+    # the log begins on turn 3: the casts before it may be missing
+    assert row["status"] == "tax-unknown"
+    game[0]["turnInfo"] = {"turnNumber": 1}
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == "cost-mismatch"  # no earlier cast: {1}{G}
+    cast = _ann(
+        10,
+        "ZoneTransfer",
+        None,
+        [150],
+        zone_src=COMMAND,
+        zone_dest=STACK,
+        category="CastSpell",
+    )
+    earlier = _state("x1", [_obj(150, 3990, types=("Creature",))], [cast])
+    earlier["zones"] = [
+        {"zoneId": COMMAND, "type": "ZoneType_Command", "objectInstanceIds": []}
+    ]
+    back = _state("x1")
+    back["zones"] = [
+        {"zoneId": COMMAND, "type": "ZoneType_Command", "objectInstanceIds": [150]}
+    ]
+    back["actions"] = game[0].pop("actions")
+    (row,) = _costs(card_db, tmp_path, [game[0], earlier, back], "b.log")
+    assert (row["status"], row["tax"], row["phase_cost"]) == ("agree", 2, "{3}{G}")
+
+
+@pytest.mark.parametrize(
+    ("name", "cost", "status"),
+    [
+        # Titanic Brawl: "costs {1} less to cast if it targets a creature you
+        # control …": a condition the log can't show
+        ("Titanic Brawl", ("2", "G"), "cost-modified"),
+        # Frogmite's affinity for artifacts (CR 702.41a)
+        ("Frogmite", ("2",), "cost-modified"),
+    ],
+)
+def test_a_cost_change_this_read_cannot_evaluate(card_db, tmp_path, name, cost, status):
+    game = _cost_game(card_db, name, _mana(*cost))
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == status
+
+
+def test_an_unparsed_permanent_may_change_a_cost(card_db, tmp_path):
+    _add_card(card_db, 3999, "Unknown Fictional Reducer")
+    game = _cost_game(card_db, "Lightning Bolt", _mana("1", "R"))
+    game[0]["gameObjects"].append(_obj(450, 3999, types=("Creature",)))
+    game[0]["zones"] = _zones(battlefield=[450])
+    for z in game[0]["zones"]:
+        if z["zoneId"] == HAND:
+            z["objectInstanceIds"] = [150]
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == "unparsed-source"
+
+
+def test_a_cast_another_objects_permission_offers(card_db, tmp_path):
+    """Cast by another object's permission (``sourceId``; "mana of any type
+    can be spent"): what it costs may be the permission's."""
+    game = _cost_game(
+        card_db, "Lightning Bolt", _mana("2"), sourceId=999, abilityGrpId=4998
+    )
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == "permission"
+
+
+@pytest.mark.parametrize(
+    ("cost", "status"), [(("B",), "agree"), (("1", "B"), "cost-mismatch")]
+)
+def test_an_ability_cost(card_db, tmp_path, cost, status):
+    """Abyssal Hunter's "{B}, {T}: Tap target creature …"."""
+    ability = 4993
+    _add_ability(
+        card_db,
+        ability,
+        _arena_text("Abyssal Hunter").splitlines()[0],
+        category=ACTIVATED,
+    )
+    game = _cost_game(
+        card_db,
+        "Abyssal Hunter",
+        _mana(*cost),
+        kind="Activate",
+        abilityGrpId=ability,
+        types=("Creature",),
+    )
+    (row,) = _costs(card_db, tmp_path, game)
+    assert (row["kind"], row["status"], row["phase_cost"]) == (
+        "ability cost",
+        status,
+        "{B}",
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "keyword", "cost", "status"),
+    [
+        # Artful Dodge: "Flashback {U}"
+        ("Artful Dodge", "Flashback", ("U",), "agree"),
+        ("Artful Dodge", "Flashback", ("1", "U"), "cost-mismatch"),
+        # an alternative by a keyword phase reads none of
+        ("Artful Dodge", "Escape", ("U",), "alternative-unknown"),
+        # by no keyword ("Cast without paying mana cost")
+        ("Artful Dodge", None, (), "unkeyed-alternative"),
+    ],
+)
+def test_an_alternative_cast(card_db, tmp_path, name, keyword, cost, status):
+    alt = 4994
+    _add_ability(
+        card_db,
+        alt,
+        f"{keyword or 'Cast without paying mana cost'}",
+        category=3,
+        keyword=keyword,
+    )
+    game = _cost_game(card_db, name, _mana(*cost), zone=GRAVEYARD, alternativeGrpId=alt)
+    (row,) = _costs(card_db, tmp_path, game)
+    assert (row["kind"], row["status"]) == ("alternative", status)
+
+
+def test_an_alternative_never_offered_is_counted(card_db, tmp_path):
+    """Artful Dodge offered from hand, its flashback not: a moment the
+    alternative may not be allowed, so a count, never a finding."""
+    report = _run(
+        card_db,
+        _write_offers(
+            tmp_path / "a.log", _cost_game(card_db, "Artful Dodge", _mana("U"))
+        ),
+    )
+    assert report["summary"]["costs_never_offered"] == {"flashback": 1}
+
+
+def test_a_cost_rows_key_survives_a_parse_change():
+    """Keyed by what Arena offered: a row dropped moves no other row's key."""
+
+    def row(card: str, status: str) -> dict:
+        return {
+            "game": ["m", 1],
+            "kind": "spell cost",
+            "card": card,
+            "arena_cost": "{R}",
+            "status": status,
+        }
+
+    def report(*rows: dict) -> dict:
+        return build_report([], [], [("m", 1)], "vtest", costs=rows)
+
+    before = report(row("Lightning Bolt", "agree"), row("Shock", "cost-mismatch"))
+    assert diff_reports(before, report(row("Shock", "cost-mismatch"))) == []
+    (change,) = diff_reports(before, report(row("Shock", "agree")))
+    assert (change["section"], change["card"]) == ("costs", "Shock")
+
+
+@pytest.mark.parametrize(("legends", "status"), [(1, "agree"), (0, "cost-mismatch")])
+def test_an_ability_reduction_counted_on_the_board(card_db, tmp_path, legends, status):
+    """Takenuma, Abandoned Mire's channel "costs {1} less to activate for each
+    legendary creature you control" (CR 602.2b), counted on the board the
+    action is listed with: {2}{B} beside one legend."""
+    ability = 4995
+    text = _arena_text("Takenuma, Abandoned Mire").splitlines()[1]
+    _add_ability(card_db, ability, text, category=ACTIVATED)
+    board = (("Thalia, Guardian of Thraben", 1),) if legends else ()
+    game = _cost_game(
+        card_db,
+        "Takenuma, Abandoned Mire",
+        _mana("2", "B"),
+        kind="Activate",
+        abilityGrpId=ability,
+        types=("Land",),
+        board=board,
+    )
+    for obj in game[0]["gameObjects"][1:]:
+        obj["superTypes"] = ["SuperType_Legendary"]
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == status
+
+
+def test_a_symbol_this_read_does_not_compare():
+    from mtg_utils._arena_crosscheck.costs import arena_cost, printed_cost
+
+    assert printed_cost("{W/P}") is None
+    assert printed_cost("{2}{R/G}") == arena_cost(
+        [(("Generic",), 2), (("Green", "Red"), 1)]
+    )
+    assert arena_cost([(("Phyrexian",), 1)]) is None
+
+
+def test_a_rebalanced_cards_cost(card_db, tmp_path):
+    """A rebalanced (A-) card: Arena prices it its own way."""
+    con = sqlite3.connect(card_db)
+    con.execute("INSERT INTO Localizations_enUS VALUES (3988, 0, 'A-Lightning Bolt')")
+    con.execute("INSERT INTO Cards VALUES (3988, 3988, 1, 1, 0)")
+    con.commit()
+    con.close()
+    game = _cost_game(card_db, "Lightning Bolt", _mana("1", "R"))
+    game[0]["gameObjects"][0]["grpId"] = 3988
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == "rebalanced"
+
+
+def test_a_cost_arena_marks_modified(card_db, tmp_path):
+    """A persistent ``ModifiedCost`` annotation on the object."""
+    game = _cost_game(card_db, "Lightning Bolt", _mana("1", "R"))
+    game[0]["persistentAnnotations"] = [_ann(70, "ModifiedCost", 150, [150])]
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == "cost-modified"
+    # once Arena deletes it, nothing marks the cost
+    later = _state("x1")
+    later["diffDeletedPersistentAnnotationIds"] = [70]
+    later["actions"] = game[0].pop("actions")
+    (row,) = _costs(card_db, tmp_path, [game[0], later], "b.log")
+    assert row["status"] == "cost-mismatch"
+
+
+@pytest.mark.parametrize(
+    ("source", "status"),
+    [
+        # Invasion of the Giants' chapter III: "The next Giant spell you cast
+        # this turn costs {2} less to cast" (phase's ReduceNextSpellCost)
+        ("Invasion of the Giants", "earlier-reduction"),
+        # an earlier resolution that makes no discount: still the finding
+        ("Lightning Bolt", "cost-mismatch"),
+    ],
+)
+def test_a_cheaper_cost_after_a_discount_that_turn(card_db, tmp_path, source, status):
+    """Divination for {1}{U}, below its printed {2}{U}, after its player
+    resolved something earlier that turn: a one-shot "the next spell costs
+    less" this read doesn't follow, only when what resolved may make one."""
+    game = _cost_game(card_db, "Divination", _mana("1", "U"), types=("Sorcery",))
+    saga, chapter = 3989, 4989
+    _add_card(card_db, saga, test_card(source)["name"])
+    text = _arena_text(source).splitlines()[-1].split(" — ", 1)[-1]
+    _add_ability(card_db, chapter, text)
+    obj = (
+        _ability_obj(160, chapter, saga, None)
+        if source != "Lightning Bolt"
+        else _obj(160, saga)
+    )
+    grp = chapter if source != "Lightning Bolt" else saga
+    resolved = _state(
+        "x1",
+        [obj],
+        [
+            _ann(1, "ResolutionStart", 160, [160], grpid=grp),
+            _ann(2, "ResolutionComplete", 160, [160], grpid=grp),
+        ],
+    )
+    later = _state("x1")
+    later["actions"] = game[0].pop("actions")
+    (row,) = _costs(card_db, tmp_path, [game[0], resolved, later])
+    assert row["status"] == status
+
+
+def test_what_makes_a_one_shot_discount():
+    from mtg_utils._card_ir.crosswalk import next_spell_discount
+
+    found = {
+        next_spell_discount(a.unit.node)
+        for a in abilities_of(trees_for(_card_of("Invasion of the Giants")))
+        if a.unit
+    }
+    assert "typed" in found
+    bolt = abilities_of(trees_for(_card_of("Lightning Bolt")))
+    assert {next_spell_discount(a.unit.node) for a in bolt if a.unit} == {None}
+    # a clause phase parked may be one (Arwen, Mortal Queen's parked counters
+    # stand in for the shape: what it parks, the read can't see)
+    arwen = abilities_of(trees_for(_card_of("Arwen, Mortal Queen")))
+    assert "parked" in {next_spell_discount(a.unit.node) for a in arwen if a.unit}
+
+
+def test_an_alternative_whose_cost_is_not_compared(card_db, tmp_path):
+    """Arena lists no mana for the flashback: the alternative is on both
+    sides, its cost not compared."""
+    alt = 4996
+    _add_ability(card_db, alt, "Flashback", category=3, keyword="Flashback")
+    game = _cost_game(card_db, "Artful Dodge", [], zone=GRAVEYARD, alternativeGrpId=alt)
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == "kind-only"
+
+
+def test_an_ability_reduction_with_a_condition(card_db, tmp_path):
+    """Starport Security: "costs {2} less to activate if you control a creature
+    with a +1/+1 counter on it": the log shows no counters."""
+    ability = 4997
+    _add_ability(card_db, ability, _arena_text("Starport Security"), category=ACTIVATED)
+    game = _cost_game(
+        card_db,
+        "Starport Security",
+        _mana("1", "W"),
+        kind="Activate",
+        abilityGrpId=ability,
+        types=("Creature",),
+    )
+    (row,) = _costs(card_db, tmp_path, game)
+    assert row["status"] == "cost-modified"

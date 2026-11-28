@@ -70,6 +70,96 @@ Arena created.
   names no other player: "its controller draws a card" (a recipient read through
   another object) can be either side. An object's type is not checked when one of
   the effects that could have moved or damaged it takes an object of any type.
+- **Costs in Arena's legal-action lists** (`_arena_crosscheck.costs`; added
+  2026-11-27). The log's shape, from both sets: each game state carries
+  `actions`, a list of `{seatId, action}`; an action has `actionType`
+  (`Cast`, `Activate`, `Activate_Mana`, `Play`, `Special`, `CastAdventure`,
+  `PlayMDFC`), `instanceId` (the object, whose card the game state's objects
+  give), `abilityGrpId` (the ability activated, or a permission's ability),
+  `alternativeGrpId` and `alternativeSourceZcid` (an alternative way to cast:
+  its ability, whose `BaseId` names its keyword), `sourceId` (the object whose
+  ability offers it) and `manaCost` (entries of colors — `Generic`, a color,
+  `X`, two colors for a hybrid — and a count). `ActionsAvailableReq` messages
+  are sent only to the log's own player (`systemSeatIds`), with the same
+  actions plus `grpId`, `shouldStop`, `autoTapSolution` and
+  `manaPaymentOptions`; the read uses the game states' lists, filtered to the
+  seats `ActionsAvailableReq` asks in that game. The game states also list
+  another player's actions on their public objects (an activation of a
+  permanent, a cast from a graveyard), never on their hidden cards; those are
+  not scored. Trusted: `actionType`, the object, the ability ids and
+  `manaCost`; `autoTapSolution` and the payment options are how the client
+  would pay, not what it costs, and are not read. An action is listed again
+  at every priority, so each distinct (seat, action, object's card, ability,
+  alternative, cost) is one row per game (`log.Offer`), a cost that changed
+  with the board a new row. The checks (`check.Checker.costs`):
+  - **spell cost**: a cast's cost against the card's (a face's) printed mana
+    cost, plus commander tax (CR 903.8: {2} for each earlier cast from the
+    command zone this game, the log's cast moves), plus each fixed change phase
+    types that applies (CR 601.2f): a `ModifyCost` static of the card itself or
+    of a permanent on the battlefield, with no condition and no count, its
+    caster on the side the static names relative to its controller and its
+    spell filter matching the spell as logged (the strict `filter_admits`); a
+    reduction takes generic mana only, down to zero. A cast another object's
+    permission offers (its `sourceId`; Tinybones' "mana of any type can be
+    spent") is `permission`;
+  - **ability cost**: an activation's cost against the mana cost of the phase
+    ability it pairs with (`align.pair`), less the ability's own
+    `cost_reduction` when it has no condition and counts what the board shows
+    ("costs {1} less to activate for each legendary creature you control": a
+    channel land, CR 602.2b; `amounts.evaluate`);
+  - **alternative**: an alternative Arena offers by a keyword against phase's
+    alternative costs for the card (`ConceptTree.card_alt_costs`), and its mana
+    cost against phase's where both are mana alone, the same cost changes
+    applied; `agree` only when a cost was compared, `kind-only` when the
+    alternative is on both sides but one cost isn't mana alone or Arena lists
+    none (Group Project's "Flashback—Tap three untapped creatures").
+  A cost that differs is the finding (`cost-mismatch`, and
+  `alternative-unknown` for a keyed alternative phase lacks) only when nothing
+  the log can't show explains it; else the row says why (`costs.COST_STATUSES`):
+  `cost-modified` (a change phase types with a condition or a count this read
+  can't evaluate — Mystical Dispute's "if it targets a blue spell" — or a cost
+  keyword: affinity, undaunted, convoke, delve, improvise, assist, CR 702.41a,
+  702.125a, 702.51a, 702.66a, 702.126a, 702.132a), `unparsed-source` (a
+  permanent phase has no parse of is on the battlefield), `payment-choice` (a
+  Phyrexian or snow symbol), `permission`, `unpaired`, `unkeyed-alternative`
+  (an alternative by no keyword: a spell's own "rather than pay", or "Cast
+  without paying mana cost" another effect grants), `no-card`,
+  `no-phase-parse`, `rebalanced` (an A- card, which Arena prices its own way:
+  A-Teferi, Time Raveler), `tax-unknown` (a commander cast in a game whose log
+  begins after its first turn: earlier casts may be missing), and
+  `earlier-reduction` (Arena's price is phase's less something and its player
+  resolved earlier that turn an ability that may make a one-shot discount on a
+  later spell, `crosswalk.next_spell_discount`: phase's `ReduceNextSpellCost`
+  — Invasion of the Giants' chapter III, Peerless Samurai, 5 cards in the pool
+  with the clause — or a clause it parked on that ability, 9 more such as Will
+  Kenrith and Elminster; the ability Arena resolved, paired, or its card's when
+  it pairs with none). Any other earlier resolution guards nothing, so a
+  reduction phase drops stays a finding; the 4 cards that print the clause and
+  phase types otherwise (Sparks Ablaze, Stonehide Ancient) would read a false
+  finding, none in the logs. A persistent `ModifiedCost` annotation on the
+  object is `cost-modified` too, but it is no guard for those one-shot
+  reductions: its only four occurrences over both sets mark a Room's
+  unlock. Arena lists an action only while it is legal, so an
+  alternative phase has that Arena never offered is weak evidence (a
+  graveyard's flashback while the card is in hand, a timing): counted per
+  kind (`summary.costs_never_offered`), never a finding. Not read: land plays,
+  special actions, mana abilities, kicker and other additional costs (Arena
+  asks those as a casting-time option), Adventure and modal double-faced
+  casts (listed, not scored). Rows are keyed by the game, the kind, the card,
+  Arena's ability text and Arena's cost. Measured on 2026-11-27: archive and
+  live logs (47 games) spell cost 479 agree, 1 finding, 17 unchecked; ability
+  cost 43 agree, 8 unchecked; alternative 12 agree, 12 kind-only, 20
+  unchecked; never offered: 3 escape, 1 flashback; the corpus (95 games)
+  spell cost 652 agree, 21 unchecked; ability cost 62 agree, 9 unpaired;
+  alternative 15 agree, 2 kind-only, 4 unkeyed; never offered: 1 foretell. The one finding is a real phase
+  difference: Bilbo, Thief in the Night's "Spells you cast from anywhere other
+  than your hand cost {1} less to cast" phase parses with no zone limit, so a
+  spell cast from hand beside it (Emeritus of Ideation, {3}{U}{U}) reads
+  {2}{U}{U} where Arena charges the printed cost. Tool faults fixed before it
+  settled: a seat union across a log's games, an own reduction's spell filter
+  unread, alternatives without the board's changes, a channel reduction
+  unread, and a permission's cast scored as the card's. No existing row,
+  status or check moved.
 - **What a continuous effect did** (`_arena_crosscheck.continuous`; added
   2026-11-27). A resolution begins and completes in one message, and the reader
   keeps each object as the message found it and as it left it
