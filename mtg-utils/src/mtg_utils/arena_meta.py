@@ -4,13 +4,18 @@
     arena-meta --format competitive_brawl [--bo3] [--previous | --period ID]
                [--ranks platinum+] [--archetype NAME | --deck deck.json]
                [--collection PATH [--wildcards rare=4,...]] [--refresh] [--json]
-    arena-meta --from-json raw.json ...
+    arena-meta --from-json raw.json [--card-results-json bundle.json] ...
 
 Four reads over the queue's meta period: meta archetypes ranked by the Wilson lower
 bound on their win rate (Platinum and up by default, with a Mythic column), the field
 (each archetype's share of the matches), an archetype's core cards (``--archetype``,
 or the one ``--deck`` matches), and the published lists your collection can build
 within ``--wildcards``.
+
+With ``--deck`` on a Commander-family ladder it also prints each of the deck's cards
+with its measured results under that commander over the last three months
+(``_arena_meta.card_stats``): the win rate with the card in hand minus the win rate
+with it in the deck and never in hand. The tuner never reads these.
 
 Untapped's Premium data needs a signed-in session: ``--login`` opens a browser once
 to sign in; every later run reuses it headless. Snapshots are cached for 24 hours
@@ -24,8 +29,8 @@ from pathlib import Path
 
 import click
 
+from mtg_utils._arena_meta import card_stats, untapped
 from mtg_utils._arena_meta import meta as m
-from mtg_utils._arena_meta import untapped
 from mtg_utils._arena_meta.report import (
     TOP,
     build_report,
@@ -118,6 +123,13 @@ def _pool(bulk_data: Path | None) -> CardPool | None:
     default=None,
     help="Read a saved raw bundle instead of Untapped (offline / tests).",
 )
+@click.option(
+    "--card-results-json",
+    "card_results_json",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Read a saved card-results bundle instead of Untapped (offline / tests).",
+)
 @click.option("--json", "as_json", is_flag=True, help="Print JSON.")
 def main(
     *,
@@ -138,6 +150,7 @@ def main(
     bulk_data: Path | None,
     refresh: bool,
     from_json: Path | None,
+    card_results_json: Path | None,
     as_json: bool,
 ) -> None:
     """Report an Arena queue's meta from Untapped.gg."""
@@ -216,4 +229,53 @@ def main(
         wildcards=wildcards,
         top=top,
     )
+    report["card_results"] = _card_results(
+        event,
+        snap,
+        match,
+        deck,
+        ranks,
+        pool=pool,
+        refresh=refresh,
+        saved=card_results_json,
+        live=from_json is None and fmt.has_commander,
+    )
     click.echo(json.dumps(report, indent=2) if as_json else render_text(report))
+
+
+def _card_results(
+    event: str,
+    snap: m.Snapshot,
+    match: m.Match | None,
+    deck: dict | None,
+    ranks: tuple[str, ...],
+    *,
+    pool: CardPool | None,
+    refresh: bool,
+    saved: Path | None,
+    live: bool,
+) -> dict | None:
+    """The deck's cards with their measured results under its commander
+    (``_arena_meta.card_stats``), for a deck matched to a meta archetype on a
+    Commander-family ladder: from ``saved`` (a bundle on disk), else fetched when
+    ``live``. A fetch that fails is a note, never an error: the meta report stands."""
+    if deck is None or match is None or (saved is None and not live):
+        return None
+    try:
+        if saved is not None:
+            raw = json.loads(saved.read_text(encoding="utf-8"))
+        else:
+            raw = card_stats.load_card_stats(
+                event,
+                [match.archetype.id],
+                period_id=snap.period.get("id"),
+                refresh=refresh,
+                pool=pool,
+            )[match.archetype.id]
+    except untapped.MetaError as exc:
+        click.echo(f"Note: no card results ({exc})", err=True)
+        return None
+    section = card_stats.deck_card_results(
+        raw, m.deck_card_names(deck), ranks, skip=_lands(deck, pool)
+    )
+    return {"archetype": match.archetype.name, **section}

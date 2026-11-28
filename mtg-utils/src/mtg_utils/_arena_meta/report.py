@@ -206,4 +206,35 @@ def render_text(report: Mapping) -> str:
                 f"  {mark} {r['archetype']}: {_pct(r['winrate'])} over "
                 f"{r['matches']} — needs {need or 'nothing'}"
             )
+    if report.get("card_results"):
+        lines += ["", *render_card_results(report["card_results"])]
     return "\n".join(lines) + "\n"
+
+
+def render_card_results(section: Mapping) -> list[str]:
+    """The deck's cards with their measured results under its commander
+    (``card_stats.deck_card_results``): the lift against the commander's average
+    card, in points, with its standard error; the win rate with the card in hand;
+    and the games it was in hand."""
+    lines = [
+        (
+            f"## Card results under {section['archetype']} ({section['games']} "
+            "games, last 3 months)"
+        ),
+        (
+            "  win rate in hand minus not in hand, against the commander's average "
+            f"card ({100 * section['average_lift']:+.1f})"
+        ),
+        "  vs avg    ±   in hand   games",
+    ]
+    lines += [
+        (
+            f"  {100 * r['relative']:+6.1f} {100 * r['lift_se']:4.1f}   "
+            f"{_pct(r['in_hand_winrate']):>6}  {r['in_hand_games']:>6}  {r['name']}"
+            f"{'  (thin)' if r['thin'] else ''}"
+        )
+        for r in section["cards"]
+    ]
+    if section["missing"]:
+        lines.append(f"  no results: {', '.join(section['missing'])}")
+    return lines

@@ -116,3 +116,18 @@ takes the same `meta_archetype` as Tune; `deck-rank` takes `--medium` and `--met
 shares `deck_cli.meta_option` with `deck-tune`, and both resolve the medium as the hub
 does (`resolve_deck_medium`). The hub memoizes the context per deck, medium, choice and
 cached snapshot, so a Find keystroke costs a `stat`.
+
+**Amendment (2026-11-28): per-card results per commander, as a readout.** Untapped's
+"Card Data" page for a Commander-family queue reads
+`card_stats_commander_by_archetype_and_scope_v2/premium/<partition>` (the partition is
+`ALL` or a meta archetype's id), over the last three months. `_arena_meta/card_stats.py`
+fetches it through the same signed-in session, caches each bundle for 24 hours under
+`<cache>/untapped/card-stats/`, and reads each card's games and wins with the card in
+the deck, in hand, played, and never in hand. `arena-meta --deck` on such a queue prints
+the deck's cards with their lift (win rate in hand minus win rate in the deck and never
+in hand) and its standard error. The lift is shown against the commander's average card:
+a game that runs long shows its player more cards, so every card's raw lift sits below
+zero under a commander that wins early and above it under one that wins late. These are
+results of games people played. They are a readout and a yardstick for the tuner's
+proposals; the tuner and Find never read them (Dan's decision, 2026-11-28: the tuner
+picks cards by reading cards).
